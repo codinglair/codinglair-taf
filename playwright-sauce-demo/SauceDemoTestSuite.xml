@@ -1,0 +1,18 @@
+<suite name="Regression Suite">
+    <listeners>
+        <listener class-name="com.codinglair.taf.core.reporting.impl.allure.AllureListener"/>
+    </listeners>
+    <test name="SauceDemo Tests">
+        <parameter name="controllerClass" value="com.codinglair.taf.core.controller.impl.PlaywrightController"/>
+        <classes>
+            <class name="com.codinglair.taf.sauce.tests.functional.SauceDemoLoginTest"/>
+        </classes>
+    </test>
+
+    <!--<test name="Kafka Messaging Tests">
+        <parameter name="controllerClass" value="com.taf.kafka.KafkaController"/>
+        <classes>
+            <class name="com.taf.kafka.MessagingTest"/>
+        </classes>
+    </test>-->
+</suite>
