@@ -1,0 +1,19 @@
+<aspectj>
+    <aspects>
+        <!-- Reference your custom aspect here -->
+        <aspect name="com.codinglair.taf.core.aspect.reporting.ReportingAspect"/>
+        <aspect name="com.codinglair.taf.core.aspect.secret.SecretAspect"/>
+    </aspects>
+
+    <weaver options="-verbose -showWeaveInfo">
+        <!-- Include your project packages for weaving -->
+        <include within="com.taf..*"/>
+
+        <!-- EXCLUDE the aspects themselves to prevent double-weaving or circular dependencies -->
+        <exclude within="com.taf.common.aspects..*"/>
+
+        <!-- Optional: Exclude libraries that don't need weaving to improve startup time -->
+        <exclude within="io.qameta.allure..*"/>
+        <exclude within="org.jasypt..*"/>
+    </weaver>
+</aspectj>
