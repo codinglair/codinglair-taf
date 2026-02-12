@@ -7,10 +7,7 @@
 
     <weaver options="-verbose -showWeaveInfo">
         <!-- Include your project packages for weaving -->
-        <include within="com.taf..*"/>
-
-        <!-- EXCLUDE the aspects themselves to prevent double-weaving or circular dependencies -->
-        <exclude within="com.taf.common.aspects..*"/>
+        <include within="com.codinglair.taf..*"/>
 
         <!-- Optional: Exclude libraries that don't need weaving to improve startup time -->
         <exclude within="io.qameta.allure..*"/>

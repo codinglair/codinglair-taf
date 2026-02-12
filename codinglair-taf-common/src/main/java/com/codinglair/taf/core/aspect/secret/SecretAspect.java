@@ -9,7 +9,7 @@ import org.aspectj.lang.annotation.Aspect;
 @Aspect
 public class SecretAspect {
 
-    @Around("@annotation(secret.annotation.com.codinglair.taf.core.Decrypt)")
+    @Around("@annotation(com.codinglair.taf.core.annotation.secret.Decrypt)")
     //@Around("execution(* com.taf..*.get*()) && @annotation(com.taf.common.annotations.Decrypt)")
     public Object handleDecryption(ProceedingJoinPoint joinPoint) throws Throwable {
         Object result = joinPoint.proceed();
