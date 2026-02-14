@@ -1,6 +1,8 @@
 package com.codinglair.taf.core.reporting.impl.allure;
 
 import com.codinglair.taf.core.environment.EnvironmentProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.text.DateFormat;
@@ -8,6 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ReportUtility {
+    private static final Logger logger = LoggerFactory.getLogger(ReportUtility.class);
 
     public static void generateAllureReport(EnvironmentProperties props) {
         // 1. Get Absolute Paths
@@ -46,12 +49,12 @@ public class ReportUtility {
                     boolean success = generatedFile.renameTo(renamedFile);
 
                     if (success) {
-                        System.out.println("✅ Report renamed to: " + renamedFile.getAbsolutePath());
+                        logger.info(String.format("✅ Report renamed to: %s", renamedFile.getAbsolutePath()));
                     }
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
     }
 }

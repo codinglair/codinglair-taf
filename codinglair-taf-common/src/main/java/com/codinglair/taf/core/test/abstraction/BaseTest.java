@@ -32,7 +32,7 @@ public abstract class BaseTest<T extends TestController, I, O> {
     private static SecretManager secretManager;
     protected SoftAssertions softAssert;
 
-    // --- THREAD-SPECIFIC STATE
+    // --- THREAD-SPECIFIC STATE FOR PARALLEL EXECUTIONS
     private static final ThreadLocal<TestController> controllerThreadLocal = new ThreadLocal<>();
     private static final ThreadLocal<TestReporter> reporterThreadLocal = new ThreadLocal<>();
     private static final ThreadLocal<TestContext<?, ?>> contextThreadLocal = new ThreadLocal<>();
@@ -54,12 +54,15 @@ public abstract class BaseTest<T extends TestController, I, O> {
         String contextClassName = AppConfigLoader.loadSubmoduleConfig("config/app.config")
                 .getProperty("TEST_CONTEXT_CLASS");
         context = TestContextFactory.createContext(contextClassName, envProps);
+
+        //Setting up for multi-assertion validations, to prevent a failure during any first assert
         softAssert = new SoftAssertions();
         softAssertThreadLocal.set(softAssert);
     }
 
     @BeforeMethod
     public void init(ITestContext testNgContext, Method method) {
+        //Retrievning test id from a functional TestNG test
         String testCaseId;
         if (method.isAnnotationPresent(TestCaseId.class)) {
             testCaseId = method.getAnnotation(TestCaseId.class).value();
@@ -70,27 +73,36 @@ public abstract class BaseTest<T extends TestController, I, O> {
         configTest(testNgContext, testCaseId);
     }
 
+    /**
+     * Common test setup, which can run for both TestNG functional tests
+     * and BDD tests.
+     *
+     * @param testNgContext
+     * @param id
+     */
     public void configTest(ITestContext testNgContext, String id) {
         String reporterClass = AppConfigLoader
                 .loadSubmoduleConfig("config/app.config")
                 .getProperty("REPORTER_CLASS");
         //Setting up Test Reporter
         reporter = ReporterFactory.create(reporterClass);
-        //Ensures safe parallel execution
         reporterThreadLocal.set(reporter);
+
         contextThreadLocal.set(context);
 
+        //Injecting additional environment properties from TestNG context.
         envProps.putEnvProperty("report_name", testNgContext.getName());
         //Injecting potential additional env parameters from the test suite.
         Map<String, String> allParams = testNgContext.getCurrentXmlTest().getAllParameters();
         enhanceEnvironment(allParams);
 
-        // Initialize Controller. Parameter name "controllerClass" must be present in test suite and specify the controller implementation.
-        String controllerClass = allParams.get("controllerClass");
+        // Initialize Controller. Parameter name "controllerClass" must be present either
+        // in test suite or in app.config and it must specify the controller implementation.
+        String controllerClass = getControllerClassName(allParams);
         this.controller = TestControllerFactory.create(controllerClass);
         controllerThreadLocal.set(controller);
 
-        // Pass the fully merged properties to the actor
+        // Pass the fully merged properties to the controller
         controllerThreadLocal.get().setup(envProps);
 
         // Get test case id from test method annotation.
@@ -110,6 +122,23 @@ public abstract class BaseTest<T extends TestController, I, O> {
                 envProps.putEnvProperty(cleanKey, value);
             }
         });
+    }
+
+    /**
+     * Attempts retrieving Controller impl class name either from TestNG suite or
+     * the app.config. Otherwise, throws IllegalStateException.
+     *
+     * @param testNGParams
+     * @return
+     */
+    private String getControllerClassName(Map<String, String> testNGParams) {
+        return java.util.Optional.ofNullable(testNGParams.get("controllerClass"))
+                .filter(str -> !str.isBlank())
+                .or(() -> java.util.Optional.ofNullable(
+                        AppConfigLoader.loadSubmoduleConfig("config/app.config")
+                                .getProperty("controllerClass")))
+                .filter(str -> !str.isBlank())
+                .orElseThrow(() -> new IllegalStateException("Controller class name could not be initialized from TestNG parameters or app.config."));
     }
 
     public T getController() {
@@ -196,20 +225,20 @@ public abstract class BaseTest<T extends TestController, I, O> {
 
     @AfterSuite(alwaysRun = true)
     public void tearDownSuite() {
-        // Use the global props initialized during the init phase
         ReportUtility.generateAllureReport(envProps);
     }
 
-    //BDD Hooks
+    //BDD Cucumber Hooks
     @Before(order = 0)
     public void setup(Scenario scenario) {
-        // 1. Retrieve the TestNG context dynamically
+        // Retrieve the TestNG context dynamically
         ITestContext testNgContext = org.testng.Reporter.getCurrentTestResult().getTestContext();
 
-        // 2. Resolve the ID (Check for a @TC- tag first, then fallback to Scenario Name)
+        // Resolve the test case ID (Expected format "@TestCaseId:TC-12345" tag
+        // If tag is missing, it's going to fallback to Scenario Name)
         String testCaseId = scenario.getSourceTagNames().stream()
-                .filter(tag -> tag.startsWith("@TC-"))
-                .map(tag -> tag.replace("@", ""))
+                .filter(tag -> tag.toLowerCase().startsWith("@testcaseid:"))
+                .map(tag -> tag.split(":")[1].trim())
                 .findFirst()
                 .orElse(scenario.getName());
 
