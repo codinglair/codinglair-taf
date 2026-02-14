@@ -12,6 +12,9 @@ import com.codinglair.taf.core.reporting.impl.allure.AllureListener;
 import com.codinglair.taf.core.reporting.impl.allure.ReportUtility;
 import com.codinglair.taf.core.utils.secret.abstraction.SecretManager;
 import com.codinglair.taf.core.utils.secret.factory.SecretManagerFactory;
+import io.cucumber.java.After;
+import io.cucumber.java.Before;
+import io.cucumber.java.Scenario;
 import org.assertj.core.api.SoftAssertions;
 import org.testng.ITestContext;
 import org.testng.annotations.*;
@@ -26,11 +29,15 @@ public abstract class BaseTest<T extends TestController, I, O> {
     protected TestReporter reporter;
     protected TestContext<?,?> context;
     protected static EnvironmentProperties envProps;
+    private static SecretManager secretManager;
+    protected SoftAssertions softAssert;
+
+    // --- THREAD-SPECIFIC STATE
+    private static final ThreadLocal<TestController> controllerThreadLocal = new ThreadLocal<>();
     private static final ThreadLocal<TestReporter> reporterThreadLocal = new ThreadLocal<>();
     private static final ThreadLocal<TestContext<?, ?>> contextThreadLocal = new ThreadLocal<>();
     private static final ThreadLocal<String> currentTestCaseId = new ThreadLocal<>();
-    private static SecretManager secretManager;
-    protected SoftAssertions softAssert;
+    private static final ThreadLocal<SoftAssertions> softAssertThreadLocal = new ThreadLocal<>();
 
     @BeforeSuite
     public void setUpSecretManager(){
@@ -48,10 +55,22 @@ public abstract class BaseTest<T extends TestController, I, O> {
                 .getProperty("TEST_CONTEXT_CLASS");
         context = TestContextFactory.createContext(contextClassName, envProps);
         softAssert = new SoftAssertions();
+        softAssertThreadLocal.set(softAssert);
     }
 
     @BeforeMethod
     public void init(ITestContext testNgContext, Method method) {
+        String testCaseId;
+        if (method.isAnnotationPresent(TestCaseId.class)) {
+            testCaseId = method.getAnnotation(TestCaseId.class).value();
+        } else {
+            // Optional: If no annotation found
+            testCaseId=method.getName();
+        }
+        configTest(testNgContext, testCaseId);
+    }
+
+    public void configTest(ITestContext testNgContext, String id) {
         String reporterClass = AppConfigLoader
                 .loadSubmoduleConfig("config/app.config")
                 .getProperty("REPORTER_CLASS");
@@ -69,12 +88,13 @@ public abstract class BaseTest<T extends TestController, I, O> {
         // Initialize Controller. Parameter name "controllerClass" must be present in test suite and specify the controller implementation.
         String controllerClass = allParams.get("controllerClass");
         this.controller = TestControllerFactory.create(controllerClass);
+        controllerThreadLocal.set(controller);
 
         // Pass the fully merged properties to the actor
-        this.controller.setup(envProps);
+        controllerThreadLocal.get().setup(envProps);
 
         // Get test case id from test method annotation.
-        setCurrentTestCaseId(method);
+        setCurrentTestCaseId(id);
     }
 
     /**
@@ -93,7 +113,7 @@ public abstract class BaseTest<T extends TestController, I, O> {
     }
 
     public T getController() {
-        return controller;
+        return (T) controllerThreadLocal.get();
     }
 
     //The reason for lazy initialization is for possible invocation outside TestNG suites.
@@ -121,23 +141,83 @@ public abstract class BaseTest<T extends TestController, I, O> {
         return currentTestCaseId.get();
     }
 
-    private void setCurrentTestCaseId(Method method) {
-        if (method.isAnnotationPresent(TestCaseId.class)) {
-            currentTestCaseId.set(method.getAnnotation(TestCaseId.class).value());
-        } else {
-            // Optional: If no annotation found
-            currentTestCaseId.set(method.getName());
+    private void setCurrentTestCaseId(String testCaseId) {
+        currentTestCaseId.set(testCaseId);
+    }
+
+    /**
+     * Clears all ThreadLocal variables to prevent memory leaks
+     * and state bleeding between parallel tests/scenarios.
+     */
+    protected void stopTest() {
+        // 1. Clear the Identity
+        if (currentTestCaseId != null) {
+            currentTestCaseId.remove();
+        }
+
+        // 2. Clear the Reporter
+        if (reporterThreadLocal != null) {
+            reporterThreadLocal.remove();
+        }
+
+        // 3. Clear the Context
+        if (contextThreadLocal != null) {
+            contextThreadLocal.remove();
+        }
+
+        // 4. Clear the Controller/Actor
+        if (controllerThreadLocal != null) {
+            controllerThreadLocal.remove();
+        }
+
+        // 5. Clear the Soft Assertions
+        if (softAssertThreadLocal != null) {
+            softAssertThreadLocal.remove();
         }
     }
+
+    private void concludeTest() {
+        try {
+            if (softAssertThreadLocal.get() != null) {
+                softAssertThreadLocal.get().assertAll();
+            }
+        } finally {
+            if (getController() != null) {
+                getController().teardown();
+            }
+            stopTest(); // Remove ThreadLocals
+        }
+    }
+
     @AfterMethod
     public void teardown() {
-        if (controller != null) controller.teardown();
-        softAssert.assertAll();
+        concludeTest();
     }
 
     @AfterSuite(alwaysRun = true)
     public void tearDownSuite() {
         // Use the global props initialized during the init phase
         ReportUtility.generateAllureReport(envProps);
+    }
+
+    //BDD Hooks
+    @Before(order = 0)
+    public void setup(Scenario scenario) {
+        // 1. Retrieve the TestNG context dynamically
+        ITestContext testNgContext = org.testng.Reporter.getCurrentTestResult().getTestContext();
+
+        // 2. Resolve the ID (Check for a @TC- tag first, then fallback to Scenario Name)
+        String testCaseId = scenario.getSourceTagNames().stream()
+                .filter(tag -> tag.startsWith("@TC-"))
+                .map(tag -> tag.replace("@", ""))
+                .findFirst()
+                .orElse(scenario.getName());
+
+        configTest(testNgContext, testCaseId);
+    }
+
+    @After(order = 0)
+    public void teardown(Scenario scenario) {
+        concludeTest();
     }
 }

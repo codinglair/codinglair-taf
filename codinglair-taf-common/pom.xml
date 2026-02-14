@@ -63,6 +63,28 @@
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-csv</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+        </dependency>
+
+        <!-- TestNG Bridge: Allows running Features as TestNG tests -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-testng</artifactId>
+        </dependency>
+
+        <!-- Allure-Cucumber Integration: Maps Gherkin steps to Allure report -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-cucumber7-jvm</artifactId>
+        </dependency>
+
+        <!-- Dependency Injection for sharing Context between Step Def classes -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-picocontainer</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

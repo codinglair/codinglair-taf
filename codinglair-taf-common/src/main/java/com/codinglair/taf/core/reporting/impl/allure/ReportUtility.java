@@ -54,18 +54,4 @@ public class ReportUtility {
             e.printStackTrace();
         }
     }
-
-/*        try {
-            System.out.println("Generating report from: " + resultsDir.getAbsolutePath());
-            Process process = pb.inheritIO().start();
-            int exitCode = process.waitFor();
-
-            if (exitCode == 0) {
-                System.out.println("✅ Report ready: " + reportDir.getAbsolutePath() + "/index.html");
-            } else {
-                System.err.println("❌ Allure CLI exited with code: " + exitCode);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }*/
-    }
+}
