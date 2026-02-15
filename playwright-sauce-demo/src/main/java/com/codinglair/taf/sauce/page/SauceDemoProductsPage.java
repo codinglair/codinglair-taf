@@ -1,5 +1,7 @@
 package com.codinglair.taf.sauce.page;
 
+import com.codinglair.taf.core.annotation.reporting.TafStep;
+import com.codinglair.taf.sauce.page.abstraction.SauceBasePage;
 import com.microsoft.playwright.Locator;
 import com.codinglair.taf.core.annotation.reporting.CaptureOutput;
 import com.codinglair.taf.core.controller.impl.PlaywrightController;
@@ -8,7 +10,7 @@ import com.codinglair.taf.sauce.data.ProductPojo;
 
 import java.util.List;
 
-public class SauceDemoProductsPage extends BasePage<PlaywrightController> {
+public class SauceDemoProductsPage extends SauceBasePage {
     private final String PAGE_TITLE_LOCATOR = "//span[@class='title'][@data-test='title']";
     private final String INVENTORY_ITEMS_LOCTOR = "//div[@class='inventory_item']";
     private final String INVENTORY_ITEM_PARTIAL = "//div[text()='%s']/ancestor::div[@class='inventory_item']";
@@ -46,6 +48,7 @@ public class SauceDemoProductsPage extends BasePage<PlaywrightController> {
                 .replace("$", "");
     }
 
+    @TafStep("Get Product Details")
     @CaptureOutput
     public ProductPojo getProductDetails(String productName) {
         ProductPojo actualProduct = new ProductPojo();

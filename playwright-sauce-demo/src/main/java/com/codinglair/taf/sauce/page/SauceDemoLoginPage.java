@@ -3,8 +3,9 @@ package com.codinglair.taf.sauce.page;
 import com.codinglair.taf.core.annotation.reporting.TafStep;
 import com.codinglair.taf.core.controller.impl.PlaywrightController;
 import com.codinglair.taf.core.ui.abstraction.BasePage;
+import com.codinglair.taf.sauce.page.abstraction.SauceBasePage;
 
-public class SauceDemoLoginPage extends BasePage<PlaywrightController> {
+public class SauceDemoLoginPage extends SauceBasePage {
     private final String USER_NAME_INPUT_LOCATOR = "#user-name";
     private final String PWD_INPUT_LOCATOR = "input#password";
     private final String LOGIN_BUTTON_LOCATOR = "input#login-button";
