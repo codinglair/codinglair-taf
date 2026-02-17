@@ -17,9 +17,17 @@ public class SauceDemoProductsPage extends SauceBasePage {
     private final String PRODUCT_NAME_LOCATOR = "div.inventory_item_name";
     private final String PRODUCT_DESC_LOCATOR = "div.inventory_item_desc";
     private final String PRODUCT_PRICE_LOCATOR = "div.inventory_item_price";
+    private final String REMOVE_BUTTONS_LOCATOR = "//div[@class='pricebar']/button[contains(., 'Remove')]";
+
+
 
     public SauceDemoProductsPage(PlaywrightController testController) {
         super(testController);
+    }
+
+    @Override
+    public boolean isActivePage() {
+        return testController.getPage().locator(PAGE_TITLE_LOCATOR).textContent().equals("Products");
     }
 
     public String getPageTitle(){
@@ -46,6 +54,20 @@ public class SauceDemoProductsPage extends SauceBasePage {
         return getInventoryItem(productName).locator(PRODUCT_PRICE_LOCATOR)
                 .textContent()
                 .replace("$", "");
+    }
+
+    @TafStep("Clean up the cart")
+    public void cleanUpCart(){
+        List<Locator> allRemoveButtons =
+                testController.getPage().locator(REMOVE_BUTTONS_LOCATOR).all();
+        allRemoveButtons.forEach(l -> {
+            if(l.isVisible()) l.click(); ;
+        });
+    }
+
+    @TafStep("Select the product")
+    public void selectTheProduct(String productName) {
+        safeClickElement(productName);
     }
 
     @TafStep("Get Product Details")

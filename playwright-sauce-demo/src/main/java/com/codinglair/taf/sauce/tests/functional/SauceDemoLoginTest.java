@@ -36,7 +36,7 @@ public class SauceDemoLoginTest extends BaseTest<PlaywrightController,
     }
 
     @Test
-    @TestCaseId("TC0001")
+    @TestCaseId("TC0002")
     @TafDescription("Verify product details match the catalog")
     public void testProductDetails() {
         WebUser user = (WebUser) getContext().getTestInput(BaseTest.getActiveTestCaseId());
@@ -48,14 +48,11 @@ public class SauceDemoLoginTest extends BaseTest<PlaywrightController,
 
         // 3. Capture: One line retrieves and AUTOMATICALLY stores the actual data
         SauceDemoProductsPage productsPage = new SauceDemoProductsPage(controller);
+        productsPage.cleanUpCart();
         productsPage.getProductDetails(expected.getProductName());
-        //System.out.print(productsPage.getProductDetails(BaseTest.getActiveTestCaseId(),
-        //        expected.getProductName()).toString());
-
         // 4. Assert: Validator compares what was expected vs what was captured
         new ProductValidator().validate(expected,
                 (ProductPojo) context.getLastActualTestOutput(BaseTest.getActiveTestCaseId()));
-        //validator.validate(expected, context.getLastActualOutput());
     }
 }
 

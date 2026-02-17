@@ -13,6 +13,12 @@ public class SauceDemoLoginPage extends SauceBasePage {
         super(controller);
     }
 
+    @Override
+    public boolean isActivePage() {
+        return isElementVisible(LOGIN_BUTTON_LOCATOR);
+    }
+
+
     @TafStep("Enter username")
     public void typeUserName(String userName) {
         testController.getPage().locator(USER_NAME_INPUT_LOCATOR).fill(userName);

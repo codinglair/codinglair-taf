@@ -62,7 +62,7 @@ public abstract class BaseTest<T extends TestController, I, O> {
 
     @BeforeMethod
     public void init(ITestContext testNgContext, Method method) {
-        //Retrievning test id from a functional TestNG test
+        //Retrieving test id from a functional TestNG test
         String testCaseId;
         if (method.isAnnotationPresent(TestCaseId.class)) {
             testCaseId = method.getAnnotation(TestCaseId.class).value();
@@ -97,7 +97,7 @@ public abstract class BaseTest<T extends TestController, I, O> {
         enhanceEnvironment(allParams);
 
         // Initialize Controller. Parameter name "controllerClass" must be present either
-        // in test suite or in app.config and it must specify the controller implementation.
+        // in test suite or in app.config, and it must specify the controller implementation.
         String controllerClass = getControllerClassName(allParams);
         this.controller = TestControllerFactory.create(controllerClass);
         controllerThreadLocal.set(controller);
@@ -141,8 +141,8 @@ public abstract class BaseTest<T extends TestController, I, O> {
                 .orElseThrow(() -> new IllegalStateException("Controller class name could not be initialized from TestNG parameters or app.config."));
     }
 
-    public T getController() {
-        return (T) controllerThreadLocal.get();
+    public static TestController getController() {
+        return controllerThreadLocal.get();
     }
 
     //The reason for lazy initialization is for possible invocation outside TestNG suites.
@@ -228,14 +228,14 @@ public abstract class BaseTest<T extends TestController, I, O> {
         ReportUtility.generateAllureReport(envProps);
     }
 
-    //BDD Cucumber Hooks
+/*    //BDD Cucumber Hooks
     @Before(order = 0)
     public void setup(Scenario scenario) {
         // Retrieve the TestNG context dynamically
         ITestContext testNgContext = org.testng.Reporter.getCurrentTestResult().getTestContext();
 
         // Resolve the test case ID (Expected format "@TestCaseId:TC-12345" tag
-        // If tag is missing, it's going to fallback to Scenario Name)
+        // If tag is missing, it's going to fall back to Scenario Name)
         String testCaseId = scenario.getSourceTagNames().stream()
                 .filter(tag -> tag.toLowerCase().startsWith("@testcaseid:"))
                 .map(tag -> tag.split(":")[1].trim())
@@ -248,5 +248,5 @@ public abstract class BaseTest<T extends TestController, I, O> {
     @After(order = 0)
     public void teardown(Scenario scenario) {
         concludeTest();
-    }
+    }*/
 }

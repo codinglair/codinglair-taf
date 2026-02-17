@@ -23,6 +23,11 @@ public class SauceDemoProductPage extends SauceBasePage {
         super(testController);
     }
 
+    @Override
+    public boolean isActivePage() {
+        return isElementVisible(BACK_2_PRODUCTS_LNK_LOCATOR) && isElementVisible(ADD_2_CART_BTN_LOCATOR);
+    }
+
     public void clickGetToProductsButton() {
         testController.getPage().locator(BACK_2_PRODUCTS_LNK_LOCATOR).click();
     }

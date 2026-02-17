@@ -60,7 +60,7 @@ public class WebUser implements IdentifiableTestData {
         return firstName;
     }
 
- /*   public void setFirstName(String firstName) {
+    public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
 
@@ -78,5 +78,5 @@ public class WebUser implements IdentifiableTestData {
 
     public void setZipCode(String zipCode) {
         this.zipCode = zipCode;
-    }*/
+    }
 }
