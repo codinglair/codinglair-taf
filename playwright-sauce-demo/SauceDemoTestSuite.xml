@@ -2,7 +2,7 @@
     <listeners>
         <listener class-name="com.codinglair.taf.core.reporting.impl.allure.AllureListener"/>
     </listeners>
-    <test name="SauceDemo Functional Tests">
+   <test name="SauceDemo Functional Tests">
         <parameter name="controllerClass" value="com.codinglair.taf.core.controller.impl.PlaywrightController"/>
         <classes>
             <class name="com.codinglair.taf.sauce.tests.functional.SauceDemoLoginTest"/>
@@ -10,7 +10,7 @@
     </test>
 
     <test name="SauceDemo Acceptance Tests">
-        <parameter name="controllerClass" value="com.taf.kafka.KafkaController"/>
+        <parameter name="controllerClass" value="com.codinglair.taf.core.controller.impl.PlaywrightController"/>
         <classes>
             <class name="com.codinglair.taf.sauce.bdd.SauceDemoRunner"/>
         </classes>

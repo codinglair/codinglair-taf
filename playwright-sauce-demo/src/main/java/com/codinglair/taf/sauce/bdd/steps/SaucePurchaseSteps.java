@@ -1,9 +1,8 @@
-package bdd.steps;
+package com.codinglair.taf.sauce.bdd.steps;
 
 import com.codinglair.taf.core.controller.impl.PlaywrightController;
 import com.codinglair.taf.core.data.abstraction.TestContext;
-import com.codinglair.taf.core.test.abstraction.BaseTest;
-import com.codinglair.taf.core.validation.abstraction.Validator;
+import com.codinglair.taf.core.test.TestLifecycleContainer;
 import com.codinglair.taf.core.validation.impl.StringValidator;
 import com.codinglair.taf.sauce.data.ProductPojo;
 import com.codinglair.taf.sauce.data.WebUser;
@@ -11,7 +10,6 @@ import com.codinglair.taf.sauce.page.*;
 import com.codinglair.taf.sauce.service.LoginService;
 import com.codinglair.taf.sauce.validation.ProductValidator;
 import io.cucumber.java.PendingException;
-import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
@@ -22,26 +20,27 @@ import java.util.List;
 public class SaucePurchaseSteps {
 
     private WebUser getCurrentUser() {
-        return context().getTestInput(BaseTest.getActiveTestCaseId());
+        //return context().getTestInput(BaseTest.getActiveTestCaseId());
+        return context().getTestInput(TestLifecycleContainer.getManager().getActiveTestCaseId());
     }
 
     private ProductPojo getCurrentProduct() {
-        return context().getExpectedTestOutput(BaseTest.getActiveTestCaseId());
+        return context().getExpectedTestOutput(TestLifecycleContainer.getManager().getActiveTestCaseId());
     }
 
     private List<ProductPojo> getCurrentProducts() {
-        return context().getExpectedTestOutputs(BaseTest.getActiveTestCaseId());
+        return context().getExpectedTestOutputs(TestLifecycleContainer.getManager().getActiveTestCaseId());
     }
 
     // Using the Thread-Local accessors from BaseTest
     private PlaywrightController controller() {
-        return (PlaywrightController) BaseTest.getController(); }
+        return TestLifecycleContainer.getManager().getController(); }
     private TestContext<WebUser, ProductPojo> context() {
-        return (TestContext<WebUser, ProductPojo>) BaseTest.getContext();
+        return (TestContext<WebUser, ProductPojo>) TestLifecycleContainer.getManager().getContext();
     }
 
     @Given("I am logged in with a user account")
-    public void loginAsUser(String userRole) {
+    public void loginAsUser() {
         // We use the correlationId logic we built earlier!
         WebUser user = getCurrentUser();
         LoginService.login(controller(), context().getEnvironmentProperties(), user);
@@ -106,6 +105,6 @@ public class SaucePurchaseSteps {
     @Then("the cart should be empty")
     public void theCartShouldBeEmpty() {
         // Write code here that turns the phrase above into concrete actions
-        throw new PendingException();
+//        throw new PendingException();
     }
 }

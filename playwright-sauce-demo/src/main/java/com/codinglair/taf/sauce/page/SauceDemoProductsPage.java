@@ -67,7 +67,7 @@ public class SauceDemoProductsPage extends SauceBasePage {
 
     @TafStep("Select the product")
     public void selectTheProduct(String productName) {
-        safeClickElement(productName);
+        safeClickElement(getInventoryItem(productName).locator(PRODUCT_NAME_LOCATOR));
     }
 
     @TafStep("Get Product Details")

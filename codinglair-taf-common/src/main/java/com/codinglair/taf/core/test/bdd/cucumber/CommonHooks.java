@@ -1,11 +1,14 @@
-package com.codinglair.taf.sauce.bdd;
+package com.codinglair.taf.core.test.bdd.cucumber;
 
+import com.codinglair.taf.core.test.TestLifecycleContainer;
+import com.codinglair.taf.core.test.TestLifecycleManager;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import org.testng.ITestContext;
 
 public class CommonHooks {
+    private TestLifecycleManager testLifecycleMgr = new TestLifecycleManager();
     //BDD Cucumber Hooks
     @Before(order = 0)
     public void setup(Scenario scenario) {
@@ -19,12 +22,23 @@ public class CommonHooks {
                 .map(tag -> tag.split(":")[1].trim())
                 .findFirst()
                 .orElse(scenario.getName());
+        TestLifecycleContainer.setManager(testLifecycleMgr);
+        TestLifecycleContainer.getManager().configSuite();
+        TestLifecycleContainer.getManager().configTest(testNgContext, testCaseId);
 
-        configTest(testNgContext, testCaseId);
     }
 
     @After(order = 0)
     public void teardown(Scenario scenario) {
-        concludeTest();
+        try {
+            if (TestLifecycleContainer.getManager().getSoftAssert() != null) {
+                TestLifecycleContainer.getManager().getSoftAssert().assertAll();
+            }
+        } finally {
+            if (TestLifecycleContainer.getManager().getController() != null) {
+                TestLifecycleContainer.getManager().getController().teardown();
+            }
+            TestLifecycleContainer.clear();
+        }
     }
 }

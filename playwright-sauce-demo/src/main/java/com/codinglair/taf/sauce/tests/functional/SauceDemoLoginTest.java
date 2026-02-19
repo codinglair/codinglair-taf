@@ -21,17 +21,17 @@ public class SauceDemoLoginTest extends BaseTest<PlaywrightController,
     @TestCaseId("TC0001")
     @TafDescription("Verifies that a standard user can login successfully to SauceDemo")
     public void testSuccessfulLogin() {
-        WebUser user = (WebUser) getContext().getTestInput(BaseTest.getActiveTestCaseId());
-        reporter.logStep("Navigate to SauceDemo Login Page");
-        controller.navigate(envProps.getEnvProperty("base_url"));
-        SauceDemoLoginPage loginPage= new SauceDemoLoginPage(controller);
+        WebUser user = (WebUser) getContext().getTestInput(getActiveTestCaseId());
+        getReporter().logStep("Navigate to SauceDemo Login Page");
+        getController().navigate(getEnvProps().getEnvProperty("base_url"));
+        SauceDemoLoginPage loginPage= new SauceDemoLoginPage(getController());
         //reporter.logStep("Login with standard credentials");
         loginPage.typeUserName(user.getUserName());
         loginPage.typeUserPwd(user.getPwd());
         loginPage.clickLoginBtn();
 
-        reporter.logStep("Verify landing on Products page");
-        SauceDemoProductsPage productsPage = new SauceDemoProductsPage(controller);
+        getReporter().logStep("Verify landing on Products page");
+        SauceDemoProductsPage productsPage = new SauceDemoProductsPage(getController());
         new StringValidator().validate("Products", productsPage.getPageTitle());
     }
 
@@ -39,20 +39,20 @@ public class SauceDemoLoginTest extends BaseTest<PlaywrightController,
     @TestCaseId("TC0002")
     @TafDescription("Verify product details match the catalog")
     public void testProductDetails() {
-        WebUser user = (WebUser) getContext().getTestInput(BaseTest.getActiveTestCaseId());
+        WebUser user = (WebUser) getContext().getTestInput(getActiveTestCaseId());
         ProductPojo expected = (ProductPojo) getContext()
-                .getExpectedTestOutput(BaseTest.getActiveTestCaseId());
+                .getExpectedTestOutput(getActiveTestCaseId());
 
         // 2. Act: Navigate and perform UI actions
-        LoginService.login(controller, envProps, user);
+        LoginService.login(getController(), getEnvProps(), user);
 
         // 3. Capture: One line retrieves and AUTOMATICALLY stores the actual data
-        SauceDemoProductsPage productsPage = new SauceDemoProductsPage(controller);
+        SauceDemoProductsPage productsPage = new SauceDemoProductsPage(getController());
         productsPage.cleanUpCart();
         productsPage.getProductDetails(expected.getProductName());
         // 4. Assert: Validator compares what was expected vs what was captured
         new ProductValidator().validate(expected,
-                (ProductPojo) context.getLastActualTestOutput(BaseTest.getActiveTestCaseId()));
+                (ProductPojo) getContext().getLastActualTestOutput(getActiveTestCaseId()));
     }
 }
 
