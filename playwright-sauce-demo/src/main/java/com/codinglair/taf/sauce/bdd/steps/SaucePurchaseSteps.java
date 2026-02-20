@@ -9,10 +9,10 @@ import com.codinglair.taf.sauce.data.WebUser;
 import com.codinglair.taf.sauce.page.*;
 import com.codinglair.taf.sauce.service.LoginService;
 import com.codinglair.taf.sauce.validation.ProductValidator;
-import io.cucumber.java.PendingException;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
+import org.assertj.core.api.Assertions;
 
 import java.util.List;
 
@@ -84,8 +84,10 @@ public class SaucePurchaseSteps {
 
     @Then("I should see the order confirmation message {string}")
     public void verifyConfirmation(String expectedMessage) {
-        String actual = new CheckoutCompletePage(controller()).checkoutResult();
+        CheckoutCompletePage page = new CheckoutCompletePage(controller());
+        String actual = page.checkoutResult();
         new StringValidator().validate(expectedMessage, actual);
+        page.clickBackHome();
     }
 
     @Given("I have cleared my shopping cart")
@@ -104,7 +106,7 @@ public class SaucePurchaseSteps {
 
     @Then("the cart should be empty")
     public void theCartShouldBeEmpty() {
-        // Write code here that turns the phrase above into concrete actions
-//        throw new PendingException();
+        SauceDemoProductsPage page = new SauceDemoProductsPage(controller());
+        Assertions.assertThat(page.isShoppingCartEmpty());
     }
 }

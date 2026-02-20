@@ -5,7 +5,6 @@ import com.codinglair.taf.sauce.page.abstraction.SauceBasePage;
 import com.microsoft.playwright.Locator;
 import com.codinglair.taf.core.annotation.reporting.CaptureOutput;
 import com.codinglair.taf.core.controller.impl.PlaywrightController;
-import com.codinglair.taf.core.ui.abstraction.BasePage;
 import com.codinglair.taf.sauce.data.ProductPojo;
 
 import java.util.List;
@@ -18,7 +17,7 @@ public class SauceDemoProductsPage extends SauceBasePage {
     private final String PRODUCT_DESC_LOCATOR = "div.inventory_item_desc";
     private final String PRODUCT_PRICE_LOCATOR = "div.inventory_item_price";
     private final String REMOVE_BUTTONS_LOCATOR = "//div[@class='pricebar']/button[contains(., 'Remove')]";
-
+    private final String SHOPPING_CART_BDG_LOCATOR = "span.shopping_cart_badge";
 
 
     public SauceDemoProductsPage(PlaywrightController testController) {
@@ -68,6 +67,18 @@ public class SauceDemoProductsPage extends SauceBasePage {
     @TafStep("Select the product")
     public void selectTheProduct(String productName) {
         safeClickElement(getInventoryItem(productName).locator(PRODUCT_NAME_LOCATOR));
+    }
+
+    public boolean isShoppingCartEmpty() {
+        return isElementVisible(SHOPPING_CART_BDG_LOCATOR);
+    }
+
+    public String getShoppingCartCount() {
+        String count = "";
+        if(isShoppingCartEmpty()) {
+            count = testController.getPage().locator(SHOPPING_CART_BDG_LOCATOR).innerText();
+        }
+        return count;
     }
 
     @TafStep("Get Product Details")

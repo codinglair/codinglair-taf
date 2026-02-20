@@ -9,7 +9,7 @@
         </classes>
     </test>
 
-    <test name="SauceDemo Acceptance Tests">
+    <test name="BDD: SauceDemo Acceptance Tests">
         <parameter name="controllerClass" value="com.codinglair.taf.core.controller.impl.PlaywrightController"/>
         <classes>
             <class name="com.codinglair.taf.sauce.bdd.SauceDemoRunner"/>

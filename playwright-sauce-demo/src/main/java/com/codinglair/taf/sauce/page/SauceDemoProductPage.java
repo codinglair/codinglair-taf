@@ -3,11 +3,8 @@ package com.codinglair.taf.sauce.page;
 import com.codinglair.taf.core.annotation.reporting.CaptureOutput;
 import com.codinglair.taf.core.annotation.reporting.TafStep;
 import com.codinglair.taf.core.controller.impl.PlaywrightController;
-import com.codinglair.taf.core.test.abstraction.BaseTest;
-import com.codinglair.taf.core.ui.abstraction.BasePage;
 import com.codinglair.taf.sauce.data.ProductPojo;
 import com.codinglair.taf.sauce.page.abstraction.SauceBasePage;
-import com.microsoft.playwright.Locator;
 
 public class SauceDemoProductPage extends SauceBasePage {
     private final String BACK_2_PRODUCTS_LNK_LOCATOR = "button#back-to-products";
@@ -61,9 +58,13 @@ public class SauceDemoProductPage extends SauceBasePage {
         safeClickElement(SHOPPING_CART_LNK_LOCATOR);
     }
 
+    public boolean isShoppingCartEmpty() {
+        return isElementVisible(SHOPPING_CART_BDG_LOCATOR);
+    }
+
     public String getShoppingCartCount() {
         String count = "";
-        if(isElementVisible(SHOPPING_CART_BDG_LOCATOR)) {
+        if(isShoppingCartEmpty()) {
             count = testController.getPage().locator(SHOPPING_CART_BDG_LOCATOR).innerText();
         }
         return count;
