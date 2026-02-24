@@ -1,23 +1,32 @@
 package com.codinglair.taf.sauce.page;
 
+import com.codinglair.taf.core.annotation.reporting.TafStep;
+import com.codinglair.taf.sauce.page.abstraction.SauceBasePage;
 import com.microsoft.playwright.Locator;
 import com.codinglair.taf.core.annotation.reporting.CaptureOutput;
 import com.codinglair.taf.core.controller.impl.PlaywrightController;
-import com.codinglair.taf.core.ui.abstraction.BasePage;
 import com.codinglair.taf.sauce.data.ProductPojo;
 
 import java.util.List;
 
-public class SauceDemoProductsPage extends BasePage<PlaywrightController> {
+public class SauceDemoProductsPage extends SauceBasePage {
     private final String PAGE_TITLE_LOCATOR = "//span[@class='title'][@data-test='title']";
     private final String INVENTORY_ITEMS_LOCTOR = "//div[@class='inventory_item']";
     private final String INVENTORY_ITEM_PARTIAL = "//div[text()='%s']/ancestor::div[@class='inventory_item']";
     private final String PRODUCT_NAME_LOCATOR = "div.inventory_item_name";
     private final String PRODUCT_DESC_LOCATOR = "div.inventory_item_desc";
     private final String PRODUCT_PRICE_LOCATOR = "div.inventory_item_price";
+    private final String REMOVE_BUTTONS_LOCATOR = "//div[@class='pricebar']/button[contains(., 'Remove')]";
+    private final String SHOPPING_CART_BDG_LOCATOR = "span.shopping_cart_badge";
+
 
     public SauceDemoProductsPage(PlaywrightController testController) {
         super(testController);
+    }
+
+    @Override
+    public boolean isActivePage() {
+        return testController.getPage().locator(PAGE_TITLE_LOCATOR).textContent().equals("Products");
     }
 
     public String getPageTitle(){
@@ -46,6 +55,33 @@ public class SauceDemoProductsPage extends BasePage<PlaywrightController> {
                 .replace("$", "");
     }
 
+    @TafStep("Clean up the cart")
+    public void cleanUpCart(){
+        List<Locator> allRemoveButtons =
+                testController.getPage().locator(REMOVE_BUTTONS_LOCATOR).all();
+        allRemoveButtons.forEach(l -> {
+            if(l.isVisible()) l.click(); ;
+        });
+    }
+
+    @TafStep("Select the product")
+    public void selectTheProduct(String productName) {
+        safeClickElement(getInventoryItem(productName).locator(PRODUCT_NAME_LOCATOR));
+    }
+
+    public boolean isShoppingCartEmpty() {
+        return isElementVisible(SHOPPING_CART_BDG_LOCATOR);
+    }
+
+    public String getShoppingCartCount() {
+        String count = "";
+        if(isShoppingCartEmpty()) {
+            count = testController.getPage().locator(SHOPPING_CART_BDG_LOCATOR).innerText();
+        }
+        return count;
+    }
+
+    @TafStep("Get Product Details")
     @CaptureOutput
     public ProductPojo getProductDetails(String productName) {
         ProductPojo actualProduct = new ProductPojo();

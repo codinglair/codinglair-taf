@@ -4,6 +4,7 @@ import com.codinglair.taf.core.annotation.reporting.CaptureOutput;
 import com.codinglair.taf.core.annotation.reporting.TafDescription;
 import com.codinglair.taf.core.annotation.reporting.TafStep;
 import com.codinglair.taf.core.data.abstraction.TestContext;
+import com.codinglair.taf.core.test.TestLifecycleContainer;
 import com.codinglair.taf.core.test.abstraction.BaseTest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -19,7 +20,7 @@ public class ReportingAspect {
         String rawValue = tafStep.value();
         String resolved = resolvePlaceholders(rawValue, joinPoint);
 
-        BaseTest.getReporter().logStep(resolved);
+        TestLifecycleContainer.getManager().getReporter().logStep(resolved);
         return joinPoint.proceed();
     }
 
@@ -28,7 +29,7 @@ public class ReportingAspect {
         String rawValue = tafDescription.value();
         String resolved = resolvePlaceholders(rawValue, joinPoint);
 
-        BaseTest.getReporter().setDescription(resolved);
+        TestLifecycleContainer.getManager().getReporter().setDescription(resolved);
         return joinPoint.proceed();
     }
 
@@ -37,9 +38,9 @@ public class ReportingAspect {
         Object result = joinPoint.proceed();
 
         if (result != null) {
-            // Use your BaseTest thread-locals to route the data
-            TestContext<?, Object> context = (TestContext<?, Object>) BaseTest.getContext();
-            String testCaseId = BaseTest.getActiveTestCaseId();
+            TestContext<?, Object> context =
+                    (TestContext<?, Object>)  TestLifecycleContainer.getManager().getContext();
+            String testCaseId = TestLifecycleContainer.getManager().getActiveTestCaseId();
 
             context.recordActual(testCaseId, result);
         }
