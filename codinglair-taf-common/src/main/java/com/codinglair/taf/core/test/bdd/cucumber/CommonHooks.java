@@ -4,12 +4,19 @@ import com.codinglair.taf.core.test.TestLifecycleContainer;
 import com.codinglair.taf.core.test.TestLifecycleManager;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
+import io.cucumber.java.BeforeAll;
 import io.cucumber.java.Scenario;
 import org.testng.ITestContext;
 
 public class CommonHooks {
-    private TestLifecycleManager testLifecycleMgr = new TestLifecycleManager();
+    private final static TestLifecycleManager testLifecycleMgr = new TestLifecycleManager();
     //BDD Cucumber Hooks
+
+    @BeforeAll
+    public static void before_all() {
+        testLifecycleMgr.configSuite();
+    }
+
     @Before(order = 0)
     public void setup(Scenario scenario) {
         // Retrieve the TestNG context dynamically
@@ -23,7 +30,7 @@ public class CommonHooks {
                 .findFirst()
                 .orElse(scenario.getName());
         TestLifecycleContainer.setManager(testLifecycleMgr);
-        TestLifecycleContainer.getManager().configSuite();
+        //TestLifecycleContainer.getManager().configSuite();
         TestLifecycleContainer.getManager().configTest(testNgContext, testCaseId);
 
     }

@@ -34,7 +34,9 @@ public class SaucePurchaseSteps {
 
     // Using the Thread-Local accessors from BaseTest
     private PlaywrightController controller() {
-        return TestLifecycleContainer.getManager().getController(); }
+        return TestLifecycleContainer.getManager().getController();
+    }
+
     private TestContext<WebUser, ProductPojo> context() {
         return (TestContext<WebUser, ProductPojo>) TestLifecycleContainer.getManager().getContext();
     }
