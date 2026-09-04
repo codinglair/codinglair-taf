@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>codinglair-taf-runtime</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>codinglair-taf-runner-testng</artifactId>
+    <packaging>jar</packaging>
+    <name>TAF Runner TestNG</name>
+    <description>TestNG runner adapter for Codinglair TAF Runtime - provides TestNG lifecycle integration with TestSession</description>
+
+    <dependencies>
+        <!-- Runtime core -->
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-runtime-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-test-definitions</artifactId>
+        </dependency>
+
+        <!-- TestNG -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Spring-managed TestNG test context integration -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins/>
+    </build>
+</project>

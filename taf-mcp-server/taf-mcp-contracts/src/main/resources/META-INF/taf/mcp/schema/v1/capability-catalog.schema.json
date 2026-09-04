@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:capability-catalog",
+  "title": "TAF MCP capability catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogVersion",
+    "tools",
+    "resources",
+    "prompts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "catalogVersion": {
+      "const": "1.0.0"
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/capability"
+      }
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/resource"
+      }
+    },
+    "prompts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/prompt"
+      }
+    }
+  },
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "mode",
+        "permission",
+        "approval",
+        "audit",
+        "timeout",
+        "idempotency",
+        "sideEffects",
+        "inputSchema",
+        "outputSchema"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "discover",
+            "validate",
+            "scaffold",
+            "compile",
+            "execute",
+            "inspect",
+            "retrieve",
+            "cancel",
+            "report",
+            "build",
+            "diagnose"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "synchronous",
+            "asynchronous"
+          ]
+        },
+        "permission": {
+          "type": "string",
+          "pattern": "^taf:[a-z-]+:(read|write|execute|cancel)$"
+        },
+        "approval": {
+          "enum": [
+            "never",
+            "policy",
+            "required"
+          ]
+        },
+        "audit": {
+          "enum": [
+            "invocation",
+            "invocation_and_result",
+            "full_lifecycle"
+          ]
+        },
+        "timeout": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "defaultSeconds",
+            "maximumSeconds"
+          ],
+          "properties": {
+            "defaultSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximumSeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "idempotency": {
+          "enum": [
+            "safe",
+            "idempotency_key_required",
+            "idempotent_target_state"
+          ]
+        },
+        "sideEffects": {
+          "enum": [
+            "none",
+            "working_tree",
+            "isolated_worker",
+            "job_state"
+          ]
+        },
+        "inputSchema": {
+          "type": "string",
+          "pattern": "^urn:codinglair:taf:mcp:schema:v1:"
+        },
+        "outputSchema": {
+          "type": "string",
+          "pattern": "^urn:codinglair:taf:mcp:schema:v1:"
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uriTemplate",
+        "permission",
+        "bounded"
+      ],
+      "properties": {
+        "uriTemplate": {
+          "type": "string",
+          "pattern": "^taf://"
+        },
+        "permission": {
+          "type": "string"
+        },
+        "bounded": {
+          "const": true
+        }
+      }
+    },
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "permission",
+        "approval",
+        "audit"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "string"
+        },
+        "approval": {
+          "enum": [
+            "never",
+            "policy",
+            "required"
+          ]
+        },
+        "audit": {
+          "enum": [
+            "invocation",
+            "invocation_and_result"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "properties": [
+    {"name":"taf.environment.mode","type":"com.codinglair.taf.runtime.environment.EnvironmentMode","defaultValue":"external","description":"Environment selection mode."},
+    {"name":"taf.environment.testcontainers-enabled","type":"java.lang.Boolean","defaultValue":false,"description":"Enables Testcontainers Spring composition."},
+    {"name":"taf.environment.lifecycle","type":"com.codinglair.taf.runtime.environment.ContainerLifecycle","defaultValue":"isolated","description":"Default container lifecycle."},
+    {"name":"taf.environment.startup","type":"com.codinglair.taf.runtime.environment.spring.EnvironmentStartup","defaultValue":"lazy","description":"Shared-resource startup behavior."},
+    {"name":"taf.environment.readiness-timeout","type":"java.time.Duration","defaultValue":"60s","description":"Maximum readiness wait."},
+    {"name":"taf.environment.log-capture","type":"java.lang.Boolean","defaultValue":true,"description":"Enables bounded container log capture."},
+    {"name":"taf.environment.cleanup","type":"com.codinglair.taf.runtime.environment.spring.EnvironmentCleanupPolicy","defaultValue":"always","description":"Managed-resource cleanup policy."},
+    {"name":"taf.consumer.environment","type":"java.lang.String","defaultValue":"default","description":"Logical environment/profile name included in sanitized preflight diagnostics."},
+    {"name":"taf.consumer.capabilities","type":"java.util.Map<java.lang.String,com.codinglair.taf.runtime.environment.spring.ConsumerConfigurationProperties.CapabilityInstance>","description":"Named capability instances validated at controlled-execution preflight."}
+  ]
+}

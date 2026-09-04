@@ -1,0 +1,10 @@
+taf:
+  web:
+    playwright:
+      enabled: true
+      controllers:
+        shop:
+          headless: false
+consumer:
+  environment:
+    name: local

@@ -1,0 +1,130 @@
+name: Container Images and Supply Chain
+
+on:
+  pull_request:
+    paths:
+      - 'containers/**'
+      - 'taf-mcp-server/**'
+      - 'pom.xml'
+      - '.github/workflows/container-images.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-scan-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        image: [control-plane, worker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: Resolve Maven project version
+        id: maven-version
+        shell: bash
+        run: |
+          VERSION="$(sed -n 's:.*<revision>\([^<]*\)</revision>.*:\1:p' pom.xml | head -n 1)"
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Prepare evidence directory
+        shell: bash
+        run: mkdir -p "${GITHUB_WORKSPACE}/target/supply-chain"
+      - name: Build loadable image for scan and smoke
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: containers/${{ matrix.image }}/Dockerfile
+          load: true
+          push: false
+          tags: codinglair/taf-${{ matrix.image }}:${{ github.sha }}
+          build-args: |
+            VERSION=${{ steps.maven-version.outputs.version }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ github.event.repository.updated_at }}
+          # The Docker exporter selected by load cannot export the OCI index
+          # produced by BuildKit attestations. Retained SBOM and scan evidence
+          # is generated explicitly by the following steps.
+          sbom: false
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
+      - name: Generate retained SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: codinglair/taf-${{ matrix.image }}:${{ github.sha }}
+          format: spdx-json
+          output-file: target/supply-chain/${{ matrix.image }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate retained Trivy vulnerability report
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: codinglair/taf-${{ matrix.image }}:${{ github.sha }}
+          scanners: vuln
+          format: json
+          output: target/supply-chain/${{ matrix.image }}-trivy.json
+          exit-code: '0'
+          severity: 'CRITICAL'
+      - name: Reject unapproved critical vulnerabilities
+        shell: bash
+        run: |
+          report="target/supply-chain/${{ matrix.image }}-trivy.json"
+          count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$report")"
+          if (( count == 0 )); then
+            echo "No Critical vulnerabilities detected."
+            exit 0
+          fi
+
+          echo "::error title=Trivy vulnerability gate::Detected ${count} Critical vulnerability finding(s) in taf-${{ matrix.image }}."
+          jq -r '
+            .Results[]
+            | .Target as $target
+            | .Vulnerabilities[]?
+            | [
+                $target,
+                .PkgName,
+                .InstalledVersion,
+                (.FixedVersion // "not fixed"),
+                .VulnerabilityID,
+                (.Title // "")
+              ]
+            | @tsv
+          ' "$report" | while IFS=$'\t' read -r target package installed fixed vulnerability title; do
+            printf '::error title=%s in %s::Package %s %s; fixed version: %s. %s\n' \
+              "$vulnerability" "$target" "$package" "$installed" "$fixed" "$title"
+          done
+          echo "Download the supply-chain-${{ matrix.image }}-${{ github.run_attempt }} artifact for the complete JSON report."
+          exit 1
+      - name: Smoke and enforce runtime restrictions
+        shell: bash
+        run: bash containers/smoke.sh "${{ matrix.image }}" "codinglair/taf-${{ matrix.image }}:${{ github.sha }}"
+      - name: Locate supply-chain evidence
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          echo "Workspace: ${GITHUB_WORKSPACE}"
+          find "${GITHUB_WORKSPACE}" -type f -path "*/target/supply-chain/*" -print
+      - name: Verify required supply-chain evidence
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          test -s "target/supply-chain/${{ matrix.image }}.spdx.json"
+          test -s "target/supply-chain/${{ matrix.image }}-trivy.json"
+      - name: Retain SBOM and vulnerability evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-${{ matrix.image }}-${{ github.run_attempt }}
+          path: target/supply-chain
+          if-no-files-found: error
+          retention-days: 30

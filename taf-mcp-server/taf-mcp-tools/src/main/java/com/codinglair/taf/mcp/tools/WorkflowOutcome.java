@@ -1,0 +1,14 @@
+package com.codinglair.taf.mcp.tools;
+
+public enum WorkflowOutcome {
+  SUCCEEDED,
+  VALIDATION_FAILED,
+  COMPILE_FAILED,
+  TEST_FAILED,
+  ENVIRONMENT_FAILED,
+  DENIED,
+  APPROVAL_REQUIRED,
+  CANCELLED,
+  TIMED_OUT,
+  INTERNAL_FAILED
+}

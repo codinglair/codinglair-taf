@@ -1,0 +1,10 @@
+caseId,productName,description,price
+TC0001,Products,Products,0.00
+TC0002,Sauce Labs Backpack,"carry.allTheThings() with the sleek, streamlined Sly Pack that melds uncompromising style with unequaled laptop and tablet protection.",29.99
+TC0003,Thank you for your order!,Thank you for your order!,29.99
+TC0901,Products,Products,0.00
+TC0902,Thank you for your order!,Thank you for your order!,29.99
+TC0903,Sauce Labs Backpack,A carry-all with a laptop sleeve and plenty of room.,29.99
+QS-REST-001,BACKPACK,Created order,0.00
+QS-DB-001,BACKPACK,READY,0.00
+QS-F2B-001,BACKPACK,COMPLETE,0.00

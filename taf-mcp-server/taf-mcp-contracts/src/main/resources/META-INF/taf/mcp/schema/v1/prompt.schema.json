@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:prompt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "name",
+    "description",
+    "arguments",
+    "messages"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^taf\\.[a-z.-]+$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "arguments": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object"
+      }
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 8192
+          }
+        }
+      }
+    }
+  }
+}

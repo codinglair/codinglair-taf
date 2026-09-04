@@ -1,0 +1,227 @@
+name: Functional Kind Reference
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/kind/**'
+      - 'containers/control-plane/**'
+      - 'containers/worker/**'
+      - 'taf-mcp-server/**'
+      - 'build-support/ci/KindDeploymentContractTest.java'
+      - 'pom.xml'
+      - '.github/workflows/kind-reference.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kind-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fresh-cluster-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TAF_KIND_SKIP_IMAGE_BUILD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record Git checkout
+        run: |
+          echo "Git checkout SHA:        ${GITHUB_SHA}"
+      - uses: docker/setup-buildx-action@v4
+      - name: Install Kind
+        run: |
+          kind_bin_dir="${RUNNER_TEMP}/kind-bin"
+          mkdir -p "${kind_bin_dir}"
+          curl --fail --location --silent --show-error \
+            --output "${kind_bin_dir}/kind" \
+            https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+          curl --fail --location --silent --show-error \
+            --output /tmp/kind-linux-amd64.sha256sum \
+            https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64.sha256sum
+          sed "s#kind-linux-amd64#${kind_bin_dir}/kind#" /tmp/kind-linux-amd64.sha256sum | sha256sum --check
+          chmod 0555 "${kind_bin_dir}/kind"
+          echo "${kind_bin_dir}" >> "${GITHUB_PATH}"
+      - name: Verify structural deployment contract
+        run: |
+          mkdir -p target/ci-support
+          javac -d target/ci-support build-support/ci/KindDeploymentContractTest.java
+          java -cp target/ci-support KindDeploymentContractTest
+          kubectl kustomize deploy/kind/overlays/internal-mongodb > target/kind-internal.yaml
+          kubectl kustomize deploy/kind/overlays/external-mongodb > target/kind-external.yaml
+          ! grep -q '^kind: Secret$' target/kind-internal.yaml
+          ! grep -q '^kind: Secret$' target/kind-external.yaml
+          ! grep -q 'kind: StatefulSet' target/kind-external.yaml
+      - name: Build reference images
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's:.*<revision>\([^<]*\)</revision>.*:\1:p' pom.xml | head -n 1)"
+          [[ -n "$VERSION" ]]
+          export VERSION
+          echo "TAF_IMAGE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          export CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          docker buildx bake --pull --no-cache --load
+          for image in "codinglair/taf-control-plane:$VERSION" "codinglair/taf-worker:$VERSION"; do
+            if ! image_details="$(docker image inspect --format 'id={{.Id}} revision={{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")"; then
+              echo "::error::Fresh reference image was not produced: ${image}"
+              exit 31
+            fi
+            echo "Built reference image: ${image} ${image_details}"
+            actual_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
+            if [[ -z "$actual_revision" ]]; then
+              echo "::error::Reference image has no org.opencontainers.image.revision label: ${image}"
+              exit 32
+            fi
+            if [[ "$actual_revision" != "$GITHUB_SHA" ]]; then
+              echo "::error::Reference image revision does not match the checkout: ${image}; expected=${GITHUB_SHA}; actual=${actual_revision}"
+              exit 33
+            fi
+            echo "Verified fresh image revision: ${image} ${actual_revision}"
+          done
+          control_plane_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "codinglair/taf-control-plane:$VERSION")"
+          echo "Git checkout SHA:        ${GITHUB_SHA}"
+          echo "Control-plane image SHA: ${control_plane_revision}"
+      - name: Deploy fresh cluster
+        run: bash deploy/kind/bootstrap.sh
+      - name: Verify loaded and running control-plane image
+        run: |
+          set -uo pipefail
+          image="codinglair/taf-control-plane:$TAF_IMAGE_VERSION"
+
+          normalize_image_ref() {
+            local ref="$1"
+            local first
+
+            case "$ref" in
+              */*)
+                first="${ref%%/*}"
+                if [[ "$first" == *.* || "$first" == *:* || "$first" == 'localhost' ]]; then
+                  printf '%s\n' "$ref"
+                else
+                  printf 'docker.io/%s\n' "$ref"
+                fi
+                ;;
+              *)
+                printf 'docker.io/library/%s\n' "$ref"
+                ;;
+            esac
+          }
+
+          echo '=== Control-plane image provenance ==='
+          if ! kind_node="$(kind get nodes --name codinglair-taf | sed -n '1p')"; then
+            echo '::error::Kind nodes could not be queried'
+            exit 41
+          fi
+          if [[ -z "$kind_node" ]]; then
+            echo '::error::Kind node could not be resolved'
+            exit 42
+          fi
+          if ! docker_image_id="$(docker image inspect --format '{{.Id}}' "$image")"; then
+            echo "::error::Expected local Docker image could not be inspected: ${image}"
+            exit 43
+          fi
+          if ! revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"; then
+            echo "::error::Local Docker image revision label could not be inspected: ${image}"
+            exit 44
+          fi
+
+          echo '=== Kind image inventory ==='
+          if ! docker exec "$kind_node" crictl images --no-trunc; then
+            echo "::error::Kind/containerd image inventory could not be inspected on node: ${kind_node}"
+            exit 45
+          fi
+          if ! kind_image_id="$(docker exec "$kind_node" crictl images --no-trunc --quiet "$image" | sed -n '1p')"; then
+            echo "::error::Kind/containerd failed to look up expected image: ${image}"
+            exit 46
+          fi
+          if ! running_image="$(kubectl --context kind-codinglair-taf -n taf-system get pod -l app.kubernetes.io/name=taf-control-plane -o jsonpath='{.items[0].status.containerStatuses[0].image}')"; then
+            echo '::error::Kubernetes running control-plane image could not be queried'
+            exit 47
+          fi
+          if ! running_image_id="$(kubectl --context kind-codinglair-taf -n taf-system get pod -l app.kubernetes.io/name=taf-control-plane -o jsonpath='{.items[0].status.containerStatuses[0].imageID}')"; then
+            echo '::error::Kubernetes running control-plane imageID could not be queried'
+            exit 48
+          fi
+          expected_normalized="$(normalize_image_ref "$image")"
+          running_normalized="$(normalize_image_ref "$running_image")"
+
+          echo "GitHub SHA:                    ${GITHUB_SHA}"
+          echo "Kind node:                     ${kind_node}"
+          echo "Local Docker image ID:         ${docker_image_id:-<empty>}"
+          echo "Local Docker image revision:   ${revision:-<empty>}"
+          echo "Kind node image ID:            ${kind_image_id:-<empty>}"
+          echo "Expected pod image:            ${image}"
+          echo "Expected normalized image:     ${expected_normalized}"
+          echo "Running pod image:             ${running_image:-<empty>}"
+          echo "Running normalized image:      ${running_normalized:-<empty>}"
+          echo "Running pod imageID:           ${running_image_id:-<empty>}"
+
+          if [[ -z "$revision" ]]; then
+            echo '::error::Control-plane image has no org.opencontainers.image.revision label'
+            exit 49
+          fi
+          if [[ "$revision" != "$GITHUB_SHA" ]]; then
+            echo "::error::Control-plane image revision does not match GitHub SHA; expected=${GITHUB_SHA}; actual=${revision}"
+            exit 50
+          fi
+          if [[ -z "$kind_image_id" ]]; then
+            echo "::error::Expected control-plane image not found inside Kind: ${image}"
+            exit 51
+          fi
+          if [[ -z "$running_image" ]]; then
+            echo '::error::Running control-plane image is empty'
+            exit 52
+          fi
+          if [[ "$running_normalized" != "$expected_normalized" ]]; then
+            echo "::error::Running control-plane image reference does not match expected image; expected=${expected_normalized}; actual=${running_normalized}"
+            exit 53
+          fi
+          if [[ -z "$running_image_id" ]]; then
+            echo '::error::Running control-plane imageID is empty'
+            exit 54
+          fi
+          if [[ "$kind_image_id" != "$docker_image_id" ]]; then
+            echo "::error::Kind image ID differs from locally built image ID; expected=${docker_image_id}; actual=${kind_image_id}"
+            exit 55
+          fi
+          if [[ "$running_image_id" != "$docker_image_id" ]]; then
+            echo "::error::Running pod imageID differs from locally built image ID; expected=${docker_image_id}; actual=${running_image_id}"
+            exit 56
+          fi
+
+          echo 'Control-plane image provenance verification PASSED'
+      - name: Verify authenticated MCP and restart behavior
+        run: bash deploy/kind/smoke.sh
+      - name: Capture sanitized diagnostics
+        if: ${{ failure() }}
+        run: |
+          mkdir -p target/kind-diagnostics
+          context=kind-codinglair-taf
+          namespace=taf-system
+          kubectl --context "$context" -n "$namespace" get pods,deployments,statefulsets,services,jobs,pvc -o wide > target/kind-diagnostics/status.txt 2>&1 || true
+          kubectl --context "$context" -n "$namespace" describe job taf-mcp-smoke > target/kind-diagnostics/smoke-job.txt 2>&1 || true
+          smoke_pod="$(kubectl --context "$context" -n "$namespace" get pods -l job-name=taf-mcp-smoke -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+          if [[ -n "$smoke_pod" ]]; then
+            kubectl --context "$context" -n "$namespace" describe pod "$smoke_pod" > target/kind-diagnostics/smoke-pod.txt 2>&1 || true
+            kubectl --context "$context" -n "$namespace" logs "$smoke_pod" -c client --tail=300 > target/kind-diagnostics/smoke-client.log 2>&1 || true
+            kubectl --context "$context" -n "$namespace" get pod "$smoke_pod" -o jsonpath=$'{range .status.containerStatuses[*]}container={.name} reason={.state.terminated.reason} exitCode={.state.terminated.exitCode} message={.state.terminated.message}{"\\n"}{end}' > target/kind-diagnostics/smoke-termination.txt 2>&1 || true
+          fi
+          kubectl --context "$context" -n "$namespace" logs deployment/taf-control-plane --all-pods=true --all-containers=true --tail=300 > target/kind-diagnostics/control-plane.log 2>&1 || true
+          kubectl --context "$context" -n "$namespace" logs deployment/taf-control-plane --all-pods=true --all-containers=true --previous --tail=300 > target/kind-diagnostics/control-plane-previous.log 2>&1 || true
+          kubectl --context "$context" -n "$namespace" logs deployment/taf-keycloak --all-pods=true --all-containers=true --tail=200 > target/kind-diagnostics/keycloak.log 2>&1 || true
+          kubectl --context "$context" -n "$namespace" get events --sort-by='.metadata.creationTimestamp' | tail -n 200 > target/kind-diagnostics/events.txt 2>&1 || true
+      - name: Retain failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kind-failure-${{ github.run_attempt }}
+          path: target/kind-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Teardown
+        if: ${{ always() }}
+        run: bash deploy/kind/teardown.sh

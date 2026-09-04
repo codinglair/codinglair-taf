@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "name": "taf.qa.environment-triage",
+  "description": "Triage a sanitized environment failure using controlled diagnostics.",
+  "arguments": [{ "name": "reportReference", "required": true }],
+  "messages": [{
+    "role": "user",
+    "text": "Triage job {reportReference} using only authorized bounded diagnostics. Separate environment failures from automation or product failures and propose read-only next checks."
+  }]
+}

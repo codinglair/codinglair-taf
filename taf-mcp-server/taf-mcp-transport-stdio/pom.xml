@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>taf-mcp-server</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>taf-mcp-transport-stdio</artifactId>
+    <name>TAF MCP STDIO Transport</name>
+    <description>Spring AI MCP STDIO binding for governed TAF workflows and resources</description>
+    <dependencies>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-mcp-tools</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-mcp-resources</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-mcp-prompts</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server</artifactId>
+        </dependency>
+        <!-- Spring AI 2.x uses Jackson 3; isolate its compatible annotations from the
+             repository's legacy Jackson 2.19 dependency-management baseline. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson3.annotations.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${mcp.json-schema-validator.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

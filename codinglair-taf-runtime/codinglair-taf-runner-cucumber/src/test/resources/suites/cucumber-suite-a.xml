@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.1.dtd">
+<suite name="Cucumber suite A">
+    <test name="Curated business suite A">
+        <classes>
+            <class name="com.codinglair.taf.runtime.cucumber.suites.SuiteARunner"/>
+        </classes>
+    </test>
+</suite>

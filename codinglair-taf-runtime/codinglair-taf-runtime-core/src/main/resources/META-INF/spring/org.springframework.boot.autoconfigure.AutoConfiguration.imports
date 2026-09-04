@@ -1,0 +1,2 @@
+com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration
+com.codinglair.taf.runtime.core.autoconfigure.ReporterAutoConfiguration

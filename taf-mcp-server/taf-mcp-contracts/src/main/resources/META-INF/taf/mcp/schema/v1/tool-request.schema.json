@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "operation", "projectId", "environment", "timeoutSeconds", "arguments"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "requestId": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "operation": { "enum": ["discover", "validate", "scaffold", "compile", "execute", "inspect", "retrieve", "cancel", "report", "build", "diagnose"] },
+    "projectId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" }, "environment": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+    "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 }, "idempotencyKey": { "type": "string", "minLength": 16, "maxLength": 128 },
+    "approvalReference": { "type": "string", "pattern": "^approval:[A-Za-z0-9._:-]+$" },
+    "arguments": {
+      "type": "object",
+      "maxProperties": 32,
+      "$comment": "Property-name rejection is defense in depth only. MCP-003 must redact values and detect secret canaries regardless of field name.",
+      "propertyNames": {
+        "not": {
+          "pattern": "(?i)(password|passphrase|secret|secretValue|token|tokenValue|apiKey|accessToken|authToken|bearerToken|credential|credentials|privateKey|serviceAccountKey|connectionString)$"
+        }
+      }
+    }
+  }
+}

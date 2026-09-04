@@ -1,0 +1,586 @@
+name: Pull Request Verification
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+      - 'staging'
+      - 'release-*'
+      - 'release/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_ARGS: -B -ntp -Dstyle.color=always
+
+jobs:
+  documentation-version:
+    name: Documentation version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Test and validate documentation version synchronization
+        run: |
+          java build-support/scripts/SyncDocVersionTest.java
+          java build-support/scripts/SyncDocVersion.java --check
+
+  change-impact:
+    name: Change impact
+    runs-on: ubuntu-24.04
+    outputs:
+      maven_modules: ${{ steps.classify.outputs.maven_modules }}
+      integration: ${{ steps.classify.outputs.integration }}
+      cross_module: ${{ steps.classify.outputs.cross_module }}
+      browser: ${{ steps.classify.outputs.browser }}
+      appium: ${{ steps.classify.outputs.appium }}
+      paths_b64: ${{ steps.classify.outputs.paths_b64 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Compile CI support
+        run: |
+          mkdir -p target/ci-support
+          ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-test-definitions -am -DskipTests test-compile dependency:build-classpath -Dmdep.outputFile=target/ci-classpath.txt
+          javac -cp "$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" -d target/ci-support build-support/ci/*.java
+      - name: Validate classifier, gate, and workflow contracts
+        run: |
+          java -cp target/ci-support ChangeImpactTest
+          java -cp target/ci-support ImagePolicyTest
+          java -cp target/ci-support PrGateTest
+          java -cp target/ci-support SmokeReportCheckTest
+          java -cp target/ci-support WorkflowContractTest
+          java -cp target/ci-support VerificationMatrixContractTest
+          java -cp target/ci-support ReferencePipelineContractTest
+          # Parse the executable PR workflow with the repository-approved YAML
+          # library so malformed YAML fails before path classification.
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/pull-request.yml
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/verification-matrix.yml
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/nightly.yml
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/release.yml
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .gitlab-ci.yml
+      - name: Classify complete pull-request diff
+        id: classify
+        run: >-
+          java -cp target/ci-support ChangeImpact
+          --base "${{ github.event.pull_request.base.sha }}"
+          --head "${{ github.event.pull_request.head.sha }}"
+          --github-output "$GITHUB_OUTPUT"
+
+  unit-tests:
+    name: Unit tests (Java 25)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Run all unit tests
+        run: ./mvnw $MAVEN_ARGS -DskipITs test
+      - name: Publish failed unit-test reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-failures-${{ github.run_attempt }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/allure-results/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  affected-verification:
+    name: Affected integration and contract tests
+    needs: change-impact
+    if: needs.change-impact.outputs.integration == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify affected Maven modules
+        run: |
+          modules='${{ needs.change-impact.outputs.maven_modules }}'
+          if [[ -n "$modules" ]]; then
+            ./mvnw $MAVEN_ARGS -pl "$modules" -am verify
+          else
+            ./mvnw $MAVEN_ARGS verify
+          fi
+      - name: Publish failed integration and contract reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: affected-verification-failures-${{ github.run_attempt }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+            **/target/allure-results/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  cross-module-smoke:
+    name: Cross-module smoke
+    needs: change-impact
+    if: needs.change-impact.outputs.cross_module == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify the consumer vertical slice
+        run: ./mvnw $MAVEN_ARGS -pl demos/playwright-sauce-demo -am test
+      - name: Publish failed smoke reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-module-smoke-failures-${{ github.run_attempt }}
+          path: '**/target/surefire-reports/**'
+          if-no-files-found: warn
+          retention-days: 7
+
+  browser-smoke:
+    name: Browser smoke
+    needs: change-impact
+    if: needs.change-impact.outputs.browser == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Install Playwright browsers
+        run: |
+          ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-web-playwright -am test-compile dependency:build-classpath -Dmdep.outputFile=target/test-classpath.txt
+          java -cp "$(cat codinglair-taf-runtime/taf-web-playwright/target/test-classpath.txt)" com.microsoft.playwright.CLI install --with-deps chromium firefox webkit
+      - name: Run browser smoke
+        run: ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-web-playwright -am -Dtaf.browser.smoke=true -Dtest=PlaywrightBrowserSmokeTest -Dsurefire.failIfNoSpecifiedTests=false test
+      - name: Publish failed browser reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-failures-${{ github.run_attempt }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/allure-results/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  appium-smoke:
+    name: Android emulator Appium smoke
+    needs: change-impact
+    if: needs.change-impact.outputs.appium == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TAF_ANDROID_APPIUM_URL: http://127.0.0.1:4724
+      TAF_ANDROID_DEVICE_NAME: taf-api34
+      TAF_ANDROID_DEVICE_ID: android-emulator:5555
+      TAF_ANDROID_APP_PACKAGE: com.android.settings
+      TAF_ANDROID_APP_ACTIVITY: .Settings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Reclaim runner space for the ephemeral Android image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          df -h
+          sudo du -sh \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/dotnet \
+            2>/dev/null || true
+          sudo rm -rf -- \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/dotnet
+          df -h
+      - name: Enable Docker containerd image store
+        uses: docker/setup-docker-action@v5
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - name: Set up attestation-capable Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Capture disk state before MOB-003 build
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          df -h
+          docker system df
+          docker buildx ls
+          docker buildx inspect
+      - name: Verify approved MOB-003 recipe and evidence references
+        shell: bash
+        run: >-
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass
+          -File containers/android-emulator/google/verify.ps1
+      - name: Build MOB-003 Android emulator image locally
+        shell: bash
+        run: >-
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass
+          -File containers/android-emulator/google/build.ps1
+          -AcceptAndroidSdkLicense
+          -Clean
+          -Image codinglair-taf/android-emulator:mob-003-api34
+      - name: Capture disk state after MOB-003 build
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+
+          mkdir -p target/mobile-diagnostics
+          df -h 2>&1 | tee target/mobile-diagnostics/disk-after-build.txt
+          docker system df 2>&1 | tee target/mobile-diagnostics/docker-disk-after-build.txt
+          docker buildx ls 2>&1 | tee target/mobile-diagnostics/buildx-ls-after-build.txt
+          docker buildx inspect 2>&1 | tee target/mobile-diagnostics/buildx-inspect-after-build.txt
+      - name: Preflight Docker, Compose, and KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          uname -a
+          docker version
+          docker compose version
+
+          echo "Runner identity:"
+          id
+
+          echo "Initial KVM permissions:"
+          ls -l /dev/kvm
+          test -c /dev/kvm
+
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            command -v setfacl >/dev/null 2>&1 || {
+              echo "::error::KVM exists but the runner cannot access it and setfacl is unavailable"
+              exit 1
+            }
+
+            sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          fi
+
+          echo "Effective KVM permissions:"
+          getfacl /dev/kvm || true
+
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass \
+            -File containers/android-emulator/google/verify-compose.ps1
+
+          kvm_gid="$(stat -c '%g' /dev/kvm)"
+          case "$kvm_gid" in
+            ''|*[!0-9]*)
+              echo "::error::Unable to determine the numeric KVM group ID"
+              exit 1
+              ;;
+          esac
+
+          mkdir -p target/mobile-runtime
+          cat > target/mobile-runtime/kvm-group.override.yaml <<EOF
+          services:
+            android-emulator:
+              group_add:
+                - "$kvm_gid"
+          EOF
+
+          echo "Container KVM supplementary group: $kvm_gid"
+      - name: Verify KVM inside emulator image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose \
+            --file containers/android-emulator/google/compose.qualify.yaml \
+            --file target/mobile-runtime/kvm-group.override.yaml \
+            run --rm --no-deps \
+            --entrypoint sh \
+            android-emulator \
+            -lc '
+              set -eu
+
+              echo "Container identity:"
+              echo "uid=$(id -u)"
+              echo "gid=$(id -g)"
+              echo "groups=$(id -G)"
+
+              echo "Container KVM permissions:"
+              ls -l /dev/kvm
+              test -c /dev/kvm
+              test -r /dev/kvm
+              test -w /dev/kvm
+
+              echo "Container shared memory:"
+              shm_bytes="$(df --block-size=1 --output=size /dev/shm | tail -n 1 | tr -d "[:space:]")"
+              echo "bytes=$shm_bytes"
+              test "$shm_bytes" -eq 2147483648
+
+              echo "Emulator acceleration:"
+              if command -v emulator >/dev/null 2>&1; then
+                emulator -accel-check
+              elif [ -n "${ANDROID_HOME:-}" ] && [ -x "${ANDROID_HOME}/emulator/emulator" ]; then
+                "${ANDROID_HOME}/emulator/emulator" -accel-check
+              else
+                echo "Emulator executable not found"
+                exit 1
+              fi
+            '
+      - name: Start Android emulator and Appium
+        run: >-
+          docker compose
+          --file containers/android-emulator/google/compose.qualify.yaml
+          --file target/mobile-runtime/kvm-group.override.yaml
+          up --detach --wait --wait-timeout 360
+      - name: Run real Android emulator smoke
+        run: ./mvnw -pl codinglair-taf-runtime/taf-mobile-appium -am verify -Pandroid-emulator
+      - name: Prove emulator smoke executed
+        run: |
+          mkdir -p target/ci-support
+          javac -d target/ci-support build-support/ci/SmokeReportCheck.java
+          java -cp target/ci-support SmokeReportCheck codinglair-taf-runtime/taf-mobile-appium/target/surefire-reports
+      - name: Capture mobile failure diagnostics
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set +e
+
+          compose_file="containers/android-emulator/google/compose.qualify.yaml"
+          diagnostics="target/mobile-diagnostics"
+          mkdir -p "$diagnostics"
+
+          compose_args=(--file "$compose_file")
+          if [[ -f target/mobile-runtime/kvm-group.override.yaml ]]; then
+            compose_args+=(--file target/mobile-runtime/kvm-group.override.yaml)
+          fi
+
+          docker compose \
+            "${compose_args[@]}" \
+            ps --all \
+            2>&1 | tee "$diagnostics/compose-ps.txt"
+
+          docker compose \
+            "${compose_args[@]}" \
+            logs --no-color --timestamps --tail 2000 \
+            2>&1 | tee "$diagnostics/compose-logs.txt"
+
+          emulator_id="$(
+            docker compose \
+              "${compose_args[@]}" \
+              ps -q android-emulator
+          )"
+
+          if [[ -z "$emulator_id" ]]; then
+            echo "Android emulator container was not found" \
+              | tee "$diagnostics/emulator-runtime.txt"
+          else
+            docker inspect "$emulator_id" \
+              > "$diagnostics/emulator-inspect.json" 2>&1
+
+            docker inspect \
+              --format '{{json .State.Health}}' \
+              "$emulator_id" \
+              > "$diagnostics/emulator-health.json" 2>&1
+
+            docker exec "$emulator_id" sh -lc '
+              set +e
+
+              echo "===== Identity ====="
+              id
+              pwd
+
+              echo "===== KVM device ====="
+              ls -l /dev/kvm
+              test -c /dev/kvm
+              echo "KVM character device: $?"
+              test -r /dev/kvm
+              echo "KVM readable: $?"
+              test -w /dev/kvm
+              echo "KVM writable: $?"
+
+              echo "===== CPU virtualization flags ====="
+              grep -m1 -Eo "vmx|svm" /proc/cpuinfo
+
+              echo "===== Memory and shared memory ====="
+              free -h
+              df -h /dev/shm
+              ulimit -a
+              for memory_file in \
+                /sys/fs/cgroup/memory.events \
+                /sys/fs/cgroup/memory.current \
+                /sys/fs/cgroup/memory.max; do
+                if [ -f "$memory_file" ]; then
+                  echo "----- $memory_file -----"
+                  cat "$memory_file"
+                fi
+              done
+
+              echo "===== Emulator acceleration ====="
+              if command -v emulator >/dev/null 2>&1; then
+                emulator -accel-check
+              elif [ -n "${ANDROID_HOME:-}" ] && [ -x "${ANDROID_HOME}/emulator/emulator" ]; then
+                "${ANDROID_HOME}/emulator/emulator" -accel-check
+              else
+                echo "Emulator executable not found"
+              fi
+
+              echo "===== ADB devices ====="
+              adb connect 127.0.0.1:5557
+              adb devices -l
+
+              echo "===== Android boot properties ====="
+              adb -s 127.0.0.1:5557 shell getprop sys.boot_completed
+              adb -s 127.0.0.1:5557 shell getprop dev.bootcomplete
+              adb -s 127.0.0.1:5557 shell getprop init.svc.bootanim
+
+              echo "===== Relevant processes ====="
+              ps -ef | grep -E "[e]mulator|[q]emu|[a]db|[s]ocat"
+
+              echo "===== Emulator crash and runtime logs ====="
+              find /tmp /data /android \
+                -maxdepth 6 -type f \
+                \( -iname "*emulator*.log" -o \
+                -iname "*qemu*.log" -o \
+                -iname "crash*.db" -o \
+                -iname "*.tombstone" \) \
+                -size -5M -print 2>/dev/null |
+              head -n 50 |
+              while IFS= read -r runtime_log; do
+                echo
+                echo "----- $runtime_log -----"
+                tail -n 1000 "$runtime_log"
+              done
+            ' > "$diagnostics/emulator-runtime.txt" 2>&1
+
+            cat "$diagnostics/emulator-runtime.txt"
+          fi
+
+          {
+            echo "runner_os=${{ runner.os }}"
+            echo "runner_arch=${{ runner.arch }}"
+            echo "runner_name=${{ runner.name }}"
+            echo "runner_image=${ImageOS:-unknown}"
+            echo "run_id=${{ github.run_id }}"
+            echo "run_attempt=${{ github.run_attempt }}"
+            echo "selected_paths_base64url=${{ needs.change-impact.outputs.paths_b64 }}"
+          } > "$diagnostics/run-context.txt"
+
+          exit 0
+      - name: Tear down Android emulator and Appium
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p target/mobile-diagnostics
+          compose_args=(--file containers/android-emulator/google/compose.qualify.yaml)
+          if [[ -f target/mobile-runtime/kvm-group.override.yaml ]]; then
+            compose_args+=(--file target/mobile-runtime/kvm-group.override.yaml)
+          fi
+          docker compose "${compose_args[@]}" down --remove-orphans
+
+          remaining_containers="$(docker compose "${compose_args[@]}" ps --quiet)"
+          remaining_networks="$(docker network ls --quiet --filter label=com.docker.compose.project=codinglair-taf-mob-003)"
+
+          {
+            echo "remaining_containers=${remaining_containers}"
+            echo "remaining_networks=${remaining_networks}"
+          } | tee target/mobile-diagnostics/cleanup.txt
+
+          test -z "$remaining_containers"
+          test -z "$remaining_networks"
+
+      - name: Publish mobile failure artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-appium-failures-${{ github.run_attempt }}
+          path: |
+            target/mobile-diagnostics/**
+            codinglair-taf-runtime/taf-mobile-appium/target/surefire-reports/**
+            codinglair-taf-runtime/taf-mobile-appium/target/failsafe-reports/**
+            codinglair-taf-runtime/taf-mobile-appium/target/allure-results/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  pr-gate:
+    name: PR gate
+    if: ${{ always() }}
+    needs:
+      - documentation-version
+      - change-impact
+      - unit-tests
+      - affected-verification
+      - cross-module-smoke
+      - browser-smoke
+      - appium-smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Summarize and enforce selected lane results
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          ## Pull-request gate
+
+          | Lane | Selected | Result |
+          |---|---:|---|
+          | Documentation version | always | ${{ needs.documentation-version.result }} |
+          | Change impact | always | ${{ needs.change-impact.result }} |
+          | Unit tests | always | ${{ needs.unit-tests.result }} |
+          | Affected verification | ${{ needs.change-impact.outputs.integration }} | ${{ needs.affected-verification.result }} |
+          | Cross-module smoke | ${{ needs.change-impact.outputs.cross_module }} | ${{ needs.cross-module-smoke.result }} |
+          | Browser smoke | ${{ needs.change-impact.outputs.browser }} | ${{ needs.browser-smoke.result }} |
+          | Android emulator Appium smoke | ${{ needs.change-impact.outputs.appium }} | ${{ needs.appium-smoke.result }} |
+          SUMMARY
+          test '${{ needs.documentation-version.result }}' = 'success'
+          mkdir -p target/ci-support
+          javac -d target/ci-support build-support/ci/PrGate.java
+          java -cp target/ci-support PrGate \
+            '${{ needs.change-impact.result }}' \
+            '${{ needs.unit-tests.result }}' \
+            '${{ needs.affected-verification.result }}' \
+            '${{ needs.cross-module-smoke.result }}' \
+            '${{ needs.browser-smoke.result }}' \
+            '${{ needs.appium-smoke.result }}' \
+            '${{ needs.change-impact.outputs.integration }}' \
+            '${{ needs.change-impact.outputs.cross_module }}' \
+            '${{ needs.change-impact.outputs.browser }}' \
+            '${{ needs.change-impact.outputs.appium }}'

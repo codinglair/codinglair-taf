@@ -1,0 +1,1 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd"><suite name="functional"><test name="playwright-smoke"><classes><class name="__BASE_PACKAGE__.functional.ProductFunctionalExample"/></classes></test></suite>

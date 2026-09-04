@@ -1,0 +1,23 @@
+taf:
+  api:
+    rest:
+      enabled: true
+      controllers:
+        orders-api:
+          base-url: ${ORDERS_API_BASE_URL}
+          timeout: ${ORDERS_API_TIMEOUT:30s}
+  database:
+    enabled: true
+    environment: ${TEST_ENVIRONMENT:integration}
+    connections:
+      orders-db:
+        technology: postgresql
+        jdbc-url: ${ORDERS_DB_JDBC_URL}
+        username: ${ORDERS_DB_USERNAME}
+        password-reference: ${ORDERS_DB_PASSWORD_REF}
+        mode: external
+        access: read-only
+        timeout: ${ORDERS_DB_TIMEOUT:10s}
+        sensitive-columns: [customer_email, access_token]
+quickstart:
+  orders-ui-base-url: ${ORDERS_UI_BASE_URL}

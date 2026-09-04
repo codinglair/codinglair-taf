@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "uri": "taf://report/job-1",
+  "mediaType": "application/json",
+  "sizeBytes": 15,
+  "content": "{\"status\":\"ok\"}",
+  "redacted": true,
+  "nextCursor": "65536:0123456789abcdef",
+  "referenceOnly": false
+}

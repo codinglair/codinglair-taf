@@ -1,0 +1,10 @@
+caseId,username,passwordReference,productName,firstName,lastName,postalCode
+TC0001,standard_user,"secret://jasypt/HhLcjgJR1kZtnksNpGCUK2Pzr4TUE52sf7TDsbTMTu93nVEqowzhZe04MNngbwVt",Products,Test,User,60601
+TC0002,problem_user,"secret://jasypt/AXILliYiI2O0vqI03AepfNO7X902098XpYQseGWsy3skMT0MZWnyHHmYGyKRF3e1","Sauce Labs Backpack",Test,User,60601
+TC0003,performance_glitch_user,"secret://jasypt/1KaB4vE811/zLSSx3MQlt1Ak5Rxg1sbOYDf8ImfG7qurtVDdmBJ6pthiBkCo4yow","Sauce Labs Backpack",Test,User,60601
+TC0901,standard_user,"secret://jasypt/HhLcjgJR1kZtnksNpGCUK2Pzr4TUE52sf7TDsbTMTu93nVEqowzhZe04MNngbwVt",Products,Mongo,TestNG,60601
+TC0902,performance_glitch_user,"secret://jasypt/1KaB4vE811/zLSSx3MQlt1Ak5Rxg1sbOYDf8ImfG7qurtVDdmBJ6pthiBkCo4yow","Sauce Labs Backpack",Mongo,Cucumber,60601
+TC0903,problem_user,"secret://jasypt/AXILliYiI2O0vqI03AepfNO7X902098XpYQseGWsy3skMT0MZWnyHHmYGyKRF3e1","Sauce Labs Backpack",Mongo,Credential,60601
+QS-REST-001,api_user,"secret://env/ORDERS_API_TOKEN",BACKPACK,Quick,Start,60601
+QS-DB-001,db_reader,"secret://env/ORDERS_DB_PASSWORD",BACKPACK,Quick,Start,60601
+QS-F2B-001,f2b_user,"secret://env/ORDERS_TEST_PASSWORD",BACKPACK,Quick,Start,60601

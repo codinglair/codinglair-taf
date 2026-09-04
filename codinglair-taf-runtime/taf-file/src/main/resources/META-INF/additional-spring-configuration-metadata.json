@@ -1,0 +1,6 @@
+{
+  "properties": [
+    {"name": "taf.file.enabled", "type": "java.lang.Boolean", "defaultValue": false, "description": "Enable structured file validation controllers."},
+    {"name": "taf.file.sandboxes", "type": "java.util.Map<java.lang.String,com.codinglair.taf.runtime.file.FileValidationProperties$Sandbox>", "description": "Named file-validation sandboxes."}
+  ]
+}

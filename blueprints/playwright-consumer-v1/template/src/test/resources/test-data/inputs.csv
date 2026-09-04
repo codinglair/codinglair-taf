@@ -1,0 +1,3 @@
+caseId,username,passwordSecretReference,productName
+TC-PREREQUISITE,REPLACE_ME,secret://shop/standard-user,Products
+TC-LOGIN-SUBJECT,REPLACE_ME,secret://shop/standard-user,Products

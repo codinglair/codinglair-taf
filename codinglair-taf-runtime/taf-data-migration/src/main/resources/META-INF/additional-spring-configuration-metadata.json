@@ -1,0 +1,6 @@
+{
+  "properties": [
+    {"name":"taf.migration.enabled","type":"java.lang.Boolean","defaultValue":false,"description":"Enables governed migration preflight."},
+    {"name":"taf.migration.connections","type":"java.util.Map","description":"Per-named-connection migration policy and locations."}
+  ]
+}

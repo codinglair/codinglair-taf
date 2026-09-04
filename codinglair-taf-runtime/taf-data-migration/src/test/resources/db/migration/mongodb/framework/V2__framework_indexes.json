@@ -1,0 +1,10 @@
+{
+  "createIndexes": "taf_definitions",
+  "indexes": [
+    {
+      "key": {"project": 1, "caseId": 1, "version": 1},
+      "name": "taf_project_case_version_uq",
+      "unique": true
+    }
+  ]
+}

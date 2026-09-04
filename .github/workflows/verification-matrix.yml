@@ -1,0 +1,166 @@
+name: Authoritative Verification Matrix
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  MAVEN_ARGS: -B -ntp -Dstyle.color=always
+
+jobs:
+  runtime-and-architecture:
+    name: Runtime, compatibility, and architecture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify Java and Maven baselines
+        run: |
+          java -version
+          ./mvnw --version
+          ./mvnw $MAVEN_ARGS -f codinglair-taf-runtime/pom.xml clean verify -Pruntime-gate
+          ./mvnw $MAVEN_ARGS -Pdependency-analysis,architecture,api-compatibility,schema-compatibility verify
+      - name: Retain complete attempt evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-architecture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: '**/target/*-reports/**'
+          if-no-files-found: warn
+          retention-days: 30
+
+  browsers:
+    name: Browser compatibility matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Install declared browser matrix
+        run: |
+          ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-web-playwright -am test-compile dependency:build-classpath -Dmdep.outputFile=target/test-classpath.txt
+          java -cp "$(cat codinglair-taf-runtime/taf-web-playwright/target/test-classpath.txt)" com.microsoft.playwright.CLI install --with-deps chromium firefox webkit
+      - name: Run declared browser matrix
+        run: ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-web-playwright -am -Dtaf.browser.smoke=true -Dtest=PlaywrightBrowserSmokeTest -Dsurefire.failIfNoSpecifiedTests=false test
+      - name: Retain complete attempt evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-matrix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: '**/target/*-reports/**'
+          if-no-files-found: warn
+          retention-days: 30
+
+  containers:
+    name: Container suite (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - suite: environments
+            module: codinglair-taf-runtime/taf-environments
+          - suite: mongodb-definitions
+            module: codinglair-taf-runtime/taf-test-definitions-mongodb
+          - suite: database-migrations
+            module: codinglair-taf-runtime/taf-data-migration
+          - suite: kafka
+            module: codinglair-taf-runtime/taf-messaging-kafka
+          - suite: rabbitmq
+            module: codinglair-taf-runtime/taf-messaging-rabbitmq
+          - suite: jms
+            module: codinglair-taf-runtime/taf-messaging-jms
+          - suite: virtualization
+            module: codinglair-taf-runtime/taf-virtualization-wiremock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Capture clean runner baseline
+        run: |
+          mkdir -p target/verification
+          docker ps -aq | sort > target/verification/containers-before.txt
+          docker network ls -q | sort > target/verification/networks-before.txt
+      - name: Run database, messaging, or Testcontainers suite
+        run: ./mvnw $MAVEN_ARGS -pl "${{ matrix.module }}" -am verify -Pcontainers
+      - name: Prove resource cleanup
+        if: ${{ always() }}
+        run: |
+          docker ps -aq | sort > target/verification/containers-after.txt
+          docker network ls -q | sort > target/verification/networks-after.txt
+          comm -13 target/verification/containers-before.txt target/verification/containers-after.txt > target/verification/residual-containers.txt
+          comm -13 target/verification/networks-before.txt target/verification/networks-after.txt > target/verification/residual-networks.txt
+          test ! -s target/verification/residual-containers.txt
+          test ! -s target/verification/residual-networks.txt
+      - name: Retain complete attempt evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-${{ matrix.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/verification/**
+            **/target/*-reports/**
+          if-no-files-found: warn
+          retention-days: 30
+
+  mcp-security:
+    name: MCP, security, cancellation, and cleanup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Run complete MCP and security gate
+        run: ./mvnw $MAVEN_ARGS -f taf-mcp-server/pom.xml clean verify -Pmcp-e2e,security-it
+      - name: Retain complete attempt evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-security-${{ github.run_id }}-${{ github.run_attempt }}
+          path: '**/target/*-reports/**'
+          if-no-files-found: warn
+          retention-days: 30
+
+  android-emulator:
+    name: Android emulator Appium and cleanup
+    uses: ./.github/workflows/mob-003-qualification.yml
+
+  release-gate:
+    name: Release verification gate
+    if: ${{ always() }}
+    needs: [runtime-and-architecture, browsers, containers, mcp-security, android-emulator]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Summarize and block on every required suite
+        env:
+          REQUIRED_RESULTS: >-
+            ${{ needs.runtime-and-architecture.result }}
+            ${{ needs.browsers.result }}
+            ${{ needs.containers.result }}
+            ${{ needs.mcp-security.result }}
+            ${{ needs.android-emulator.result }}
+        run: |
+          printf '## Required verification results\n\n%s\n' "$REQUIRED_RESULTS" >> "$GITHUB_STEP_SUMMARY"
+          for result in $REQUIRED_RESULTS; do
+            test "$result" = success
+          done

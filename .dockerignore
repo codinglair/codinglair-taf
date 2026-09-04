@@ -1,0 +1,10 @@
+.git
+.idea
+.roo
+.agents
+.codex
+**/target
+docs
+containers/android-emulator
+containers/taf-test-runner
+*.log

@@ -1,0 +1,23 @@
+{
+  "capability": "test-definitions-mongodb",
+  "schemaVersion": 1,
+  "migrationOwner": "MIG-002",
+  "startupPolicy": "validate-only",
+  "requiredIndexes": [
+    {
+      "name": "taf_project_case_version_uq",
+      "keys": { "project": 1, "caseId": 1, "version": 1 },
+      "unique": true
+    },
+    {
+      "name": "taf_project_case_latest",
+      "keys": { "project": 1, "caseId": 1, "version": -1 },
+      "unique": false
+    }
+  ],
+  "requiredMigrations": [
+    "Create versioned test-definition collection with schemaVersion=1",
+    "Backfill and validate project identity before enabling shared context stores",
+    "Reject unknown or missing schemaVersion; never repair documents during repository startup"
+  ]
+}

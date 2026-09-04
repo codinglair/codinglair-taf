@@ -1,0 +1,3 @@
+caseId,username,retries
+TC0001,standard_user,2
+TC0002,locked_user,0

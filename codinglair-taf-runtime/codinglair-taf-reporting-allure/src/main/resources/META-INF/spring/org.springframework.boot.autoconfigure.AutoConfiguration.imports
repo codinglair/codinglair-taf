@@ -1,0 +1,2 @@
+com.codinglair.taf.runtime.core.reporting.impl.allure.AllureReporterAutoConfiguration
+com.codinglair.taf.runtime.core.reporting.impl.allure.AllureSingleFileAutoConfiguration

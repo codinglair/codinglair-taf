@@ -1,0 +1,71 @@
+name: codinglair-taf-android
+
+services:
+  android-emulator:
+    image: budtmo/docker-android:emulator_14.0@sha256:d0e1c84530702c1b1bcfb1b51b12bfd63b179932accab86d159fb870a994404b
+    container_name: android-emulator-1
+    devices:
+      - "/dev/kvm:/dev/kvm"
+    environment:
+      EMULATOR_DEVICE: "Samsung Galaxy S10"
+      APPIUM: "false"
+      WEB_VNC: "false"
+      EMULATOR_ADDITIONAL_ARGS: >-
+        -no-snapshot
+        -noaudio
+        -gpu swiftshader
+        -feature -Vulkan
+        -verbose
+        -show-kernel
+    shm_size: "2gb"
+    expose:
+      - "5554"
+      - "5555"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          test "$$(cat device_status 2>/dev/null)" = "READY" &&
+          adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device' &&
+          adb shell cmd package list packages >/dev/null
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: ${TAF_ANDROID_BOOT_START_PERIOD:-300s}
+    stop_grace_period: 30s
+    networks:
+      - mobile
+
+  appium:
+    image: appium/appium:v2.19.0-p4@sha256:88501defbd099cb92dc7bb6c5827167349eed030110ca258a4b6e4a5341175a7
+    container_name: android-appium-1
+    depends_on:
+      android-emulator:
+        condition: service_healthy
+    environment:
+      REMOTE_ADB: "true"
+      ANDROID_DEVICES: "android-emulator:5555"
+      REMOTE_ADB_POLLING_SEC: "5"
+      APPIUM_ADDITIONAL_PARAMS: "--base-path /"
+    ports:
+      - "127.0.0.1:${TAF_ANDROID_APPIUM_PORT:-4724}:4723"
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "curl --fail --silent http://127.0.0.1:4723/status >/dev/null && adb devices | grep -E '(android-emulator|localhost|emulator).*device'"
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 20s
+    networks:
+      - mobile
+      - appium-ingress
+
+networks:
+  mobile:
+    internal: true
+  appium-ingress:

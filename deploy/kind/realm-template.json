@@ -1,0 +1,68 @@
+{
+  "realm": "taf",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "taf-kind-smoke",
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["openid", "profile", "basic", "taf.prompts.read", "taf.resources.read", "taf.tools.discover"],
+      "protocolMappers": [
+        {
+          "name": "taf-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {"included.client.audience": "taf-mcp", "access.token.claim": "true"}
+        },
+        {
+          "name": "taf-project",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {"claim.name": "taf_project", "claim.value": "kind-smoke", "jsonType.label": "String", "access.token.claim": "true"}
+        },
+        {
+          "name": "taf-environment",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {"claim.name": "taf_environment", "claim.value": "kind", "jsonType.label": "String", "access.token.claim": "true"}
+        }
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "basic",
+      "description": "OpenID Connect basic claims required by Keycloak 25 and later",
+      "protocol": "openid-connect",
+      "attributes": {"include.in.token.scope": "false", "display.on.consent.screen": "false"},
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {"access.token.claim": "true", "introspection.token.claim": "true"}
+        }
+      ]
+    },
+    {"name": "taf.prompts.read", "protocol": "openid-connect", "attributes": {"include.in.token.scope": "true"}},
+    {"name": "taf.resources.read", "protocol": "openid-connect", "attributes": {"include.in.token.scope": "true"}},
+    {"name": "taf.tools.discover", "protocol": "openid-connect", "attributes": {"include.in.token.scope": "true"}}
+  ],
+  "users": [
+    {
+      "username": "taf-kind-smoke",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "taf-kind-smoke@invalid.example",
+      "firstName": "TAF",
+      "lastName": "Kind Smoke",
+      "credentials": [{"type": "password", "value": "@SMOKE_PASSWORD@", "temporary": false}]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "name": "taf.qa.execution-summary",
+  "description": "Summarize a completed test execution from its controlled report.",
+  "arguments": [{ "name": "reportReference", "required": true }],
+  "messages": [{
+    "role": "user",
+    "text": "Summarize the controlled report at {reportReference}. Include outcome counts, bounded evidence references, and unresolved failures. Do not infer missing results."
+  }]
+}

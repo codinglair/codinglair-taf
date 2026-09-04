@@ -1,0 +1,6 @@
+taf:
+  consumer:
+    environment: ci
+  environment:
+    mode: container
+    readiness-timeout: 60s

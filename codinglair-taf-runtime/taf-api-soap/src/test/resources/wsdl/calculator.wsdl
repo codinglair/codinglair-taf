@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:tns="urn:codinglair:taf:soap:calculator"
+                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                  targetNamespace="urn:codinglair:taf:soap:calculator">
+  <wsdl:types><xsd:schema><xsd:import namespace="urn:codinglair:taf:soap:calculator" schemaLocation="calculator.xsd"/></xsd:schema></wsdl:types>
+  <wsdl:message name="AddRequest"><wsdl:part name="parameters" element="tns:addRequest"/></wsdl:message>
+  <wsdl:message name="AddResponse"><wsdl:part name="parameters" element="tns:addResponse"/></wsdl:message>
+  <wsdl:portType name="CalculatorPortType"><wsdl:operation name="add"><wsdl:input message="tns:AddRequest"/><wsdl:output message="tns:AddResponse"/></wsdl:operation></wsdl:portType>
+  <wsdl:binding name="CalculatorSoap11Binding" type="tns:CalculatorPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="add"><soap:operation soapAction="urn:add"/><wsdl:input><soap:body use="literal"/></wsdl:input><wsdl:output><soap:body use="literal"/></wsdl:output></wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="CalculatorService"><wsdl:port name="CalculatorSoap11Port" binding="tns:CalculatorSoap11Binding"><soap:address location="http://localhost:0/calculator"/></wsdl:port></wsdl:service>
+</wsdl:definitions>

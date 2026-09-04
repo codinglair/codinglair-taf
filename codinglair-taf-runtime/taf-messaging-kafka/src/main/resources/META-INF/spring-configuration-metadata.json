@@ -1,0 +1,16 @@
+{
+  "groups": [
+    {
+      "name": "taf.messaging.kafka",
+      "type": "com.codinglair.taf.messaging.kafka.KafkaProperties",
+      "sourceType": "com.codinglair.taf.messaging.kafka.KafkaProperties"
+    }
+  ],
+  "properties": [
+    { "name": "taf.messaging.kafka.enabled", "type": "java.lang.Boolean", "defaultValue": false },
+    { "name": "taf.messaging.kafka.bootstrap-servers", "type": "java.util.List<java.lang.String>" },
+    { "name": "taf.messaging.kafka.group-id", "type": "java.lang.String", "defaultValue": "taf" },
+    { "name": "taf.messaging.kafka.topic-policy", "type": "com.codinglair.taf.messaging.kafka.KafkaTopicPolicy", "defaultValue": "REQUIRE_EXISTING" },
+    { "name": "taf.messaging.kafka.container.enabled", "type": "java.lang.Boolean", "defaultValue": false }
+  ]
+}

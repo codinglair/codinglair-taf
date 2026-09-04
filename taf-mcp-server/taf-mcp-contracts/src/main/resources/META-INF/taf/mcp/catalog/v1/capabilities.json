@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "1.0",
+  "catalogVersion": "1.0.0",
+  "tools": [
+    {
+      "name": "discover",
+      "mode": "synchronous",
+      "permission": "taf:capability:read",
+      "approval": "never",
+      "audit": "invocation",
+      "timeout": {
+        "defaultSeconds": 10,
+        "maximumSeconds": 30
+      },
+      "idempotency": "safe",
+      "sideEffects": "none",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "validate",
+      "mode": "synchronous",
+      "permission": "taf:project:read",
+      "approval": "never",
+      "audit": "invocation_and_result",
+      "timeout": {
+        "defaultSeconds": 30,
+        "maximumSeconds": 120
+      },
+      "idempotency": "safe",
+      "sideEffects": "none",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "scaffold",
+      "mode": "synchronous",
+      "permission": "taf:working-tree:write",
+      "approval": "required",
+      "audit": "invocation_and_result",
+      "timeout": {
+        "defaultSeconds": 60,
+        "maximumSeconds": 300
+      },
+      "idempotency": "idempotency_key_required",
+      "sideEffects": "working_tree",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "compile",
+      "mode": "asynchronous",
+      "permission": "taf:worker:execute",
+      "approval": "policy",
+      "audit": "full_lifecycle",
+      "timeout": {
+        "defaultSeconds": 600,
+        "maximumSeconds": 3600
+      },
+      "idempotency": "idempotency_key_required",
+      "sideEffects": "isolated_worker",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "build",
+      "mode": "asynchronous",
+      "permission": "taf:worker:execute",
+      "approval": "policy",
+      "audit": "full_lifecycle",
+      "timeout": {
+        "defaultSeconds": 900,
+        "maximumSeconds": 7200
+      },
+      "idempotency": "idempotency_key_required",
+      "sideEffects": "isolated_worker",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "execute",
+      "mode": "asynchronous",
+      "permission": "taf:test:execute",
+      "approval": "policy",
+      "audit": "full_lifecycle",
+      "timeout": {
+        "defaultSeconds": 1800,
+        "maximumSeconds": 86400
+      },
+      "idempotency": "idempotency_key_required",
+      "sideEffects": "isolated_worker",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "inspect",
+      "mode": "synchronous",
+      "permission": "taf:job:read",
+      "approval": "never",
+      "audit": "invocation",
+      "timeout": {
+        "defaultSeconds": 10,
+        "maximumSeconds": 30
+      },
+      "idempotency": "safe",
+      "sideEffects": "none",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "retrieve",
+      "mode": "synchronous",
+      "permission": "taf:artifact:read",
+      "approval": "never",
+      "audit": "invocation_and_result",
+      "timeout": {
+        "defaultSeconds": 30,
+        "maximumSeconds": 120
+      },
+      "idempotency": "safe",
+      "sideEffects": "none",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "cancel",
+      "mode": "synchronous",
+      "permission": "taf:job:cancel",
+      "approval": "policy",
+      "audit": "full_lifecycle",
+      "timeout": {
+        "defaultSeconds": 30,
+        "maximumSeconds": 120
+      },
+      "idempotency": "idempotent_target_state",
+      "sideEffects": "job_state",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "report",
+      "mode": "synchronous",
+      "permission": "taf:report:read",
+      "approval": "never",
+      "audit": "invocation_and_result",
+      "timeout": {
+        "defaultSeconds": 30,
+        "maximumSeconds": 120
+      },
+      "idempotency": "safe",
+      "sideEffects": "none",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    },
+    {
+      "name": "diagnose",
+      "mode": "synchronous",
+      "permission": "taf:diagnostic:read",
+      "approval": "policy",
+      "audit": "invocation_and_result",
+      "timeout": {
+        "defaultSeconds": 10,
+        "maximumSeconds": 30
+      },
+      "idempotency": "safe",
+      "sideEffects": "none",
+      "inputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-request",
+      "outputSchema": "urn:codinglair:taf:mcp:schema:v1:tool-response"
+    }
+  ],
+  "resources": [
+    {
+      "uriTemplate": "taf://documentation/{capability}",
+      "permission": "taf:capability:read",
+      "bounded": true
+    },
+    {
+      "uriTemplate": "taf://evidence/{jobId}/{evidenceId}",
+      "permission": "taf:artifact:read",
+      "bounded": true
+    },
+    {
+      "uriTemplate": "taf://report/{jobId}",
+      "permission": "taf:report:read",
+      "bounded": true
+    }
+  ],
+  "prompts": [
+    {
+      "name": "taf.qa.failure-analysis",
+      "permission": "taf:report:read",
+      "approval": "never",
+      "audit": "invocation_and_result"
+    },
+    {
+      "name": "taf.qa.execution-summary",
+      "permission": "taf:report:read",
+      "approval": "never",
+      "audit": "invocation_and_result"
+    },
+    {
+      "name": "taf.qa.environment-triage",
+      "permission": "taf:diagnostic:read",
+      "approval": "policy",
+      "audit": "invocation_and_result"
+    }
+  ]
+}

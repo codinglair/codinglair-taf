@@ -1,0 +1,1 @@
+CREATE TABLE orders_item (id INTEGER PRIMARY KEY);

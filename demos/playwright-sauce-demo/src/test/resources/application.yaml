@@ -1,0 +1,37 @@
+spring:
+  main:
+    web-application-type: none
+taf:
+  secrets:
+    jasypt-master-key-environment-variable: TAF_JASYPT_MASTER_KEY
+    references:
+      - ${SAUCE_DEMO_PASSWORD_REF:REPLACE_ME}
+  reporting:
+    allure:
+      single-file:
+        enabled: true
+        results-directory: ${TAF_ALLURE_RESULTS:${allure.results.directory:target/allure-results}}
+        output-directory: ${TAF_SINGLE_FILE_REPORT_OUTPUT:target/taf-reports}
+        report-name: SauceDemo Functional Tests
+        timestamp-pattern: yyyyMMddHHmm
+        executable: ${TAF_ALLURE_EXECUTABLE:allure}
+  demo:
+    base-url: ${SAUCE_DEMO_BASE_URL:REPLACE_ME}
+    report-output: ${TAF_REPORT_OUTPUT:target/allure-results}
+    test-definition-provider: file-csv
+    test-data-location: ${TAF_TEST_DATA_LOCATION:classpath:test-data}
+    action-timeout: ${SAUCE_DEMO_ACTION_TIMEOUT:10s}
+    password-reference: ${SAUCE_DEMO_PASSWORD_REF:SAUCE_DEMO_PASSWORD}
+  web:
+    playwright:
+      enabled: true
+      controllers:
+        shop:
+          mode: local
+          engine: chromium
+          base-url: ${SAUCE_DEMO_BASE_URL:REPLACE_ME}
+          headless: true
+consumer:
+  environment:
+    name: ${TEST_ENVIRONMENT:REPLACE_ME}
+    user-secret-reference: ${SAUCE_DEMO_PASSWORD_REF:REPLACE_ME}

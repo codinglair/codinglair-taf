@@ -1,0 +1,4 @@
+{
+  "schemaVersion": "1.0", "uri": "taf://report/job-002", "mediaType": "application/json",
+  "sizeBytes": 18, "content": "{\"status\":\"pass\"}", "redacted": true
+}

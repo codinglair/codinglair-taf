@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>codinglair-taf</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>taf-mcp-server</artifactId>
+    <packaging>pom</packaging>
+    <name>TAF MCP Server Reactor</name>
+    <description>Governed MCP control-plane modules</description>
+    <modules>
+        <module>taf-mcp-contracts</module>
+        <module>taf-mcp-jobs</module>
+        <module>taf-mcp-security</module>
+        <module>taf-execution-worker</module>
+        <module>taf-mcp-resources</module>
+        <module>taf-mcp-tools</module>
+        <module>taf-mcp-prompts</module>
+        <module>taf-mcp-transport-stdio</module>
+        <module>taf-mcp-transport-http</module>
+    </modules>
+
+    <profiles>
+        <profile>
+            <id>mcp-e2e</id>
+        </profile>
+        <profile>
+            <id>security-it</id>
+            <properties>
+                <taf.mcp.security.it>true</taf.mcp.security.it>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <taf.mcp.security.it>true</taf.mcp.security.it>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

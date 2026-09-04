@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taf-control-plane-config
+data:
+  TAF_MCP_HTTP_ENABLED: "true"
+  TAF_MCP_KIND_REFERENCE_ENABLED: "true"
+  TAF_MCP_HTTP_ISSUER_URI: http://taf-keycloak:8080/realms/taf
+  TAF_MCP_HTTP_AUDIENCE: taf-mcp
+  TAF_CONTEXT_MONGODB_MODE: internal
+  TAF_CONTEXT_MONGODB_DATABASE: taf-context

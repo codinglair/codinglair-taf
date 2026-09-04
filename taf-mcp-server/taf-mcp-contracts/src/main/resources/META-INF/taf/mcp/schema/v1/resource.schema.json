@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:resource",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "uri",
+    "mediaType",
+    "sizeBytes",
+    "content"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "uri": {
+      "type": "string",
+      "pattern": "^taf://(artifact|evidence|report|documentation)/"
+    },
+    "mediaType": {
+      "type": "string"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1048576
+    },
+    "content": {
+      "type": "string",
+      "maxLength": 1048576
+    },
+    "redacted": {
+      "type": "boolean"
+    },
+    "nextCursor": {
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "referenceOnly": {
+      "type": "boolean"
+    }
+  }
+}

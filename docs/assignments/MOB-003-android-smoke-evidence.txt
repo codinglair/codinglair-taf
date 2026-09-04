@@ -1,0 +1,347 @@
+Smoke command:
+```powershell
+docker compose --file containers/android-emulator/google/compose.qualify.yaml up --detach --wait --wait-timeout 360
+$env:TAF_ANDROID_APPIUM_URL = 'http://127.0.0.1:4724'
+$env:TAF_ANDROID_DEVICE_NAME = 'taf-api34'
+$env:TAF_ANDROID_DEVICE_ID = 'android-emulator:5555'
+$env:TAF_ANDROID_APP_PACKAGE = 'com.android.settings'
+$env:TAF_ANDROID_APP_ACTIVITY = '.Settings'
+.\mvnw.cmd -pl codinglair-taf-runtime/taf-mobile-appium -am verify -Pandroid-emulator
+docker compose --file containers/android-emulator/google/compose.qualify.yaml down --remove-orphans
+```
+Powershell output:
+PS E:\JavaTestProjects\codinglair-taf> docker compose --file containers/android-emulator/google/compose.qualify.yaml up --detach --wait --wait-timeout 360
+[+] up 4/4
+ ✔ Network codinglair-taf-mob-003_appium-ingress       Created                                                                                          0.0s
+ ✔ Network codinglair-taf-mob-003_mobile               Created                                                                                          0.0s
+ ✔ Container codinglair-taf-mob-003-android-emulator-1 Healthy                                                                                         34.0s
+ ✔ Container codinglair-taf-mob-003-appium-1           Healthy                                                                                         43.9s
+PS E:\JavaTestProjects\codinglair-taf> $env:TAF_ANDROID_APPIUM_URL = 'http://127.0.0.1:4724'
+PS E:\JavaTestProjects\codinglair-taf> $env:TAF_ANDROID_DEVICE_NAME = 'taf-api34'
+PS E:\JavaTestProjects\codinglair-taf> $env:TAF_ANDROID_DEVICE_ID = 'android-emulator:5555'
+PS E:\JavaTestProjects\codinglair-taf> $env:TAF_ANDROID_APP_PACKAGE = 'com.android.settings'
+PS E:\JavaTestProjects\codinglair-taf> $env:TAF_ANDROID_APP_ACTIVITY = '.Settings'
+PS E:\JavaTestProjects\codinglair-taf> .\mvnw.cmd -pl codinglair-taf-runtime/taf-mobile-appium -am verify -Pandroid-emulator
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO]
+[INFO] Codinglair Test Automation Framework Parent                        [pom]
+[INFO] codinglair-taf-common                                              [jar]
+[INFO] TAF Runtime                                                        [pom]
+[INFO] TAF Runtime Core                                                   [jar]
+[INFO] TAF Mobile Core                                                    [jar]
+[INFO] TAF Mobile Appium                                                  [jar]
+[INFO]
+[INFO] -----------------< com.codinglair.taf:codinglair-taf >------------------
+[INFO] Building Codinglair Test Automation Framework Parent 1.0-SNAPSHOT  [1/6]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO]
+[INFO] --- enforcer:3.5.0:enforce (enforce-versions) @ codinglair-taf ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] Rule 1: org.apache.maven.enforcer.rules.BanDuplicatePomDependencyVersions passed
+[INFO]
+[INFO] --------------< com.codinglair.taf:codinglair-taf-common >--------------
+[INFO] Building codinglair-taf-common 1.0-SNAPSHOT                        [2/6]
+[INFO]   from codinglair-taf-common\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- enforcer:3.5.0:enforce (enforce-versions) @ codinglair-taf-common ---
+[INFO] Rule 1: org.apache.maven.enforcer.rules.BanDuplicatePomDependencyVersions passed
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ codinglair-taf-common ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.13.0:compile (default-compile) @ codinglair-taf-common ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ codinglair-taf-common ---
+[INFO] skip non existing resourceDirectory E:\JavaTestProjects\codinglair-taf\codinglair-taf-common\src\test\resources
+[INFO]
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ codinglair-taf-common ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.2:test (default-test) @ codinglair-taf-common ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.codinglair.taf.core.CapabilityTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in com.codinglair.taf.core.CapabilityTest
+[INFO] Running com.codinglair.taf.core.validation.ConfigurationTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in com.codinglair.taf.core.validation.ConfigurationTest
+[INFO] Running com.codinglair.taf.core.validation.ValidationResultTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.codinglair.taf.core.validation.ValidationResultTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO]
+[INFO] --- jar:3.4.2:jar (default-jar) @ codinglair-taf-common ---
+[INFO]
+[INFO] --- jar:3.4.2:test-jar (default) @ codinglair-taf-common ---
+[INFO]
+[INFO] -------------< com.codinglair.taf:codinglair-taf-runtime >--------------
+[INFO] Building TAF Runtime 1.0-SNAPSHOT                                  [3/6]
+[INFO]   from codinglair-taf-runtime\pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO]
+[INFO] --- enforcer:3.5.0:enforce (enforce-versions) @ codinglair-taf-runtime ---
+[INFO] Rule 1: org.apache.maven.enforcer.rules.BanDuplicatePomDependencyVersions passed
+[INFO]
+[INFO] -----------< com.codinglair.taf:codinglair-taf-runtime-core >-----------
+[INFO] Building TAF Runtime Core 1.0-SNAPSHOT                             [4/6]
+[INFO]   from codinglair-taf-runtime\codinglair-taf-runtime-core\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- enforcer:3.5.0:enforce (enforce-versions) @ codinglair-taf-runtime-core ---
+[INFO] Rule 1: org.apache.maven.enforcer.rules.BanDuplicatePomDependencyVersions passed
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ codinglair-taf-runtime-core ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.13.0:compile (default-compile) @ codinglair-taf-runtime-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ codinglair-taf-runtime-core ---
+[INFO] skip non existing resourceDirectory E:\JavaTestProjects\codinglair-taf\codinglair-taf-runtime\codinglair-taf-runtime-core\src\test\resources
+[INFO]
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ codinglair-taf-runtime-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.2:test (default-test) @ codinglair-taf-runtime-core ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.codinglair.taf.runtime.core.ArchitectureBoundaryTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in com.codinglair.taf.runtime.core.ArchitectureBoundaryTest
+[INFO] Running com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest
+[INFO] Running com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$AutoConfigurationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$AutoConfigurationTests
+[INFO] Running com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$TestSessionCreationTests
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$TestSessionCreationTests
+[INFO] Running com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$TafRuntimePropertiesTests
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$TafRuntimePropertiesTests
+[INFO] Running com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$ConditionalBeanCreationTests
+14:23:17.681 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'executionHistoryRepository' defined in com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration: Failed to instantiate [com.codinglair.taf.runtime.core.history.ExecutionHistoryRepository]: Factory method 'executionHistoryRepository' threw exception with message: maximumRecords must be 1-100000
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.490 s -- in com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest$ConditionalBeanCreationTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.554 s -- in com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfigurationTest
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$SuccessTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$SuccessTests
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$ResultPropertiesTests
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 30.10 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$ResultPropertiesTests
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$FailureTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$FailureTests
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$ConcurrentExecutionTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$ConcurrentExecutionTests
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$TimeoutTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.310 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$TimeoutTests
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$MessageGenerationTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.117 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$MessageGenerationTests
+[INFO] Running com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$CreateTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest$CreateTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 30.62 s -- in com.codinglair.taf.runtime.core.condition.AwaitableAssertionTest
+[INFO] Running com.codinglair.taf.runtime.core.context.CorrelationContextTest
+[INFO] Running com.codinglair.taf.runtime.core.context.CorrelationContextTest$ToStringTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.context.CorrelationContextTest$ToStringTests
+[INFO] Running com.codinglair.taf.runtime.core.context.CorrelationContextTest$ChildContextTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.context.CorrelationContextTest$ChildContextTests
+[INFO] Running com.codinglair.taf.runtime.core.context.CorrelationContextTest$CreateTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.codinglair.taf.runtime.core.context.CorrelationContextTest$CreateTests
+[INFO] Running com.codinglair.taf.runtime.core.context.CorrelationContextTest$HeadersTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.context.CorrelationContextTest$HeadersTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.codinglair.taf.runtime.core.context.CorrelationContextTest
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$ToHeadersTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$ToHeadersTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$AttributesTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$AttributesTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$ToStringTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$ToStringTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$CorrelationContextTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$CorrelationContextTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$TimingTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$TimingTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$ChildContextTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$ChildContextTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$CreateTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$CreateTests
+[INFO] Running com.codinglair.taf.runtime.core.context.TestContextTest$PreconditionsTests
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.codinglair.taf.runtime.core.context.TestContextTest$PreconditionsTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.codinglair.taf.runtime.core.context.TestContextTest
+[INFO] Running com.codinglair.taf.runtime.core.controller.ControllerLifecycleConformanceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.codinglair.taf.runtime.core.controller.ControllerLifecycleConformanceTest
+[INFO] Running com.codinglair.taf.runtime.core.failure.FailurePolicyTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.248 s -- in com.codinglair.taf.runtime.core.failure.FailurePolicyTest
+[INFO] Running com.codinglair.taf.runtime.core.history.AttemptHistoryServiceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in com.codinglair.taf.runtime.core.history.AttemptHistoryServiceTest
+[INFO] Running com.codinglair.taf.runtime.core.history.FileExecutionHistoryRepositoryTest
+[WARNING] Tests run: 12, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 5.338 s -- in com.codinglair.taf.runtime.core.history.FileExecutionHistoryRepositoryTest
+[INFO] Running com.codinglair.taf.runtime.core.history.HistoricalStabilityEvaluatorTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.history.HistoricalStabilityEvaluatorTest
+[INFO] Running com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests
+[INFO] Running com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$TimingTests
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.105 s -- in com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$TimingTests
+[INFO] Running com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$ParallelIsolationTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$ParallelIsolationTests
+[INFO] Running com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$CorrelationPropagationTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$CorrelationPropagationTests
+[INFO] Running com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$CorrelationHeaderTests
+X-Trace-ID
+X-Span-ID
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests$CorrelationHeaderTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.118 s -- in com.codinglair.taf.runtime.core.integration.ContextCorrelationIntegrationTests
+[INFO] Running com.codinglair.taf.runtime.core.lifecycle.SessionAwareAccessorTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.codinglair.taf.runtime.core.lifecycle.SessionAwareAccessorTest
+[INFO] Running com.codinglair.taf.runtime.core.lifecycle.TestSessionLifecycleTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.codinglair.taf.runtime.core.lifecycle.TestSessionLifecycleTest
+[INFO] Running com.codinglair.taf.runtime.core.migration.MigrationContractTest
+[INFO] Running com.codinglair.taf.runtime.core.migration.MigrationContractTest$RequestValidation
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.migration.MigrationContractTest$RequestValidation
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.codinglair.taf.runtime.core.migration.MigrationContractTest
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$SkippedTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$SkippedTests
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$FailedTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$FailedTests
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$SatisfiedTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$SatisfiedTests
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$GettersTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$GettersTests
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$ToStringTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$ToStringTests
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$WithStatusTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$WithStatusTests
+[INFO] Running com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$UnknownTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest$UnknownTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.codinglair.taf.runtime.core.precondition.PreconditionResultTest
+[INFO] Running com.codinglair.taf.runtime.core.reporting.ArtifactCollectorTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.061 s -- in com.codinglair.taf.runtime.core.reporting.ArtifactCollectorTest
+[INFO] Running com.codinglair.taf.runtime.core.reporting.FailurePropagationContractTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in com.codinglair.taf.runtime.core.reporting.FailurePropagationContractTest
+[INFO] Running com.codinglair.taf.runtime.core.reporting.HierarchicalReportTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in com.codinglair.taf.runtime.core.reporting.HierarchicalReportTest
+[INFO] Running com.codinglair.taf.runtime.core.reporting.ReporterContractTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.codinglair.taf.runtime.core.reporting.ReporterContractTest
+[INFO] Running com.codinglair.taf.runtime.core.reporting.ReportingInterceptionTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in com.codinglair.taf.runtime.core.reporting.ReportingInterceptionTest
+[INFO]
+[INFO] Results:
+[INFO]
+[WARNING] Tests run: 182, Failures: 0, Errors: 0, Skipped: 1
+[INFO]
+[INFO]
+[INFO] --- jar:3.4.2:jar (default-jar) @ codinglair-taf-runtime-core ---
+[INFO]
+[INFO] -----------------< com.codinglair.taf:taf-mobile-core >-----------------
+[INFO] Building TAF Mobile Core 1.0-SNAPSHOT                              [5/6]
+[INFO]   from codinglair-taf-runtime\taf-mobile-core\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- enforcer:3.5.0:enforce (enforce-versions) @ taf-mobile-core ---
+[INFO] Rule 1: org.apache.maven.enforcer.rules.BanDuplicatePomDependencyVersions passed
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ taf-mobile-core ---
+[INFO] skip non existing resourceDirectory E:\JavaTestProjects\codinglair-taf\codinglair-taf-runtime\taf-mobile-core\src\main\resources
+[INFO]
+[INFO] --- compiler:3.13.0:compile (default-compile) @ taf-mobile-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ taf-mobile-core ---
+[INFO] skip non existing resourceDirectory E:\JavaTestProjects\codinglair-taf\codinglair-taf-runtime\taf-mobile-core\src\test\resources
+[INFO]
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ taf-mobile-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.2:test (default-test) @ taf-mobile-core ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.codinglair.taf.mobile.DeviceDescriptorTest
+[INFO] Running com.codinglair.taf.mobile.DeviceDescriptorTest$Validation
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.060 s -- in com.codinglair.taf.mobile.DeviceDescriptorTest$Validation
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in com.codinglair.taf.mobile.DeviceDescriptorTest
+[INFO] Running com.codinglair.taf.mobile.MobileArchitectureBoundaryTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.codinglair.taf.mobile.MobileArchitectureBoundaryTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO]
+[INFO] --- jar:3.4.2:jar (default-jar) @ taf-mobile-core ---
+[INFO]
+[INFO] ----------------< com.codinglair.taf:taf-mobile-appium >----------------
+[INFO] Building TAF Mobile Appium 1.0-SNAPSHOT                            [6/6]
+[INFO]   from codinglair-taf-runtime\taf-mobile-appium\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- enforcer:3.5.0:enforce (enforce-versions) @ taf-mobile-appium ---
+[INFO] Rule 1: org.apache.maven.enforcer.rules.BanDuplicatePomDependencyVersions passed
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ taf-mobile-appium ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.13.0:compile (default-compile) @ taf-mobile-appium ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ taf-mobile-appium ---
+[INFO] skip non existing resourceDirectory E:\JavaTestProjects\codinglair-taf\codinglair-taf-runtime\taf-mobile-appium\src\test\resources
+[INFO]
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ taf-mobile-appium ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.2:test (default-test) @ taf-mobile-appium ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.codinglair.taf.mobile.appium.AndroidAutoConfigurationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.495 s -- in com.codinglair.taf.mobile.appium.AndroidAutoConfigurationTest
+[INFO] Running com.codinglair.taf.mobile.appium.AndroidControllerLifecycleTest
+[INFO] Running com.codinglair.taf.mobile.appium.AndroidControllerLifecycleTest$DeviceFreeBehavior
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.codinglair.taf.mobile.appium.AndroidControllerLifecycleTest$DeviceFreeBehavior
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.codinglair.taf.mobile.appium.AndroidControllerLifecycleTest
+[INFO] Running com.codinglair.taf.mobile.appium.AndroidControllerSettingsTest
+[INFO] Running com.codinglair.taf.mobile.appium.AndroidControllerSettingsTest$Validation
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.codinglair.taf.mobile.appium.AndroidControllerSettingsTest$Validation
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in com.codinglair.taf.mobile.appium.AndroidControllerSettingsTest
+[INFO] Running com.codinglair.taf.mobile.appium.AndroidEmulatorSmokeTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.601 s -- in com.codinglair.taf.mobile.appium.AndroidEmulatorSmokeTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO]
+[INFO] --- jar:3.4.2:jar (default-jar) @ taf-mobile-appium ---
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for Codinglair Test Automation Framework Parent 1.0-SNAPSHOT:
+[INFO]
+[INFO] Codinglair Test Automation Framework Parent ........ SUCCESS [  0.239 s]
+[INFO] codinglair-taf-common .............................. SUCCESS [  1.428 s]
+[INFO] TAF Runtime ........................................ SUCCESS [  0.007 s]
+[INFO] TAF Runtime Core ................................... SUCCESS [ 38.076 s]
+[INFO] TAF Mobile Core .................................... SUCCESS [  0.611 s]
+[INFO] TAF Mobile Appium .................................. SUCCESS [  7.779 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  48.552 s
+[INFO] Finished at: 2026-08-27T14:24:02-05:00
+[INFO] ------------------------------------------------------------------------
+PS E:\JavaTestProjects\codinglair-taf> docker compose --file containers/android-emulator/google/compose.qualify.yaml down --remove-orphans
+[+] down 4/4
+ ✔ Container codinglair-taf-mob-003-appium-1           Removed                                                                                          3.5s
+ ✔ Container codinglair-taf-mob-003-android-emulator-1 Removed                                                                                          1.3s
+ ✔ Network codinglair-taf-mob-003_appium-ingress       Removed                                                                                          0.4s
+ ✔ Network codinglair-taf-mob-003_mobile               Removed 

@@ -1,0 +1,46 @@
+{
+  "properties": [
+    {
+      "name": "taf.reporting.allure.single-file.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Publish one self-contained Allure HTML report after the logical TestNG execution."
+    },
+    {
+      "name": "taf.reporting.allure.single-file.output-directory",
+      "type": "java.nio.file.Path",
+      "defaultValue": "target/taf-reports",
+      "description": "Root for collision-safe timestamped publication directories."
+    },
+    {
+      "name": "taf.reporting.allure.single-file.results-directory",
+      "type": "java.nio.file.Path",
+      "defaultValue": "target/allure-results",
+      "description": "Finalized, sanitized Allure results source."
+    },
+    {
+      "name": "taf.reporting.allure.single-file.report-name",
+      "type": "java.lang.String",
+      "defaultValue": "TAF Test Report",
+      "description": "Filesystem-safe human-readable filename prefix."
+    },
+    {
+      "name": "taf.reporting.allure.single-file.timestamp-pattern",
+      "type": "java.lang.String",
+      "defaultValue": "yyyyMMddHHmm",
+      "description": "DateTimeFormatter pattern producing one filesystem-safe timestamp segment."
+    },
+    {
+      "name": "taf.reporting.allure.single-file.executable",
+      "type": "java.lang.String",
+      "defaultValue": "allure",
+      "description": "Approved Allure 2 command-line executable for local or non-container execution."
+    },
+    {
+      "name": "taf.reporting.allure.single-file.timeout",
+      "type": "java.time.Duration",
+      "defaultValue": "2m",
+      "description": "Maximum duration allowed for single-file generation."
+    }
+  ]
+}

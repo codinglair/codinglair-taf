@@ -1,0 +1,6 @@
+{"properties":[
+  {"name":"taf.virtualization.wiremock.enabled","type":"java.lang.Boolean","defaultValue":false,"description":"Enables WireMock virtualization composition."},
+  {"name":"taf.virtualization.wiremock.container-enabled","type":"java.lang.Boolean","defaultValue":false,"description":"Registers the governed container provider."},
+  {"name":"taf.virtualization.wiremock.network-faults-enabled","type":"java.lang.Boolean","defaultValue":false,"description":"Allows network fault simulation outside production environments."},
+  {"name":"taf.virtualization.wiremock.base-url","type":"java.net.URI","description":"External WireMock endpoint."}
+]}

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>codinglair-taf-runtime</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>taf-consumer-conformance</artifactId>
+    <name>TAF Consumer Conformance</name>
+    <description>Executable blueprint conformance validator and consumer test kit</description>
+    <dependencies>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-runtime-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-web-playwright</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-api-rest</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-messaging-kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-database</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

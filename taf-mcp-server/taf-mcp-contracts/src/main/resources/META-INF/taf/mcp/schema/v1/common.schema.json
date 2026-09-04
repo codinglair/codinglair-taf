@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:common",
+  "title": "TAF MCP common contracts v1",
+  "$defs": {
+    "schemaVersion": { "const": "1.0" },
+    "identifier": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "mediaType"],
+      "properties": {
+        "uri": { "type": "string", "pattern": "^taf://(artifact|evidence|report|job|documentation)/[^\\s]+$", "maxLength": 2048 },
+        "mediaType": { "type": "string", "maxLength": 128 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "message", "retryable", "correlationId"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^TAF-MCP-[0-9]{4}$" },
+        "category": { "enum": ["validation", "authorization", "approval", "conflict", "not_found", "timeout", "cancelled", "rate_limited", "internal"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "retryable": { "type": "boolean" },
+        "correlationId": { "$ref": "#/$defs/identifier" },
+        "details": { "type": "object", "maxProperties": 32, "additionalProperties": { "type": ["string", "number", "boolean"] } }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit", "hasMore"],
+      "properties": {
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "nextCursor": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "hasMore": { "type": "boolean" }
+      },
+      "allOf": [
+        { "if": { "properties": { "hasMore": { "const": true } } }, "then": { "required": ["nextCursor"] } }
+      ]
+    }
+  }
+}

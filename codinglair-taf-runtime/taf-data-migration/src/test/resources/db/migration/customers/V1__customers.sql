@@ -1,0 +1,1 @@
+CREATE TABLE customer_record (id INTEGER PRIMARY KEY);

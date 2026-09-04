@@ -1,0 +1,9 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="SauceDemo functional" parallel="classes" thread-count="2">
+  <test name="Technical verification">
+    <classes>
+      <class name="com.codinglair.taf.demo.sauce.functional.SauceDemoLoginTest"/>
+      <class name="com.codinglair.taf.demo.sauce.functional.SauceDemoProductTest"/>
+    </classes>
+  </test>
+</suite>

@@ -1,0 +1,47 @@
+name: codinglair-taf-mob-003
+
+services:
+  android-emulator:
+    image: ${TAF_MOB003_IMAGE:-codinglair-taf/android-emulator:mob-003-api34}
+    devices:
+      - /dev/kvm:/dev/kvm
+    shm_size: 2gb
+    tmpfs:
+      - /data:size=6g,uid=10001,gid=10001,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "5555"
+    networks:
+      - mobile
+
+  appium:
+    image: appium/appium:v2.19.0-p4@sha256:88501defbd099cb92dc7bb6c5827167349eed030110ca258a4b6e4a5341175a7
+    depends_on:
+      android-emulator:
+        condition: service_healthy
+    environment:
+      REMOTE_ADB: "true"
+      ANDROID_DEVICES: android-emulator:5555
+      REMOTE_ADB_POLLING_SEC: "5"
+      APPIUM_ADDITIONAL_PARAMS: --base-path /
+    ports:
+      - 127.0.0.1:4724:4723
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl --fail --silent http://127.0.0.1:4723/status >/dev/null && adb devices | grep -q '^android-emulator:5555[[:space:]]*device$'
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 30s
+    networks:
+      - mobile
+      - appium-ingress
+
+networks:
+  mobile:
+    internal: true
+  appium-ingress:

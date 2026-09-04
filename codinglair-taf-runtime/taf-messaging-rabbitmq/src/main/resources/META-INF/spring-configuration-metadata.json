@@ -1,0 +1,17 @@
+{
+  "groups": [
+    {
+      "name": "taf.messaging.rabbitmq",
+      "type": "com.codinglair.taf.messaging.rabbitmq.RabbitProperties",
+      "sourceType": "com.codinglair.taf.messaging.rabbitmq.RabbitProperties"
+    }
+  ],
+  "properties": [
+    { "name": "taf.messaging.rabbitmq.enabled", "type": "java.lang.Boolean", "defaultValue": false },
+    { "name": "taf.messaging.rabbitmq.addresses", "type": "java.lang.String", "defaultValue": "localhost:5672" },
+    { "name": "taf.messaging.rabbitmq.username", "type": "java.lang.String", "defaultValue": "guest" },
+    { "name": "taf.messaging.rabbitmq.password-reference", "type": "java.lang.String", "defaultValue": "credential://profile/rabbitmq" },
+    { "name": "taf.messaging.rabbitmq.virtual-host", "type": "java.lang.String", "defaultValue": "/" },
+    { "name": "taf.messaging.rabbitmq.container.enabled", "type": "java.lang.Boolean", "defaultValue": false }
+  ]
+}

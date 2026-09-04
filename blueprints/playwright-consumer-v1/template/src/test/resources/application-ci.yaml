@@ -1,0 +1,9 @@
+taf:
+  web:
+    playwright:
+      controllers:
+        shop:
+          headless: true
+consumer:
+  environment:
+    name: ci

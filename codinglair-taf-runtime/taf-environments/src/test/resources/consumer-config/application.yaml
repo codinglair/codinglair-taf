@@ -1,0 +1,19 @@
+spring:
+  main:
+    web-application-type: none
+taf:
+  consumer:
+    environment: ${TAF_ENVIRONMENT:local}
+    capabilities:
+      storefront:
+        type: web-playwright
+        enabled: true
+        required-values:
+          base-url: ${STOREFRONT_URL:REPLACE_ME}
+        secret-references:
+          username: STOREFRONT_USERNAME
+      payments:
+        type: api-rest
+        enabled: false
+        required-values:
+          base-url: REPLACE_ME

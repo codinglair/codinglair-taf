@@ -1,0 +1,62 @@
+{
+  "insert" : "taf_definitions",
+  "documents": [
+    {
+      "schemaVersion": 1,
+      "project": "sauce-demo",
+      "caseId": "TC0001",
+      "version": 1,
+      "state": "APPROVED",
+      "input": {
+        "username": "standard_user",
+        "passwordReference": "secret://jasypt/HhLcjgJR1kZtnksNpGCUK2Pzr4TUE52sf7TDsbTMTu93nVEqowzhZe04MNngbwVt",
+        "productName": "Products",
+        "firstName": "Test1",
+        "lastName": "User1",
+        "postalCode": "60601"
+      },
+      "expectedOutput": {"productName": "Products", "description": "Products", "price": "0.00"},
+      "secretReferences": {"passwordReference": "secret://jasypt/HhLcjgJR1kZtnksNpGCUK2Pzr4TUE52sf7TDsbTMTu93nVEqowzhZe04MNngbwVt"},
+      "correlations": {"classification": "functional", "traceability": "TC0001"},
+      "payloadReferences": []
+    },
+    {
+      "schemaVersion": 1,
+      "project": "sauce-demo",
+      "caseId": "TC0002",
+      "version": 1,
+      "state": "APPROVED",
+      "input": {
+        "username": "problem_user",
+        "passwordReference": "secret://jasypt/AXILliYiI2O0vqI03AepfNO7X902098XpYQseGWsy3skMT0MZWnyHHmYGyKRF3e1",
+        "productName": "Sauce Labs Backpack",
+        "firstName": "Test2",
+        "lastName": "User2",
+        "postalCode": "60601"
+      },
+      "expectedOutput": {"productName": "Sauce Labs Backpack", "description": "carry.allTheThings() with the sleek, streamlined Sly Pack that melds uncompromising style with unequaled laptop and tablet protection.", "price": "29.99"},
+      "secretReferences": {"passwordReference": "secret://jasypt/AXILliYiI2O0vqI03AepfNO7X902098XpYQseGWsy3skMT0MZWnyHHmYGyKRF3e1"},
+      "correlations": {"classification": "functional", "traceability": "TC0002"},
+      "payloadReferences": []
+    },
+    {
+      "schemaVersion": 1,
+      "project": "sauce-demo",
+      "caseId": "TC0003",
+      "version": 1,
+      "state": "APPROVED",
+      "input": {
+        "username": "performance_glitch_user",
+        "passwordReference": "secret://jasypt/1KaB4vE811/zLSSx3MQlt1Ak5Rxg1sbOYDf8ImfG7qurtVDdmBJ6pthiBkCo4yow",
+        "productName": "Sauce Labs Backpack",
+        "firstName": "Test3",
+        "lastName": "User3",
+        "postalCode": "60601"
+      },
+      "expectedOutput": {"productName": "Thank you for your order!", "description": "Thank you for your order!", "price": "29.99"},
+      "secretReferences": {"passwordReference": "secret://jasypt/1KaB4vE811/zLSSx3MQlt1Ak5Rxg1sbOYDf8ImfG7qurtVDdmBJ6pthiBkCo4yow"},
+      "correlations": {"classification": "bdd", "traceability": "TC0003"},
+      "payloadReferences": []
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "urn:codinglair:taf:mcp:schema:v1:tool-response",
+  "type": "object", "additionalProperties": false, "required": ["schemaVersion", "requestId", "status", "correlationId"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "requestId": { "type": "string" }, "correlationId": { "type": "string" },
+    "status": { "enum": ["completed", "accepted", "failed"] }, "summary": { "type": "string", "maxLength": 4096 },
+    "jobReference": { "type": "string", "pattern": "^taf://job/" }, "resultReferences": { "type": "array", "maxItems": 100, "items": { "type": "string", "pattern": "^taf://" } },
+    "error": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "category", "message", "retryable", "correlationId"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^TAF-MCP-[0-9]{4}$" },
+        "category": { "enum": ["validation", "authorization", "approval", "conflict", "not_found", "timeout", "cancelled", "rate_limited", "internal"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1024 }, "retryable": { "type": "boolean" },
+        "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "details": { "type": "object", "maxProperties": 32, "additionalProperties": { "type": ["string", "number", "boolean"] } }
+      }
+    },
+    "page": {
+      "type": "object", "additionalProperties": false, "required": ["limit", "hasMore"],
+      "properties": { "limit": { "type": "integer", "minimum": 1, "maximum": 100 }, "nextCursor": { "type": "string", "minLength": 1, "maxLength": 512 }, "hasMore": { "type": "boolean" } },
+      "allOf": [{ "if": { "properties": { "hasMore": { "const": true } } }, "then": { "required": ["nextCursor"] } }]
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "accepted" } } }, "then": { "required": ["jobReference"] } },
+    { "if": { "properties": { "status": { "const": "failed" } } }, "then": { "required": ["error"] } }
+  ]
+}

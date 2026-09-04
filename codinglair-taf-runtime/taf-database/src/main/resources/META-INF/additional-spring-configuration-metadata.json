@@ -1,0 +1,7 @@
+{
+  "properties": [
+    { "name": "taf.database.enabled", "type": "java.lang.Boolean", "defaultValue": false, "description": "Enable named SUT JDBC database controllers." },
+    { "name": "taf.database.environment", "type": "java.lang.String", "defaultValue": "local", "description": "Non-sensitive environment identity used for authorization." },
+    { "name": "taf.context.jdbc-url", "type": "java.lang.String", "description": "Reserved framework-context identity used only to prevent SUT aliasing." }
+  ]
+}

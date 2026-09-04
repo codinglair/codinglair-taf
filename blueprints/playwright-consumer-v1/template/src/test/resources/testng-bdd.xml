@@ -1,0 +1,1 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd"><suite name="bdd"><test name="bdd"><packages><package name="__BASE_PACKAGE__.bdd.runner"/></packages></test></suite>

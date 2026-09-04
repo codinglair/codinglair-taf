@@ -1,0 +1,17 @@
+spring:
+  main:
+    web-application-type: none
+taf:
+  web:
+    playwright:
+      enabled: true
+      controllers:
+        shop:
+          mode: local
+          engine: chromium
+          base-url: ${SHOP_BASE_URL:REPLACE_ME}
+          headless: true
+consumer:
+  environment:
+    name: ${TEST_ENVIRONMENT:REPLACE_ME}
+    user-secret-reference: ${SHOP_USER_SECRET_REF:REPLACE_ME}

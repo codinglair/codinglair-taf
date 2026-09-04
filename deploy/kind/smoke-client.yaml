@@ -1,0 +1,176 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: taf-mcp-smoke
+  namespace: taf-system
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: client
+          image: curlimages/curl:8.15.0
+          env:
+            - name: SMOKE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: taf-smoke-credentials
+                  key: username
+            - name: SMOKE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: taf-smoke-credentials
+                  key: password
+          command: ["sh", "-ec"]
+          args:
+            - |
+              work="$(mktemp -d)"
+              trap 'rm -rf "$work"' EXIT
+
+              fail() {
+                code="$1"
+                shift
+                echo "Smoke failure: $*" >&2
+                exit "$code"
+              }
+
+              classify_mcp_payload() {
+                payload="$1"
+                stage="$2"
+                if grep -q '"error"' "$payload"; then
+                  error_code="$(sed -n 's/.*"error"[[:space:]]*:[[:space:]]*{[^}]*"code"[[:space:]]*:[[:space:]]*\(-\{0,1\}[0-9][0-9]*\).*/\1/p' "$payload" | head -n 1)"
+                  [ -n "$error_code" ] || error_code=unknown
+                  error_class=unclassified
+                  grep -qi 'required' "$payload" && error_class=required-argument
+                  grep -qi 'denied\|forbidden\|unauthorized' "$payload" && error_class=authorization
+                  grep -qi 'not found\|unknown prompt' "$payload" && error_class=not-found
+                  grep -qi 'invalid.*param' "$payload" && error_class=invalid-params
+                  error_message="$(sed -n 's/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$payload" | head -n 1)"
+                  error_message="$(printf '%s' "$error_message" | tr '\r\n\t' '   ' | sed 's/[^[:alnum:] _.,:={}()\/\[\]-]/?/g' | cut -c 1-300)"
+                  [ -n "$error_message" ] || error_message=unavailable
+                  echo "MCP prompts/get failed:" >&2
+                  echo "  code=${error_code}" >&2
+                  echo "  message=${error_message}" >&2
+                  echo "  class=${error_class}; response body withheld" >&2
+                elif grep -q '"result"' "$payload"; then
+                  shape=without-messages
+                  grep -q '"messages"' "$payload" && shape=messages
+                  echo "Smoke diagnostic: ${stage} JSON-RPC result shape=${shape} bytes=$(wc -c < "$payload" | tr -d ' '); body withheld" >&2
+                else
+                  echo "Smoke diagnostic: ${stage} response has no JSON-RPC result/error envelope; bytes=$(wc -c < "$payload" | tr -d ' '); body withheld" >&2
+                fi
+              }
+
+              print_execution_summary_schema() {
+                prompt_record="$(tr -d '\r\n' < "$1" | sed 's/]},{[[:space:]]*"name"/]}'"$(printf '\n')"'{"name"/g' | grep '"name"[[:space:]]*:[[:space:]]*"taf.qa.execution-summary"' | head -n 1)"
+                [ -n "$prompt_record" ] || return 1
+                echo 'MCP prompt schema:'
+                echo '  name=taf.qa.execution-summary'
+                arguments="$(printf '%s' "$prompt_record" | grep -Eo '"name"[[:space:]]*:[[:space:]]*"[^"]+"[^{}]*"required"[[:space:]]*:[[:space:]]*(true|false)' || true)"
+                [ -n "$arguments" ] || { echo '  argument=<none>'; return 1; }
+                printf '%s\n' "$arguments" | while IFS= read -r argument; do
+                  argument_name="$(printf '%s' "$argument" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+                  required="$(printf '%s' "$argument" | sed -n 's/.*"required"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p')"
+                  echo "  argument=${argument_name}"
+                  echo "  required=${required}"
+                done
+              }
+
+              echo 'Smoke stage [OIDC/authentication]: token acquisition started'
+              if ! token_status="$(curl --silent --show-error -o "$work/token.json" -w '%{http_code}' \
+                --data-urlencode "client_id=taf-kind-smoke" \
+                --data-urlencode "username=${SMOKE_USERNAME}" \
+                --data-urlencode "password=${SMOKE_PASSWORD}" \
+                --data-urlencode "grant_type=password" \
+                http://taf-keycloak:8080/realms/taf/protocol/openid-connect/token)"; then
+                fail 21 'OIDC token transport failed'
+              fi
+              case "$token_status" in 2??) ;; *) fail 22 "OIDC token endpoint returned HTTP ${token_status}" ;; esac
+              token="$(sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p' "$work/token.json")"
+              [ -n "$token" ] || fail 23 'OIDC response was successful but contained no access token'
+              echo 'Smoke stage [OIDC/authentication]: token acquisition passed'
+
+              echo 'Smoke stage [MCP initialize]: request started'
+              if ! initialize_status="$(curl --silent --show-error -D "$work/headers" -o "$work/initialize" -w '%{http_code}' \
+                -H "Authorization: Bearer ${token}" \
+                -H 'Content-Type: application/json' \
+                -H 'Accept: application/json, text/event-stream' \
+                --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"kind-smoke","version":"1.0"}}}' \
+                http://taf-control-plane:8080/mcp)"; then
+                fail 31 'MCP initialize transport failed'
+              fi
+              case "$initialize_status" in 2??) ;; *) fail 31 "MCP initialize returned HTTP ${initialize_status}; response body withheld" ;; esac
+              if ! grep -q 'codinglair-taf' "$work/initialize"; then
+                classify_mcp_payload "$work/initialize" 'MCP initialize'
+                fail 31 'MCP initialize returned an unexpected payload; response body withheld'
+              fi
+              session="$(sed -n 's/^[Mm][Cc][Pp]-[Ss]ession-[Ii]d: *\([^[:space:]]*\).*/\1/p' "$work/headers" | tr -d '\r')"
+              [ -n "$session" ] || fail 31 'MCP initialize response omitted the session identifier'
+              echo 'Smoke stage [MCP initialize]: request passed'
+
+              echo 'Smoke stage [MCP tools/list]: governed prompts/list request started'
+              if ! list_status="$(curl --silent --show-error -o "$work/prompts" -w '%{http_code}' \
+                -H "Authorization: Bearer ${token}" \
+                -H "Mcp-Session-Id: ${session}" \
+                -H 'Content-Type: application/json' \
+                -H 'Accept: application/json, text/event-stream' \
+                --data '{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{}}' \
+                http://taf-control-plane:8080/mcp)"; then
+                fail 32 'MCP prompts/list transport failed'
+              fi
+              case "$list_status" in 2??) ;; *) fail 32 "MCP prompts/list returned HTTP ${list_status}; response body withheld" ;; esac
+              if ! grep -q 'taf.qa.execution-summary' "$work/prompts"; then
+                classify_mcp_payload "$work/prompts" 'MCP prompts/list'
+                fail 32 'MCP prompts/list returned an unexpected payload; response body withheld'
+              fi
+              if ! print_execution_summary_schema "$work/prompts"; then
+                fail 32 'MCP prompts/list did not advertise a readable execution-summary argument schema; response body withheld'
+              fi
+              echo 'Smoke stage [MCP tools/list]: governed prompts/list request passed'
+
+              echo 'Smoke stage [MCP tool/get execution]: governed prompts/get request started'
+              if ! get_status="$(curl --silent --show-error -o "$work/prompt" -w '%{http_code}' \
+                -H "Authorization: Bearer ${token}" \
+                -H "Mcp-Session-Id: ${session}" \
+                -H 'Content-Type: application/json' \
+                -H 'Accept: application/json, text/event-stream' \
+                --data '{"jsonrpc":"2.0","id":3,"method":"prompts/get","params":{"name":"taf.qa.execution-summary","arguments":{"reportReference":"taf://report/kind-smoke"}}}' \
+                http://taf-control-plane:8080/mcp)"; then
+                fail 33 'MCP prompts/get transport failed'
+              fi
+              case "$get_status" in 2??) ;; *) fail 33 "MCP prompts/get returned HTTP ${get_status}; response body withheld" ;; esac
+              if ! grep -q 'taf://report/kind-smoke' "$work/prompt"; then
+                classify_mcp_payload "$work/prompt" 'MCP prompts/get'
+                fail 33 'MCP prompts/get returned an unexpected payload; response body withheld'
+              fi
+              echo 'Smoke stage [MCP tool/get execution]: governed prompts/get request passed'
+              echo 'MCP discovery and execution smoke passed'
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 32Mi

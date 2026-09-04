@@ -1,0 +1,20 @@
+[
+  {
+    "caseId": "TC0001",
+	"productName": "Products",
+    "description": "Products",
+    "price": "0.00"
+  },
+  {
+    "caseId": "TC0002",
+	"productName": "Sauce Labs Backpack",
+    "description": "carry.allTheThings() with the sleek, streamlined Sly Pack that melds uncompromising style with unequaled laptop and tablet protection.",
+    "price": "29.99"
+  },
+  {
+    "caseId": "TC0003",
+	"productName": "Thank you for your order!",
+    "description": "Thank you for your order!",
+    "price": "29.99"
+  }
+]

@@ -1,0 +1,1 @@
+{"groups":[{"name":"taf.messaging.jms","type":"com.codinglair.taf.messaging.jms.JmsProperties"}],"properties":[{"name":"taf.messaging.jms.enabled","type":"java.lang.Boolean","defaultValue":false},{"name":"taf.messaging.jms.client-id","type":"java.lang.String"},{"name":"taf.messaging.jms.maximum-evidence-records","type":"java.lang.Integer","defaultValue":1000}]}

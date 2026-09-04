@@ -1,0 +1,113 @@
+# =========================================================================
+# Compiled Java Class Files & Packaging
+# =========================================================================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# =========================================================================
+# Build Tool Directories (Maven and Gradle)
+# =========================================================================
+# Maven build directory
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+# Optional: Ignore local wrapper jar if you strictly want to download it
+# .mvn/wrapper/maven-wrapper.jar
+
+# Gradle build directory
+build/
+.gradle/
+.gradletasknamecache
+gradle-app.setting
+!gradle-wrapper.jar
+
+# =========================================================================
+# IDE Settings & Configurations
+# =========================================================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse / Spring Tool Suite (STS)
+.metadata/
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+.sts4-cache/
+*.tmp
+*.bak
+*.swp
+local.properties
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# RooCode
+.roo/
+.zoo/
+
+# AI Agents
+AGENTS.md
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+nbactions.xml
+nb-configuration.xml
+
+# =========================================================================
+# Application Logs & Databases
+# =========================================================================
+*.log
+/logs/
+/media/
+/data/
+
+# =========================================================================
+# Environment Variables & Local Configurations (Security)
+# =========================================================================
+.env
+.env.local
+.env.*.local
+application-local.properties
+application-local.yml
+application-local.yaml
+# Safe version-controlled consumer scaffold
+!codinglair-taf-runtime/taf-environments/src/test/resources/consumer-config/application-local.yaml
+
+!demos/playwright-sauce-demo/src/test/resources/application-local.yml
+!demos/playwright-sauce-demo/src/test/resources/application-local.yaml
+application-dev.properties
+application-dev.yml
+application-dev.yaml
+# =========================================================================
+# Operating System Files
+# =========================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Ehthumbs.db
+Desktop.ini

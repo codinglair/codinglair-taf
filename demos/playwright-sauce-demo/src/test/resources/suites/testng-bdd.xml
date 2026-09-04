@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="bdd">
+    <test name="bdd">
+        <packages>
+            <package name="com.codinglair.taf.demo.sauce.bdd.runner" />
+        </packages>
+    </test>
+</suite>

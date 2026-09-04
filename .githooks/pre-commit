@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(git rev-parse --show-toplevel) || {
+  echo "Unable to locate the repository root." >&2
+  exit 1
+}
+cd "$repository_root"
+
+if ! command -v java >/dev/null 2>&1; then
+  echo "Java 25 is required to synchronize documented TAF versions." >&2
+  exit 1
+fi
+
+output_file="${TMPDIR:-/tmp}/taf-doc-version-$$.txt"
+trap 'rm -f "$output_file"' EXIT HUP INT TERM
+if ! java build-support/scripts/SyncDocVersion.java --write >"$output_file" 2>&1; then
+  cat "$output_file" >&2
+  exit 1
+fi
+cat "$output_file"
+
+if ! grep -q '^Updated 0 Markdown file(s)\.$' "$output_file"; then
+  echo "Documentation versions were synchronized; commit aborted." >&2
+  echo "Review and stage the Markdown changes, then commit again. The hook never runs git add." >&2
+  exit 1
+fi

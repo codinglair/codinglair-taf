@@ -1,0 +1,6 @@
+taf:
+  consumer:
+    environment: local
+  environment:
+    mode: external
+    readiness-timeout: 30s

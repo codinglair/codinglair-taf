@@ -1,0 +1,53 @@
+name: Release Verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  complete-matrix:
+    name: Complete release-blocking matrix
+    uses: ./.github/workflows/verification-matrix.yml
+
+  stage-community-release:
+    name: Stage and verify community release
+    needs: complete-matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Validate documentation versions
+        run: java build-support/scripts/SyncDocVersion.java --check
+      - name: Stage community Maven artifacts
+        run: ./mvnw -B -ntp clean deploy -Prelease-staging -Dproject.build.outputTimestamp="$(git show -s --format=%cI HEAD)"
+      - name: Verify clean consumers from staged artifacts
+        run: ./mvnw -B -ntp -Pconsumer-smoke verify
+      - name: Verify release contract and staged evidence
+        run: |
+          mkdir -p target/release-contract
+          javac -d target/release-contract build-support/release/ReleaseContractTest.java build-support/release/ReleaseLicensePolicy.java build-support/release/ReleaseLicensePolicyTest.java
+          java -cp target/release-contract ReleaseLicensePolicyTest
+          java -cp target/release-contract ReleaseContractTest target/staging-repository
+          java -cp target/release-contract ReleaseLicensePolicy target/staging-repository
+      - name: Retain staged repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: community-maven-staging-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/staging-repository/
+          if-no-files-found: error
+          retention-days: 30

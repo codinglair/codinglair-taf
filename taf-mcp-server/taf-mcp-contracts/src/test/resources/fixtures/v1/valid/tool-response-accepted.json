@@ -1,0 +1,4 @@
+{
+  "schemaVersion": "1.0", "requestId": "req-002", "status": "accepted",
+  "correlationId": "corr-002", "jobReference": "taf://job/job-002", "summary": "Execution accepted"
+}

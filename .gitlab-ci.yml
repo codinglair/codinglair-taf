@@ -1,0 +1,115 @@
+default:
+  interruptible: false
+  timeout: 4h
+  cache:
+    key: "maven-${CI_PROJECT_ID}"
+    paths: [.m2/repository/]
+    policy: pull-push
+
+stages: [verify, release-gate]
+
+variables:
+  MAVEN_ARGS: "-B -ntp -Dstyle.color=always"
+  MAVEN_OPTS: "-Dmaven.repo.local=${CI_PROJECT_DIR}/.m2/repository"
+
+.reference-rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+.verification-artifacts:
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths: ["**/target/*-reports/**"]
+
+runtime-and-architecture:
+  extends: [.reference-rules, .verification-artifacts]
+  stage: verify
+  tags: [linux, java25]
+  script:
+    - java build-support/scripts/SyncDocVersion.java --check
+    - ./mvnw --version
+    - ./mvnw $MAVEN_ARGS -f codinglair-taf-runtime/pom.xml clean verify -Pruntime-gate
+    - ./mvnw $MAVEN_ARGS -Pdependency-analysis,architecture,api-compatibility,schema-compatibility verify
+
+browser-compatibility:
+  extends: [.reference-rules, .verification-artifacts]
+  stage: verify
+  tags: [linux, java25]
+  script:
+    - ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-web-playwright -am test-compile dependency:build-classpath -Dmdep.outputFile=target/test-classpath.txt
+    - java -cp "$(cat codinglair-taf-runtime/taf-web-playwright/target/test-classpath.txt)" com.microsoft.playwright.CLI install --with-deps chromium firefox webkit
+    - ./mvnw $MAVEN_ARGS -pl codinglair-taf-runtime/taf-web-playwright -am -Dtaf.browser.smoke=true -Dtest=PlaywrightBrowserSmokeTest -Dsurefire.failIfNoSpecifiedTests=false test
+
+container-suites:
+  extends: [.reference-rules, .verification-artifacts]
+  stage: verify
+  tags: [linux, java25, docker]
+  resource_group: taf-container-verification
+  before_script:
+    - mkdir -p target/verification
+    - docker ps -aq | sort > target/verification/containers-before.txt
+    - docker network ls -q | sort > target/verification/networks-before.txt
+  script:
+    - ./mvnw $MAVEN_ARGS -pl "$TAF_MODULE" -am verify -Pcontainers
+    - docker ps -aq | sort > target/verification/containers-after.txt
+    - docker network ls -q | sort > target/verification/networks-after.txt
+    - comm -13 target/verification/containers-before.txt target/verification/containers-after.txt > target/verification/residual-containers.txt
+    - comm -13 target/verification/networks-before.txt target/verification/networks-after.txt > target/verification/residual-networks.txt
+    - test ! -s target/verification/residual-containers.txt
+    - test ! -s target/verification/residual-networks.txt
+  after_script:
+    - docker ps -aq | sort > target/verification/containers-after.txt
+    - docker network ls -q | sort > target/verification/networks-after.txt
+  parallel:
+    matrix:
+      - TAF_MODULE:
+          - codinglair-taf-runtime/taf-environments
+          - codinglair-taf-runtime/taf-test-definitions-mongodb
+          - codinglair-taf-runtime/taf-data-migration
+          - codinglair-taf-runtime/taf-messaging-kafka
+          - codinglair-taf-runtime/taf-messaging-rabbitmq
+          - codinglair-taf-runtime/taf-messaging-jms
+          - codinglair-taf-runtime/taf-virtualization-wiremock
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths: [target/verification/**, "**/target/*-reports/**"]
+
+mcp-security:
+  extends: [.reference-rules, .verification-artifacts]
+  stage: verify
+  tags: [linux, java25]
+  script:
+    - ./mvnw $MAVEN_ARGS -f taf-mcp-server/pom.xml clean verify -Pmcp-e2e,security-it
+
+android-emulator:
+  extends: .reference-rules
+  stage: verify
+  tags: [linux, java25, docker, kvm, pwsh]
+  resource_group: taf-android-emulator
+  script:
+    - test -c /dev/kvm && test -r /dev/kvm && test -w /dev/kvm
+    - pwsh -NoProfile -NonInteractive -File containers/android-emulator/google/build.ps1 -AcceptAndroidSdkLicense -Clean
+    - pwsh -NoProfile -NonInteractive -File containers/android-emulator/google/verify.ps1
+    - pwsh -NoProfile -NonInteractive -File containers/android-emulator/google/verify-compose.ps1
+    - pwsh -NoProfile -NonInteractive -File containers/android-emulator/google/qualify.ps1 -Runs 2
+    - pwsh -NoProfile -NonInteractive -File containers/android-emulator/google/qualify.ps1 -Runs 1 -ControlledFailure
+    - docker compose --file containers/android-emulator/google/compose.qualify.yaml down --remove-orphans
+    - test -z "$(docker compose --file containers/android-emulator/google/compose.qualify.yaml ps --quiet)"
+    - test -z "$(docker network ls --quiet --filter label=com.docker.compose.project=codinglair-taf-mob-003)"
+  after_script:
+    - docker compose --file containers/android-emulator/google/compose.qualify.yaml down --remove-orphans
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: [target/mob-003/**, codinglair-taf-runtime/taf-mobile-appium/target/surefire-reports/**]
+
+release-verification-gate:
+  extends: .reference-rules
+  stage: release-gate
+  tags: [linux]
+  script:
+    - echo "All required reference verification jobs succeeded."
