@@ -1,0 +1,20 @@
+[extend]
+useDefault = true
+
+# Exact CI fixture filename; this is a policy-test path label, not an API credential.
+[[allowlists]]
+description = "Image-policy API-level fixture filename"
+regexTarget = "match"
+regexes = ['''reject-prior-api34\.properties''']
+
+# Exact published Android SDK archive checksum; checksums are integrity metadata.
+[[allowlists]]
+description = "Documented Android API 34 archive SHA-256"
+regexTarget = "match"
+regexes = ['''783a40134baf4f3012d4464fbe1571b1612a0dbd2e7a44d14bd8328923443833''']
+
+# Exact secret-reference URI used to teach that resolved values must not be persisted.
+[[allowlists]]
+description = "Documentation-only environment secret reference"
+regexTarget = "line"
+regexes = ['''credential-reference=secret://env/ORDERS_API_TOKEN, outcome=FAILED''']
