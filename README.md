@@ -129,3 +129,4 @@ to the change. A maintainer reviews each pull request before it is merged.
 
 Community artifacts are licensed under the [Apache License 2.0](LICENSE). Proprietary Quality
 Intelligence components are outside the Community distribution and licensing boundary.
+
