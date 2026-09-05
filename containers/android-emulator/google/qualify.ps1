@@ -10,6 +10,12 @@ $ErrorActionPreference = 'Stop'
 $composeFile = Join-Path $PSScriptRoot 'compose.qualify.yaml'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $evidenceRoot = Join-Path $repositoryRoot 'target\mob-003\qualification'
+$mavenWrapper = if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+  Join-Path $repositoryRoot 'mvnw.cmd'
+} else {
+  Join-Path $repositoryRoot 'mvnw'
+}
+$smokeReports = Join-Path $repositoryRoot 'codinglair-taf-runtime\taf-mobile-appium\target\surefire-reports'
 $env:TAF_MOB003_IMAGE = $Image
 $kvmGid = (& stat -c '%g' /dev/kvm | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $kvmGid -notmatch '^\d+$') {
@@ -57,13 +63,15 @@ for ($run = 1; $run -le $Runs; $run++) {
     $env:TAF_ANDROID_DEVICE_ID = 'android-emulator:5555'
     $env:TAF_ANDROID_APP_PACKAGE = 'com.android.settings'
     $env:TAF_ANDROID_APP_ACTIVITY = '.Settings'
-    & (Join-Path $repositoryRoot 'mvnw.cmd') -pl codinglair-taf-runtime/taf-mobile-appium -am verify -Pandroid-emulator
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $smokeReports
+    & $mavenWrapper -pl codinglair-taf-runtime/taf-mobile-appium -am verify -Pandroid-emulator
     if ($LASTEXITCODE -ne 0) { throw 'Real Android/Appium smoke failed.' }
+    if (-not (Test-Path -PathType Container $smokeReports)) { throw 'Real Android/Appium smoke produced no Surefire reports.' }
 
     New-Item -ItemType Directory -Force -Path (Join-Path $repositoryRoot 'target\ci-support') | Out-Null
     & javac -d (Join-Path $repositoryRoot 'target\ci-support') (Join-Path $repositoryRoot 'build-support\ci\SmokeReportCheck.java')
     if ($LASTEXITCODE -ne 0) { throw 'Smoke report checker compilation failed.' }
-    & java -cp (Join-Path $repositoryRoot 'target\ci-support') SmokeReportCheck (Join-Path $repositoryRoot 'codinglair-taf-runtime\taf-mobile-appium\target\surefire-reports')
+    & java -cp (Join-Path $repositoryRoot 'target\ci-support') SmokeReportCheck $smokeReports
     if ($LASTEXITCODE -ne 0) { throw 'Smoke report did not prove one zero-skip execution.' }
     "PASS $((Get-Date).ToUniversalTime().ToString('o'))" | Set-Content (Join-Path $runDirectory 'result.txt')
   } catch {
