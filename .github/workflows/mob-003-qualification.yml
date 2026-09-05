@@ -32,8 +32,6 @@ jobs:
                 "containerd-snapshotter": true
               }
             }
-      - name: Set up attestation-capable Docker Buildx
-        uses: docker/setup-buildx-action@v4
       - name: Enable runner KVM access
         shell: bash
         run: |
