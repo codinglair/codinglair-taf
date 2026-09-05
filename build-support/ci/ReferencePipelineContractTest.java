@@ -36,6 +36,8 @@ final class ReferencePipelineContractTest {
       require(jenkins, gate, "Jenkinsfile");
       require(gitlab, gate, ".gitlab-ci.yml");
     }
+    require(jenkins, "sh build-support/scripts/run-gitleaks.sh history", "Jenkinsfile");
+    require(gitlab, "sh build-support/scripts/run-gitleaks.sh history", ".gitlab-ci.yml");
     require(
         jenkins,
         "java build-support/scripts/SyncDocVersion.java --check",

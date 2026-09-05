@@ -9,18 +9,42 @@ import io.modelcontextprotocol.client.transport.StdioClientTransport;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.CleanupMode;
 import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("External Spring AI STDIO client compatibility")
 class StdioExternalClientSmokeTest {
   private static final Pattern JOB_REFERENCE = Pattern.compile("taf://job/([A-Za-z0-9-]+)");
-  @TempDir Path workspace;
+
+  @TempDir(cleanup = CleanupMode.NEVER)
+  Path workspace;
+
+  @AfterEach
+  void releaseWorkspaceAfterServerShutdown() throws Exception {
+    long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+    Throwable lastFailure = null;
+    do {
+      try (var paths = Files.walk(workspace)) {
+        paths.sorted(Comparator.reverseOrder()).forEach(StdioExternalClientSmokeTest::delete);
+        return;
+      } catch (WorkspaceDeletionException failure) {
+        lastFailure = failure.getCause();
+        LockSupport.parkNanos(Duration.ofMillis(25).toNanos());
+      }
+    } while (System.nanoTime() < deadline);
+    throw new IllegalStateException("STDIO server did not release its test workspace", lastFailure);
+  }
 
   @Test
   @DisplayName("connects discovers invokes retrieves and cancels on Windows-compatible process IO")
@@ -139,6 +163,12 @@ class StdioExternalClientSmokeTest {
             process.getOutputStream().close();
             if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
               process.destroy();
+              if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                assertThat(process.waitFor(5, TimeUnit.SECONDS))
+                    .as("STDIO test server terminates after forced shutdown")
+                    .isTrue();
+              }
             }
           }
         });
@@ -193,5 +223,19 @@ class StdioExternalClientSmokeTest {
       throw new IllegalStateException("Java executable is unavailable under java.home: " + path);
     }
     return path.toString();
+  }
+
+  private static void delete(Path path) {
+    try {
+      Files.deleteIfExists(path);
+    } catch (java.io.IOException failure) {
+      throw new WorkspaceDeletionException(failure);
+    }
+  }
+
+  private static final class WorkspaceDeletionException extends RuntimeException {
+    private WorkspaceDeletionException(java.io.IOException cause) {
+      super(cause);
+    }
   }
 }

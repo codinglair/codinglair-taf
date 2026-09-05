@@ -34,6 +34,7 @@ final class WorkflowContractTest {
         "  pr-gate:",
         "    if: ${{ always() }}",
         "    needs:",
+        "      - secret-scanning",
         "      - change-impact",
         "      - unit-tests",
         "      - affected-verification",
@@ -42,6 +43,7 @@ final class WorkflowContractTest {
         "      - appium-smoke");
     require(yaml, "name: Pull Request Verification");
     require(yaml, "name: PR gate");
+    require(yaml, "uses: ./.github/workflows/secret-scanning.yml");
     require(yaml, "name: Documentation version");
     require(yaml, "java build-support/scripts/SyncDocVersion.java --check");
     require(yaml, "- documentation-version");

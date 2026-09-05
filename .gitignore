@@ -111,3 +111,8 @@ application-dev.yaml
 Thumbs.db
 Ehthumbs.db
 Desktop.ini
+# =========================================================================
+# Internal dev process documents
+# =========================================================================
+docs/planning/
+docs/reviews/

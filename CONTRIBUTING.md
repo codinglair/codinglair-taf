@@ -52,6 +52,29 @@ To apply Java formatting locally, run `./mvnw spotless:apply` (or `./mvnw.cmd sp
 
 ## Change requirements
 
+### Secret scanning
+
+CI scans every commit introduced by a pull request with Gitleaks 8.30.1. To run
+the same pinned, Docker-based scan over all public history locally:
+
+```bash
+sh build-support/scripts/run-gitleaks.sh history
+```
+
+For a pull-request range, run
+`sh build-support/scripts/run-gitleaks.sh pr BASE_SHA HEAD_SHA`. A directory scan
+checks only current files; the PR command checks commits reachable from the head
+but not the base, including a secret added and later deleted; `history` checks
+all refs in the migrated repository. The clean history of this repository is the
+authoritative baseline; do not import excluded history from its predecessor.
+
+If Gitleaks reports a potential secret, do not copy it into a log, screenshot,
+issue, pull-request comment, or handoff. Follow [SECURITY.md](SECURITY.md). Revoke
+or rotate an exposed credential even if a later commit removes it. A proposed
+false-positive exclusion must be narrowly limited to the exact synthetic value,
+path, commit, or rule, explain why it is safe, and prove that a nearby realistic
+fixture is still detected. This repository currently has no Gitleaks allowlist.
+
 - Keep the Runtime independently usable without MCP or AI, and preserve module boundaries.
 - Add or update unit tests for every changed production behavior. Add integration or contract tests for cross-module behavior, `ApplicationContextRunner` tests for Spring auto-configuration conditions, and concurrency or cleanup tests for scoped/shared resources when applicable.
 - Update public documentation and [CHANGELOG.md](CHANGELOG.md) for notable user-visible changes. Do not add raw commit or pull-request entries.
