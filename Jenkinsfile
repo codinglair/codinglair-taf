@@ -10,6 +10,13 @@ pipeline {
         MAVEN_OPTS = '-Dmaven.repo.local=.m2/repository'
     }
     stages {
+        stage('Secret scanning') {
+            agent { label 'linux && docker' }
+            steps {
+                checkout scm
+                sh 'sh build-support/scripts/run-gitleaks.sh history'
+            }
+        }
         stage('Runtime, compatibility, and architecture') {
             agent { label 'linux && java25' }
             steps {

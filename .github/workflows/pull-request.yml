@@ -19,6 +19,12 @@ env:
   MAVEN_ARGS: -B -ntp -Dstyle.color=always
 
 jobs:
+  secret-scanning:
+    name: Secret scanning
+    uses: ./.github/workflows/secret-scanning.yml
+    permissions:
+      contents: read
+
   documentation-version:
     name: Documentation version
     runs-on: ubuntu-24.04
@@ -64,11 +70,13 @@ jobs:
           java -cp target/ci-support PrGateTest
           java -cp target/ci-support SmokeReportCheckTest
           java -cp target/ci-support WorkflowContractTest
+          java -cp target/ci-support GitleaksContractTest
           java -cp target/ci-support VerificationMatrixContractTest
           java -cp target/ci-support ReferencePipelineContractTest
           # Parse the executable PR workflow with the repository-approved YAML
           # library so malformed YAML fails before path classification.
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/pull-request.yml
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/secret-scanning.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/verification-matrix.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/nightly.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/release.yml
@@ -541,6 +549,7 @@ jobs:
     name: PR gate
     if: ${{ always() }}
     needs:
+      - secret-scanning
       - documentation-version
       - change-impact
       - unit-tests
@@ -562,6 +571,7 @@ jobs:
 
           | Lane | Selected | Result |
           |---|---:|---|
+          | Secret scanning | always | ${{ needs.secret-scanning.result }} |
           | Documentation version | always | ${{ needs.documentation-version.result }} |
           | Change impact | always | ${{ needs.change-impact.result }} |
           | Unit tests | always | ${{ needs.unit-tests.result }} |
@@ -574,6 +584,7 @@ jobs:
           mkdir -p target/ci-support
           javac -d target/ci-support build-support/ci/PrGate.java
           java -cp target/ci-support PrGate \
+            '${{ needs.secret-scanning.result }}' \
             '${{ needs.change-impact.result }}' \
             '${{ needs.unit-tests.result }}' \
             '${{ needs.affected-verification.result }}' \

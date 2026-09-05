@@ -10,47 +10,51 @@ final class PrGateTest {
     rejectsSelectedSkip();
     rejectsFailureAndCancellation();
     rejectsUnexpectedResult();
-    System.out.println("Executed 7 aggregate PR-gate scenarios");
+    System.out.println("Executed 8 aggregate PR-gate scenarios");
   }
 
   private static void acceptsSelectedSuccessAndLegitimateSkips() {
     PrGate.verify(
-        results("success", "success", "success", "skipped", "skipped", "success"),
+        results("success", "success", "success", "success", "skipped", "skipped", "success"),
         selected(true, false, false, true));
   }
 
   private static void rejectsSelectedSkip() {
     expectFailure(
-        results("success", "success", "skipped", "skipped", "skipped", "skipped"),
+        results("success", "success", "success", "skipped", "skipped", "skipped", "skipped"),
         selected(true, false, false, true));
   }
 
   private static void rejectsFailureAndCancellation() {
     expectFailure(
-        results("success", "failure", "skipped", "skipped", "skipped", "skipped"),
+        results("success", "success", "failure", "skipped", "skipped", "skipped", "skipped"),
         selected(false, false, false, false));
     expectFailure(
-        results("success", "success", "cancelled", "skipped", "skipped", "skipped"),
+        results("success", "success", "success", "cancelled", "skipped", "skipped", "skipped"),
         selected(true, false, false, false));
     expectFailure(
-        results("failure", "success", "skipped", "skipped", "skipped", "skipped"),
+        results("success", "failure", "success", "skipped", "skipped", "skipped", "skipped"),
+        selected(false, false, false, false));
+    expectFailure(
+        results("skipped", "success", "success", "skipped", "skipped", "skipped", "skipped"),
         selected(false, false, false, false));
   }
 
   private static void rejectsUnexpectedResult() {
     expectFailure(
-        results("success", "success", "unknown", "skipped", "skipped", "skipped"),
+        results("success", "success", "success", "unknown", "skipped", "skipped", "skipped"),
         selected(true, false, false, false));
     expectFailure(
-        results("success", "success", "success", "skipped", "skipped", "skipped"),
+        results("success", "success", "success", "success", "skipped", "skipped", "skipped"),
         selected(false, false, false, false));
     expectFailure(
-        results("success", "success", "skipped", "skipped", "skipped", ""),
+        results("success", "success", "success", "skipped", "skipped", "skipped", ""),
         selected(false, false, false, false));
   }
 
   private static Map<String, String> results(String... values) {
     String[] names = {
+      "secret-scanning",
       "change-impact",
       "unit-tests",
       "affected-verification",
