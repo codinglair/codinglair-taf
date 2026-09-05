@@ -25,7 +25,8 @@ jobs:
         run: |
           java -version
           ./mvnw --version
-          ./mvnw $MAVEN_ARGS -f codinglair-taf-runtime/pom.xml clean verify -Pruntime-gate
+          runtime_modules="$(sed -n 's|.*<module>\(.*\)</module>.*|codinglair-taf-runtime/\1|p' codinglair-taf-runtime/pom.xml | paste -sd, -)"
+          ./mvnw $MAVEN_ARGS -pl "$runtime_modules" -am clean verify -Pruntime-gate
           ./mvnw $MAVEN_ARGS -Pdependency-analysis,architecture,api-compatibility,schema-compatibility verify
       - name: Retain complete attempt evidence
         if: ${{ always() }}
@@ -131,7 +132,9 @@ jobs:
           java-version: '25'
           cache: maven
       - name: Run complete MCP and security gate
-        run: ./mvnw $MAVEN_ARGS -f taf-mcp-server/pom.xml clean verify -Pmcp-e2e,security-it
+        run: |
+          mcp_modules="$(sed -n 's|.*<module>\(.*\)</module>.*|taf-mcp-server/\1|p' taf-mcp-server/pom.xml | paste -sd, -)"
+          ./mvnw $MAVEN_ARGS -pl "$mcp_modules" -am clean verify -Pmcp-e2e,security-it
       - name: Retain complete attempt evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
