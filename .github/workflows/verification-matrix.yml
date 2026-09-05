@@ -103,10 +103,30 @@ jobs:
       - name: Prove resource cleanup
         if: ${{ always() }}
         run: |
-          docker ps -aq | sort > target/verification/containers-after.txt
-          docker network ls -q | sort > target/verification/networks-after.txt
-          comm -13 target/verification/containers-before.txt target/verification/containers-after.txt > target/verification/residual-containers.txt
-          comm -13 target/verification/networks-before.txt target/verification/networks-after.txt > target/verification/residual-networks.txt
+          # Testcontainers cleanup is asynchronous: Maven can return while Ryuk is
+          # still removing the final container or network. Keep the fail-closed
+          # comparison, but give the daemon a bounded interval to converge.
+          for attempt in {1..12}; do
+            docker ps -aq | sort > target/verification/containers-after.txt
+            docker network ls -q | sort > target/verification/networks-after.txt
+            comm -13 target/verification/containers-before.txt target/verification/containers-after.txt > target/verification/residual-containers.txt
+            comm -13 target/verification/networks-before.txt target/verification/networks-after.txt > target/verification/residual-networks.txt
+            if [[ ! -s target/verification/residual-containers.txt && ! -s target/verification/residual-networks.txt ]]; then
+              break
+            fi
+            if [[ "$attempt" -lt 12 ]]; then
+              sleep 5
+            fi
+          done
+          if [[ -s target/verification/residual-containers.txt ]]; then
+            echo 'Residual containers:'
+            docker ps --all --no-trunc --filter "id=$(head -n 1 target/verification/residual-containers.txt)"
+            cat target/verification/residual-containers.txt
+          fi
+          if [[ -s target/verification/residual-networks.txt ]]; then
+            echo 'Residual networks:'
+            while read -r network_id; do docker network inspect "$network_id"; done < target/verification/residual-networks.txt
+          fi
           test ! -s target/verification/residual-containers.txt
           test ! -s target/verification/residual-networks.txt
       - name: Retain complete attempt evidence
