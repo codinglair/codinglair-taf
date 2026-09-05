@@ -11,6 +11,11 @@ $composeFile = Join-Path $PSScriptRoot 'compose.qualify.yaml'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $evidenceRoot = Join-Path $repositoryRoot 'target\mob-003\qualification'
 $env:TAF_MOB003_IMAGE = $Image
+$kvmGid = (& stat -c '%g' /dev/kvm | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $kvmGid -notmatch '^\d+$') {
+  throw 'Unable to determine the numeric KVM device group ID.'
+}
+$env:TAF_KVM_GID = $kvmGid
 New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
 
 function Invoke-Docker([string[]]$Arguments) {
