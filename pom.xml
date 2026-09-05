@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
     <name>Codinglair Test Automation Framework Parent</name>
     <description>Parent POM for Codinglair Test Automation Framework</description>
-    <url>https://github.com/codinglair-taf</url>
+    <url>https://github.com/codinglair/codinglair-taf</url>
 
     <modules>
         <module>codinglair-taf-common</module>
@@ -107,7 +107,7 @@
     <developers>
         <developer>
             <name>Alex Shaw</name>
-            <email>alexandershawdev@gmail.com</email>
+            <email>codinglair.dev@gmail.com</email>
             <organization>Codinglair</organization>
             <organizationUrl>https://github.com/codinglair</organizationUrl>
             <roles>
@@ -117,10 +117,9 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/codinglair-taf.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/codinglair/taf.git</developerConnection>
-        <url>https://github.com/codinglair-taf</url>
-        <tag>HEAD</tag>
+        <connection>scm:git:https://github.com/codinglair/codinglair-taf.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/codinglair/codinglair-taf.git</developerConnection>
+        <url>https://github.com/codinglair/codinglair-taf</url>
     </scm>
 
     <!-- Reactor BOM for dependency management -->
