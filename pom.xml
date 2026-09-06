@@ -95,6 +95,7 @@
         <dependency-convergence.version>9.1.0</dependency-convergence.version>
         <dependency-mediator.version>1.0.1</dependency-mediator.version>
         <central.publishing.plugin.version>0.11.0</central.publishing.plugin.version>
+        <flatten.maven.plugin.version>1.6.0</flatten.maven.plugin.version>
     </properties>
 
     <licenses>
@@ -591,7 +592,32 @@
                     <artifactId>dependency-mediator-maven-plugin</artifactId>
                     <version>${dependency-mediator.version}</version>
                 </plugin>
-
+                <!-- Version Flattener -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>${flatten.maven.plugin.version}</version>
+                    <configuration>
+                        <updatePomFile>true</updatePomFile>
+                        <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>flatten</id>
+                            <phase>process-resources</phase>
+                            <goals>
+                                <goal>flatten</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>flatten.clean</id>
+                            <phase>clean</phase>
+                            <goals>
+                                <goal>clean</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -609,6 +635,11 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- Version Flattener -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
@@ -696,9 +727,6 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <skipPublishing>${central.skipPublishing}</skipPublishing>
-
-                            <!-- Safer for the first release: publish manually after Central Portal
-                            validation. -->
                             <autoPublish>false</autoPublish>
                             <waitUntil>validated</waitUntil>
                         </configuration>
