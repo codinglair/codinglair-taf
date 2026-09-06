@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.codinglair.taf</groupId>
@@ -10,6 +10,8 @@
     </parent>
 
     <artifactId>codinglair-taf-common</artifactId>
+    <name>Codinglair TAF Common</name>
+    <description>Shared contracts, models, and utilities used across Codinglair Test Automation Framework modules.</description>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
@@ -37,7 +39,8 @@
         <dependency>
             <groupId>org.jasypt</groupId>
             <artifactId>jasypt</artifactId>
-            <!-- Legacy compatibility implementation only; never exposed transitively to Runtime Core. -->
+            <!-- Legacy compatibility implementation only; never exposed transitively to Runtime
+            Core. -->
             <optional>true</optional>
         </dependency>
         <dependency>
