@@ -85,6 +85,7 @@ nb-configuration.xml
 # =========================================================================
 # Environment Variables & Local Configurations (Security)
 # =========================================================================
+.flattened-pom.xml
 .env
 .env.local
 .env.*.local
