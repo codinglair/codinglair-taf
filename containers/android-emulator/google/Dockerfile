@@ -67,8 +67,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT=20260810T000000Z
 COPY --from=downloader /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i "s#http://archive.ubuntu.com/ubuntu/#http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/#g; s#http://security.ubuntu.com/ubuntu/#http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/#g" /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get update \
-    && apt-get install --yes --no-install-recommends \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --yes --no-install-recommends \
       ca-certificates libc6 libdbus-1-3 libfontconfig1 libgcc-s1 libgl1 libnss3 \
       libpulse0 libstdc++6 libx11-6 libxcb1 libxcomposite1 libxcursor1 libxdamage1 \
       libxext6 libxfixes3 libxi6 libxkbfile1 socat zlib1g \

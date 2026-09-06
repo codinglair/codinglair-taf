@@ -5,6 +5,8 @@ services:
     image: ${TAF_MOB003_IMAGE:-codinglair-taf/android-emulator:mob-003-api34}
     devices:
       - /dev/kvm:/dev/kvm
+    group_add:
+      - "${TAF_KVM_GID:-10001}"
     shm_size: 2gb
     tmpfs:
       - /data:size=6g,uid=10001,gid=10001,mode=0700
