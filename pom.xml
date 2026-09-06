@@ -696,9 +696,6 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <skipPublishing>${central.skipPublishing}</skipPublishing>
-
-                            <!-- Safer for the first release: publish manually after Central Portal
-                            validation. -->
                             <autoPublish>false</autoPublish>
                             <waitUntil>validated</waitUntil>
                         </configuration>
