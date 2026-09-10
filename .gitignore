@@ -116,4 +116,8 @@ Desktop.ini
 # Internal dev process documents
 # =========================================================================
 docs/planning/
+docs/requirements/
 docs/reviews/
+docs/assignments/handoffs/
+docs/traceability/
+docs/architecture/*SAD*
