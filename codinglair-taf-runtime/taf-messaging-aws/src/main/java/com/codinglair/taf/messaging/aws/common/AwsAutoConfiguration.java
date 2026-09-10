@@ -2,16 +2,21 @@ package com.codinglair.taf.messaging.aws.common;
 
 import com.codinglair.taf.messaging.aws.environment.AwsServiceEnvironmentContributor;
 import com.codinglair.taf.messaging.aws.environment.AwsServiceEnvironmentContributors;
+import com.codinglair.taf.messaging.aws.environment.LocalStackEnvironmentProvider;
 import com.codinglair.taf.messaging.aws.eventbridge.EventBridgeController;
 import com.codinglair.taf.messaging.aws.sqs.SqsController;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionConfigurer;
+import com.codinglair.taf.runtime.environment.EnvironmentMode;
+import com.codinglair.taf.runtime.environment.EnvironmentRegistry;
+import com.codinglair.taf.runtime.environment.spring.EnvironmentAutoConfiguration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,7 +26,7 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 
 @AutoConfiguration
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 1000)
-@AutoConfigureAfter(TafRuntimeAutoConfiguration.class)
+@AutoConfigureAfter({TafRuntimeAutoConfiguration.class, EnvironmentAutoConfiguration.class})
 @ConditionalOnClass(SqsClient.class)
 @ConditionalOnProperty(prefix = "taf.aws", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(AwsProperties.class)
@@ -30,6 +35,24 @@ public class AwsAutoConfiguration {
   AwsServiceEnvironmentContributors awsServiceEnvironmentContributors(
       List<AwsServiceEnvironmentContributor> contributors) {
     return new AwsServiceEnvironmentContributors(contributors);
+  }
+
+  @Bean
+  @ConditionalOnBean(EnvironmentRegistry.class)
+  LocalStackEnvironmentProvider managedLocalStackEnvironmentProvider(
+      AwsProperties properties, EnvironmentRegistry registry) {
+    var provider = new LocalStackEnvironmentProvider(EnvironmentMode.CONTAINER, properties);
+    registry.register(LocalStackEnvironmentProvider.TYPE, EnvironmentMode.CONTAINER, provider);
+    return provider;
+  }
+
+  @Bean
+  @ConditionalOnBean(EnvironmentRegistry.class)
+  LocalStackEnvironmentProvider externalLocalStackEnvironmentProvider(
+      AwsProperties properties, EnvironmentRegistry registry) {
+    var provider = new LocalStackEnvironmentProvider(EnvironmentMode.EXTERNAL, properties);
+    registry.register(LocalStackEnvironmentProvider.TYPE, EnvironmentMode.EXTERNAL, provider);
+    return provider;
   }
 
   @Bean
@@ -64,8 +87,7 @@ public class AwsAutoConfiguration {
   }
 
   static void validate(AwsProperties properties) {
-    if (properties.getProfiles().isEmpty())
-      AwsOperationPolicy.fail("taf.aws.profiles", "at least one profile is required");
+    properties.validate();
     Set<String> sqs = new HashSet<>();
     Set<String> eventbridge = new HashSet<>();
     properties

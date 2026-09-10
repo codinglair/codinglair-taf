@@ -5,12 +5,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.codinglair.taf.messaging.aws.environment.AwsResourceDescriptor;
 import com.codinglair.taf.messaging.aws.environment.AwsServiceEnvironmentContributor;
 import com.codinglair.taf.messaging.aws.environment.AwsServiceEnvironmentContributors;
+import com.codinglair.taf.messaging.aws.environment.LocalStackEnvironmentProvider;
 import com.codinglair.taf.messaging.aws.eventbridge.EventBridgeController;
 import com.codinglair.taf.messaging.aws.sqs.SqsController;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
 import com.codinglair.taf.runtime.environment.EnvironmentDiagnostic;
+import com.codinglair.taf.runtime.environment.EnvironmentMode;
+import com.codinglair.taf.runtime.environment.EnvironmentRegistry;
 import com.codinglair.taf.runtime.environment.EnvironmentStatus;
+import com.codinglair.taf.runtime.environment.spring.EnvironmentAutoConfiguration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -102,6 +106,35 @@ class AwsAutoConfigurationTest {
                   context.getBean(AwsProperties.class).getProfiles().get("local").getPolicy();
               assertThat(policy.getMaximumEvidenceBytes()).isEqualTo(2048);
               assertThat(policy.getRetryAttempts()).isEqualTo(3);
+            });
+  }
+
+  @Test
+  @DisplayName("registers managed and external LocalStack providers when environments are present")
+  void registersEnvironmentProviders() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(
+                AwsAutoConfiguration.class,
+                EnvironmentAutoConfiguration.class,
+                TafRuntimeAutoConfiguration.class))
+        .withPropertyValues(
+            "taf.aws.enabled=true",
+            "taf.aws.profiles.local.region=us-east-1",
+            "taf.aws.profiles.local.endpoint-mode=localstack",
+            "taf.aws.profiles.local.ownership-mode=test-owned")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              EnvironmentRegistry registry = context.getBean(EnvironmentRegistry.class);
+              assertThat(
+                      registry.providerFor(
+                          LocalStackEnvironmentProvider.TYPE, EnvironmentMode.CONTAINER))
+                  .isNotNull();
+              assertThat(
+                      registry.providerFor(
+                          LocalStackEnvironmentProvider.TYPE, EnvironmentMode.EXTERNAL))
+                  .isNotNull();
             });
   }
 
