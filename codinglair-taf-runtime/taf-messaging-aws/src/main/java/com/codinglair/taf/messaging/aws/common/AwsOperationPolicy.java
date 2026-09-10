@@ -6,6 +6,7 @@ public class AwsOperationPolicy {
   private Duration operationTimeout = Duration.ofSeconds(30);
   private Duration pollInterval = Duration.ofMillis(250);
   private int retryAttempts = 3;
+  private int maximumReceiveMessages = 10;
   private Duration maximumVisibility = Duration.ofMinutes(15);
   private int maximumEvidenceBytes = 16_384;
 
@@ -33,6 +34,14 @@ public class AwsOperationPolicy {
     retryAttempts = value;
   }
 
+  public int getMaximumReceiveMessages() {
+    return maximumReceiveMessages;
+  }
+
+  public void setMaximumReceiveMessages(int value) {
+    maximumReceiveMessages = value;
+  }
+
   public Duration getMaximumVisibility() {
     return maximumVisibility;
   }
@@ -58,6 +67,8 @@ public class AwsOperationPolicy {
     require(pollInterval, Duration.ofMillis(10), operationTimeout, path + ".poll-interval");
     if (retryAttempts < 0 || retryAttempts > 10)
       fail(path + ".retry-attempts", "must be between 0 and 10");
+    if (maximumReceiveMessages < 1 || maximumReceiveMessages > 10)
+      fail(path + ".maximum-receive-messages", "must be between 1 and 10");
     require(maximumVisibility, Duration.ZERO, Duration.ofHours(12), path + ".maximum-visibility");
     if (maximumEvidenceBytes < 0 || maximumEvidenceBytes > 1_048_576)
       fail(path + ".maximum-evidence-bytes", "must be between 0 and 1048576");

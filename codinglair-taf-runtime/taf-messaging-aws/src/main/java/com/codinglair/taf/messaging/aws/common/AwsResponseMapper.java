@@ -35,6 +35,7 @@ final class AwsResponseMapper {
             attributes,
             attributes.get("correlationId"),
             count,
+            sentAt(value),
             receivedAt),
         value.receiptHandle());
   }
@@ -43,5 +44,15 @@ final class AwsResponseMapper {
     Map<String, String> attributes = new LinkedHashMap<>();
     value.messageAttributes().forEach((key, item) -> attributes.put(key, item.stringValue()));
     return Map.copyOf(attributes);
+  }
+
+  private static Instant sentAt(Message value) {
+    String timestamp = value.attributesAsStrings().get("SentTimestamp");
+    if (timestamp == null) return null;
+    try {
+      return Instant.ofEpochMilli(Long.parseLong(timestamp));
+    } catch (NumberFormatException _) {
+      return null;
+    }
   }
 }
