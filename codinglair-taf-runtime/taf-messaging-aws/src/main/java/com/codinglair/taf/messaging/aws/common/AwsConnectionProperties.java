@@ -90,6 +90,14 @@ public class AwsConnectionProperties {
     if (endpointOverride != null
         && !java.util.Set.of("http", "https").contains(endpointOverride.getScheme()))
       AwsOperationPolicy.fail(resolvedPath + ".endpoint-override", "must use http or https");
+    if (endpointOverride != null
+        && (endpointOverride.getHost() == null
+            || endpointOverride.getUserInfo() != null
+            || endpointOverride.getQuery() != null
+            || endpointOverride.getFragment() != null))
+      AwsOperationPolicy.fail(
+          resolvedPath + ".endpoint-override",
+          "must contain a host and must not contain user-info, query, or fragment components");
     if (credentialProfileReference != null) {
       SecretReference reference = SecretReference.parse(credentialProfileReference);
       if (!reference.scheme().equals("credential"))

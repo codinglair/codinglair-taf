@@ -1,10 +1,13 @@
 package com.codinglair.taf.messaging.aws.common;
 
+import com.codinglair.taf.messaging.aws.environment.AwsServiceEnvironmentContributor;
+import com.codinglair.taf.messaging.aws.environment.AwsServiceEnvironmentContributors;
 import com.codinglair.taf.messaging.aws.eventbridge.EventBridgeController;
 import com.codinglair.taf.messaging.aws.sqs.SqsController;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionConfigurer;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -23,6 +26,12 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 @ConditionalOnProperty(prefix = "taf.aws", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(AwsProperties.class)
 public class AwsAutoConfiguration {
+  @Bean
+  AwsServiceEnvironmentContributors awsServiceEnvironmentContributors(
+      List<AwsServiceEnvironmentContributor> contributors) {
+    return new AwsServiceEnvironmentContributors(contributors);
+  }
+
   @Bean
   TestSessionConfigurer awsSessionConfigurer(AwsProperties properties) {
     validate(properties);

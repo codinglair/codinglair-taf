@@ -37,13 +37,21 @@ final class AwsClientFactory {
   private static AwsCredentialsProvider credentials(AwsConnectionProperties properties) {
     String reference = properties.getCredentialProfileReference();
     if (reference != null)
-      return ProfileCredentialsProvider.builder()
-          .profileName(reference.substring("credential://".length()))
-          .build();
+      return verified(
+          ProfileCredentialsProvider.builder()
+              .profileName(reference.substring("credential://".length()))
+              .build());
     if (properties.getEndpointMode() == AwsEndpointMode.LOCALSTACK)
       // LocalStack accepts non-secret placeholder credentials. This branch is never used for AWS.
       return StaticCredentialsProvider.create(
           AwsBasicCredentials.create("localstack", "localstack"));
-    return DefaultCredentialsProvider.builder().build();
+    return verified(DefaultCredentialsProvider.builder().build());
+  }
+
+  private static AwsCredentialsProvider verified(AwsCredentialsProvider provider) {
+    // Resolve at the deterministic client-construction boundary so unavailable credentials fail
+    // before an operation. The resolved value is deliberately neither retained nor diagnosed.
+    provider.resolveCredentials();
+    return provider;
   }
 }

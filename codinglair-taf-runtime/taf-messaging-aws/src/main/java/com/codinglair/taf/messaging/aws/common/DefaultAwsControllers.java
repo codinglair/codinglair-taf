@@ -166,7 +166,7 @@ final class DefaultAwsControllers {
                             MessageSystemAttributeName.SENT_TIMESTAMP));
         return response.messages().stream()
             .filter(message -> matches(message, request))
-            .map(message -> received(message))
+            .map(message -> AwsResponseMapper.message(message, Instant.now()))
             .toList();
       } catch (RuntimeException failure) {
         throw failure("SQS", "receive", failure);
@@ -219,38 +219,16 @@ final class DefaultAwsControllers {
     }
 
     private static boolean matches(Message message, SqsReceiveRequest request) {
-      return request.attributes().entrySet().stream()
-              .allMatch(
-                  entry ->
-                      message.messageAttributes().containsKey(entry.getKey())
-                          && entry
-                              .getValue()
-                              .equals(
-                                  message.messageAttributes().get(entry.getKey()).stringValue()))
-          && (request.correlationId() == null
-              || request.correlationId().equals(attribute(message, "correlationId")));
+      return AwsAttributeMatcher.matches(
+          request.correlationId(),
+          request.attributes(),
+          attribute(message, "correlationId"),
+          AwsResponseMapper.attributes(message));
     }
 
     private static String attribute(Message message, String name) {
       MessageAttributeValue value = message.messageAttributes().get(name);
       return value == null ? null : value.stringValue();
-    }
-
-    private static ReceivedSqsMessage received(Message value) {
-      int count =
-          Integer.parseInt(
-              value.attributesAsStrings().getOrDefault("ApproximateReceiveCount", "1"));
-      Map<String, String> attributes = new LinkedHashMap<>();
-      value.messageAttributes().forEach((key, item) -> attributes.put(key, item.stringValue()));
-      return new ReceivedSqsMessage(
-          new SqsMessage(
-              value.messageId(),
-              value.body(),
-              attributes,
-              attribute(value, "correlationId"),
-              count,
-              Instant.now()),
-          value.receiptHandle());
     }
   }
 
@@ -304,13 +282,7 @@ final class DefaultAwsControllers {
         List<EventPublishEntryResult> results = new ArrayList<>();
         for (int index = 0; index < response.entries().size(); index++) {
           var value = response.entries().get(index);
-          results.add(
-              new EventPublishEntryResult(
-                  index,
-                  value.errorCode() == null,
-                  value.eventId(),
-                  value.errorCode(),
-                  value.errorMessage()));
+          results.add(AwsResponseMapper.eventEntry(index, value));
         }
         return new EventPublishResult(results, Instant.now());
       } catch (RuntimeException failure) {
