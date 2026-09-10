@@ -84,9 +84,10 @@ public class AwsConnectionProperties {
       AwsOperationPolicy.fail(resolvedPath + ".region", "is required");
     if (endpointMode == null)
       AwsOperationPolicy.fail(resolvedPath + ".endpoint-mode", "is required");
-    if (endpointMode == AwsEndpointMode.LOCALSTACK && endpointOverride == null)
+    if (endpointMode == AwsEndpointMode.AWS && ownershipMode == AwsOwnershipMode.TEST_OWNED)
       AwsOperationPolicy.fail(
-          resolvedPath + ".endpoint-override", "is required in LOCALSTACK mode");
+          resolvedPath + ".ownership-mode",
+          "test-owned provisioning is supported only by LocalStack");
     if (endpointOverride != null
         && !java.util.Set.of("http", "https").contains(endpointOverride.getScheme()))
       AwsOperationPolicy.fail(resolvedPath + ".endpoint-override", "must use http or https");

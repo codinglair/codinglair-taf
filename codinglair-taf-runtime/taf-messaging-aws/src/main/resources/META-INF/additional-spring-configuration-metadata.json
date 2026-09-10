@@ -10,6 +10,12 @@
       "name": "taf.aws.profiles",
       "type": "java.util.Map",
       "description": "Named AWS connection profiles and service controller instances."
+    },
+    {
+      "name": "taf.aws.localstack-image",
+      "type": "java.lang.String",
+      "defaultValue": "localstack/localstack:4.8.1",
+      "description": "Release-managed LocalStack image used by the managed environment provider."
     }
   ]
 }

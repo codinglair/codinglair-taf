@@ -1,6 +1,7 @@
 package com.codinglair.taf.messaging.aws.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codinglair.taf.messaging.aws.sqs.SqsControllerProperties;
@@ -11,14 +12,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("AWS configuration properties")
 class AwsPropertiesTest {
   @Test
-  @DisplayName("requires an endpoint for LocalStack")
-  void localstackRequiresEndpoint() {
+  @DisplayName("allows a managed LocalStack endpoint to be acquired dynamically")
+  void managedLocalstackMayAcquireItsEndpointDynamically() {
     AwsConnectionProperties properties = new AwsConnectionProperties();
     properties.setRegion("us-east-1");
     properties.setEndpointMode(AwsEndpointMode.LOCALSTACK);
-    assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
-        .hasMessageContaining("endpoint-override")
-        .hasMessageNotContaining("access");
+    properties.setOwnershipMode(AwsOwnershipMode.TEST_OWNED);
+    assertThatCode(() -> properties.validate("taf.aws.profiles.local")).doesNotThrowAnyException();
   }
 
   @Test
