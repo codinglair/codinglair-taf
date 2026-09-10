@@ -143,6 +143,10 @@ taf:
         eventbridge:
           orders:
             event-bus: orders
+            target-sqs-controller: orders
+            target-identity: orders-queue
+            envelope-schema: >-
+              {"type":"object","required":["source","detail-type","detail"]}
 ```
 
 Acquire instances with
@@ -155,6 +159,20 @@ SQS receive, wait, and negative-wait operations are bounded by both the request 
 never implicitly deleted; unacknowledged matching messages are released when the session closes.
 Queue and DLQ counts are approximate diagnostics. `SqsMessageEvidence` contains sanitized,
 size-bounded payload and attribute evidence but never a receipt handle.
+
+`EventBridgeController.publish(...)` accepts one to ten structured entries with source, detail
+type, JSON-object detail, resources, metadata, correlation identity, and optional AWS trace header.
+TAF places correlation and metadata under `detail._taf`, returns index-stable per-entry results,
+and retains bounded sanitized request evidence. The original five-argument request constructor
+remains supported; resources and trace header default to absent.
+
+Route verification is explicit composition rather than EventBridge browsing. Configure
+`target-sqs-controller`, `target-identity`, and an optional JSON Schema 2020-12 envelope schema,
+then call `verifyRoute(EventRouteRequest, SqsController)`. The operation publishes through the
+EventBridge controller, waits through the separately acquired SQS controller, validates the actual
+target envelope and correlation identity, and returns sanitized SQS evidence. Use
+`assertNotRouted(...)` for a full bounded non-matching observation. Both controllers remain usable
+independently and neither operation provisions or destroys infrastructure.
 
 ## Reporting, evidence, and redaction
 

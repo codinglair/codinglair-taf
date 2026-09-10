@@ -50,6 +50,9 @@ class AwsAutoConfigurationTest {
             "taf.aws.profiles.local.sqs.orders.queue=http://localhost:4566/000/orders",
             "taf.aws.profiles.local.sqs.audit.queue=http://localhost:4566/000/audit",
             "taf.aws.profiles.local.eventbridge.orders.event-bus=orders",
+            "taf.aws.profiles.local.eventbridge.orders.target-sqs-controller=orders",
+            "taf.aws.profiles.local.eventbridge.orders.target-identity=orders-queue",
+            "taf.aws.profiles.local.eventbridge.orders.envelope-schema={\"type\":\"object\"}",
             "taf.aws.profiles.local.eventbridge.audit.event-bus=audit")
         .run(
             context -> {
@@ -73,6 +76,16 @@ class AwsAutoConfigurationTest {
                             .getControllerRegistry()
                             .hasController(EventBridgeController.class, "audit"))
                     .isTrue();
+                var route =
+                    context
+                        .getBean(AwsProperties.class)
+                        .getProfiles()
+                        .get("local")
+                        .getEventbridge()
+                        .get("orders");
+                assertThat(route.getTargetSqsController()).isEqualTo("orders");
+                assertThat(route.getTargetIdentity()).isEqualTo("orders-queue");
+                assertThat(route.getEnvelopeSchema()).isEqualTo("{\"type\":\"object\"}");
               }
             });
   }
