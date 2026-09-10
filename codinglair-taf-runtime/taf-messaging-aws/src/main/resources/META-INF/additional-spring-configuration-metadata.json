@@ -1,0 +1,15 @@
+{
+  "properties": [
+    {
+      "name": "taf.aws.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable optional AWS messaging composition."
+    },
+    {
+      "name": "taf.aws.profiles",
+      "type": "java.util.Map",
+      "description": "Named AWS connection profiles and service controller instances."
+    }
+  ]
+}

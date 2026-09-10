@@ -48,6 +48,7 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-messaging-kafka` | Kafka adapter |
 | `taf-messaging-rabbitmq` | RabbitMQ adapter |
 | `taf-messaging-jms` | JMS/EMS-compatible adapter |
+| `taf-messaging-aws` | Optional typed SQS and EventBridge controllers |
 | `taf-mobile-core` | Mobile provider contracts |
 | `taf-mobile-appium` | Android Appium controller |
 | `taf-environments` | Environment providers, preflight, Testcontainers |

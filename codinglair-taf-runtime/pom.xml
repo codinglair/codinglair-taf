@@ -33,6 +33,7 @@
         <module>taf-messaging-kafka</module>
         <module>taf-messaging-rabbitmq</module>
         <module>taf-messaging-jms</module>
+        <module>taf-messaging-aws</module>
         <module>taf-environments</module>
         <module>taf-database</module>
         <module>taf-observability</module>
@@ -135,6 +136,11 @@
             <dependency>
                 <groupId>com.codinglair.taf</groupId>
                 <artifactId>taf-messaging-jms</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>taf-messaging-aws</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

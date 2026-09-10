@@ -32,13 +32,15 @@ Accepted ADRs are immutable except for corrections that do not change the decisi
 | [ADR-014](ADR-014_separate-framework-self-tests-from-consumer-test-execution-and-tier-ci-verification.md) | Separate framework self-tests from consumer test execution and tier CI verification | Accepted |
 | [ADR-015](ADR-015_provide-an-incremental-functional-kind-reference-deployment.md) | Provide an incremental functional Kind reference deployment | Accepted |
 | [ADR-016](ADR-016_defer-detailed-quality-intelligence-assignments-until-runtime-and-mcp-stabilize.md) | Defer detailed Quality Intelligence assignments until Runtime and MCP stabilize | Accepted |
-| [ADR-017] | Java 25 platform baseline (existing project ADR) | Accepted |
+| [ADR-017](ADR-017_java-25-platform-baseline.md) | Java 25 platform baseline existing project ADR | Accepted |
 | [ADR-018](ADR-018_package-optional-controllers-as-capability-specific-modules.md) | Package optional controllers as capability-specific modules | Accepted |
 | [ADR-019](ADR-019_standardize-consumer-project-blueprints-and-test-design-patterns.md) | Standardize consumer project blueprints and test design patterns | Accepted |
 | [ADR-020](ADR-020_enforce-conformance-for-agent-generated-and-migrated-test-assets.md) | Enforce conformance for agent-generated and migrated test assets | Accepted |
 | [ADR-021](ADR-021_normalize-plaintext-secrets-at-an-explicit-test-data-authoring-boundary.md) | Normalize plaintext secrets at an explicit test-data authoring boundary | Accepted |
 | [ADR-022](ADR-022_separate-taf-context-and-sut-data-planes-and-govern-versioned-database-lifecycles.md) | Separate TAF context and SUT data planes and govern versioned database lifecycles | Accepted |
-
+| [ADR-023](ADR-023_use-separate-eventbridge-and-sqs-controllers-in-one-aws-capability-module.md) | Use Separate EventBridge and SQS Controllers in One AWS Capability Module) | Accepted |
+| [ADR-024](ADR-024_provision-localstack-resources-through-the-environment-provider-and-enforce-ownership.md) | Provision LocalStack Resources Through the Environment Provider and Enforce Ownership| Accepted |
+| [ADR-025](ADR-025_require-non-destructive-sqs-isolation-and-verify-eventbridge-routing-through-sqs.md) | Require Non Destructive SQS Isolation and Verify EventBridge Routing Through SQS| Accepted |
 
 ## Authoring rules
 

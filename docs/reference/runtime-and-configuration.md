@@ -32,6 +32,7 @@ references remain opaque until an authorized execution boundary.
 | `taf.messaging.kafka` | Kafka controllers |
 | `taf.messaging.rabbitmq` | RabbitMQ controllers |
 | `taf.messaging.jms` | JMS controllers |
+| `taf.aws` | named AWS profiles with SQS and EventBridge controller instances |
 | `taf.mobile.android` | Android/Appium controllers |
 | `taf.environment` | provider lifecycle and policy |
 | `taf.consumer` | capability declarations and preflight |
@@ -113,6 +114,34 @@ taf:
 
 See the compiled [Quick Start configuration](../quick-start.md) before adding database, messaging,
 or mobile settings. Unknown fields should not be used to infer a capability.
+
+AWS messaging is optional. It uses separate typed controllers while sharing a named connection
+profile. Credential configuration accepts only an opaque `credential://` profile reference; access
+keys and session tokens are not configuration properties.
+
+```yaml
+taf:
+  aws:
+    enabled: true
+    profiles:
+      local:
+        endpoint-mode: localstack
+        endpoint-override: http://localhost:4566
+        region: us-east-1
+        ownership-mode: test-owned
+        sqs:
+          orders:
+            queue: http://localhost:4566/000000000000/orders
+            isolation-mode: dedicated-resource
+        eventbridge:
+          orders:
+            event-bus: orders
+```
+
+Acquire instances with
+`session.getControllerRegistry().get(SqsController.class, "orders")` and
+`session.getControllerRegistry().get(EventBridgeController.class, "orders")`. Receipt handles are
+available only on session-scoped `ReceivedSqsMessage` values and must not be logged or persisted.
 
 ## Reporting, evidence, and redaction
 
