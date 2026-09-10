@@ -6,8 +6,18 @@ package com.codinglair.taf.messaging.aws.common;
 public final class AwsControllerException extends RuntimeException {
   private final String service;
   private final String operation;
+  private final AwsFailureCategory category;
+  private final boolean retryable;
 
   public AwsControllerException(String service, String operation, Throwable cause) {
+    this(service, operation, AwsFailureClassifier.classify(cause), cause);
+  }
+
+  AwsControllerException(
+      String service,
+      String operation,
+      AwsFailureClassifier.Classification classification,
+      Throwable cause) {
     super(
         service
             + " operation '"
@@ -16,6 +26,8 @@ public final class AwsControllerException extends RuntimeException {
         cause);
     this.service = service;
     this.operation = operation;
+    category = classification.category();
+    retryable = classification.retryable();
   }
 
   public String service() {
@@ -24,5 +36,13 @@ public final class AwsControllerException extends RuntimeException {
 
   public String operation() {
     return operation;
+  }
+
+  public AwsFailureCategory category() {
+    return category;
+  }
+
+  public boolean retryable() {
+    return retryable;
   }
 }

@@ -5,10 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codinglair.taf.messaging.aws.sqs.SqsControllerProperties;
 import java.net.URI;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@DisplayName("AWS configuration properties")
 class AwsPropertiesTest {
   @Test
+  @DisplayName("requires an endpoint for LocalStack")
   void localstackRequiresEndpoint() {
     AwsConnectionProperties properties = new AwsConnectionProperties();
     properties.setRegion("us-east-1");
@@ -19,6 +22,7 @@ class AwsPropertiesTest {
   }
 
   @Test
+  @DisplayName("uses an actionable default path during direct validation")
   void nullValidationPathStillProducesAnActionableRegionFailure() {
     AwsConnectionProperties properties = new AwsConnectionProperties();
 
@@ -29,6 +33,7 @@ class AwsPropertiesTest {
   }
 
   @Test
+  @DisplayName("reports empty profiles as a structured configuration failure")
   void emptyProfilesProduceStructuredConfigurationFailure() {
     AwsProperties properties = new AwsProperties();
 
@@ -44,6 +49,7 @@ class AwsPropertiesTest {
   }
 
   @Test
+  @DisplayName("rejects plaintext credentials without echoing them")
   void plaintextCredentialIsRejectedWithoutEchoingIt() {
     AwsConnectionProperties properties = valid();
     properties.setCredentialProfileReference("plain-secret-value");
@@ -53,6 +59,7 @@ class AwsPropertiesTest {
   }
 
   @Test
+  @DisplayName("prevents external resources from claiming dedicated isolation")
   void externalResourcesCannotClaimDedicatedIsolation() {
     AwsConnectionProperties properties = valid();
     properties.setOwnershipMode(AwsOwnershipMode.EXTERNAL);
@@ -61,6 +68,17 @@ class AwsPropertiesTest {
     properties.getSqs().put("orders", sqs);
     assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
         .hasMessageContaining("cannot claim dedicated ownership");
+  }
+
+  @Test
+  @DisplayName("rejects endpoint user-info without disclosing it")
+  void endpointUserInfoIsRejectedWithoutDisclosure() {
+    AwsConnectionProperties properties = valid();
+    properties.setEndpointOverride(URI.create("http://canary-secret@localhost:4566"));
+
+    assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
+        .hasMessageContaining("must not contain user-info")
+        .hasMessageNotContaining("canary-secret");
   }
 
   private static AwsConnectionProperties valid() {
