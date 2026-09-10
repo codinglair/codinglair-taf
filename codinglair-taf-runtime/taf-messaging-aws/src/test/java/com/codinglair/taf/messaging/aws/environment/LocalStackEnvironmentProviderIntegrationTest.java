@@ -197,7 +197,7 @@ class LocalStackEnvironmentProviderIntegrationTest {
     profile.setOwnershipMode(AwsOwnershipMode.EXTERNAL);
     var queue = new SqsControllerProperties();
     queue.setQueue(queueUrl);
-    queue.setIsolationMode(SqsIsolationMode.EXTERNAL_SHARED);
+    queue.setIsolationMode(SqsIsolationMode.CONTROLLED_CONSUMER);
     profile.getSqs().put("orders", queue);
     var bus = new EventBridgeControllerProperties();
     bus.setEventBus("external-orders");

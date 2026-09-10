@@ -129,10 +129,17 @@ taf:
         endpoint-override: http://localhost:4566
         region: us-east-1
         ownership-mode: test-owned
+        policy:
+          operation-timeout: 30s
+          poll-interval: 250ms
+          maximum-receive-messages: 10
+          maximum-visibility: 15m
         sqs:
           orders:
             queue: http://localhost:4566/000000000000/orders
+            dead-letter-queue: http://localhost:4566/000000000000/orders-dlq
             isolation-mode: dedicated-resource
+            unmatched-message-policy: restore-immediately
         eventbridge:
           orders:
             event-bus: orders
@@ -142,6 +149,12 @@ Acquire instances with
 `session.getControllerRegistry().get(SqsController.class, "orders")` and
 `session.getControllerRegistry().get(EventBridgeController.class, "orders")`. Receipt handles are
 available only on session-scoped `ReceivedSqsMessage` values and must not be logged or persisted.
+SQS receive, wait, and negative-wait operations are bounded by both the request and profile policy.
+`EXTERNAL_SHARED` is intentionally rejected: operator-owned shared queues must declare
+`CONTROLLED_CONSUMER` or `MIRROR_QUEUE`. Non-matching messages are released immediately and are
+never implicitly deleted; unacknowledged matching messages are released when the session closes.
+Queue and DLQ counts are approximate diagnostics. `SqsMessageEvidence` contains sanitized,
+size-bounded payload and attribute evidence but never a receipt handle.
 
 ## Reporting, evidence, and redaction
 

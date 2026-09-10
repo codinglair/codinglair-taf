@@ -71,6 +71,33 @@ class AwsPropertiesTest {
   }
 
   @Test
+  @DisplayName("rejects unsafe shared queue scanning with corrective isolation guidance")
+  void unsafeSharedQueueFailsPreflight() {
+    AwsConnectionProperties properties = valid();
+    properties.setOwnershipMode(AwsOwnershipMode.EXTERNAL);
+    SqsControllerProperties sqs = new SqsControllerProperties();
+    sqs.setQueue("https://localhost/queue");
+    sqs.setIsolationMode(SqsIsolationMode.EXTERNAL_SHARED);
+    properties.getSqs().put("orders", sqs);
+
+    assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
+        .hasMessageContaining("is unsafe")
+        .hasMessageContaining("CONTROLLED_CONSUMER")
+        .hasMessageContaining("MIRROR_QUEUE");
+  }
+
+  @Test
+  @DisplayName("rejects an administrative receive batch bound above the SQS limit")
+  void receiveBatchBoundIsValidated() {
+    AwsConnectionProperties properties = valid();
+    properties.getPolicy().setMaximumReceiveMessages(11);
+
+    assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
+        .hasMessageContaining("maximum-receive-messages")
+        .hasMessageContaining("between 1 and 10");
+  }
+
+  @Test
   @DisplayName("rejects endpoint user-info without disclosing it")
   void endpointUserInfoIsRejectedWithoutDisclosure() {
     AwsConnectionProperties properties = valid();

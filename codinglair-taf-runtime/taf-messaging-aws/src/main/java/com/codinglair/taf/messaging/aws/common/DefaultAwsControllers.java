@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -103,6 +104,7 @@ final class DefaultAwsControllers {
     private final AwsConnectionProperties connection;
     private final SqsControllerProperties settings;
     private final Supplier<SqsClient> clientSupplier;
+    private final Map<ReceivedSqsMessage, SqsVisibility> inFlight = new ConcurrentHashMap<>();
     private volatile SqsClient client;
 
     DefaultSqsController(
@@ -137,7 +139,7 @@ final class DefaultAwsControllers {
                     builder
                         .queueUrl(settings.getQueue())
                         .messageBody(request.body())
-                        .messageAttributes(toAttributes(request.attributes())));
+                        .messageAttributes(toAttributes(sendAttributes(request))));
         return new SqsSendResult(response.messageId(), digest(request.body()), Instant.now());
       } catch (RuntimeException failure) {
         throw failure("SQS", "send", failure);
@@ -146,12 +148,16 @@ final class DefaultAwsControllers {
 
     public List<ReceivedSqsMessage> receive(SqsReceiveRequest request) throws InterruptedException {
       ensureReady();
+      Objects.requireNonNull(request, "request");
+      if (request.maximumMessages() > connection.getPolicy().getMaximumReceiveMessages())
+        throw new IllegalArgumentException(
+            "maximumMessages exceeds the configured administrative bound");
       if (Thread.currentThread().isInterrupted()) throw interrupted();
       Duration allowed =
           request.timeout().compareTo(connection.getPolicy().getOperationTimeout()) > 0
               ? connection.getPolicy().getOperationTimeout()
               : request.timeout();
-      int waitSeconds = Math.toIntExact(Math.min(20, Math.max(1, allowed.toSeconds())));
+      int waitSeconds = Math.toIntExact(Math.min(20, Math.max(0, allowed.toSeconds())));
       try {
         var response =
             client.receiveMessage(
@@ -164,21 +170,85 @@ final class DefaultAwsControllers {
                         .messageSystemAttributeNames(
                             MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT,
                             MessageSystemAttributeName.SENT_TIMESTAMP));
-        return response.messages().stream()
-            .filter(message -> matches(message, request))
-            .map(message -> AwsResponseMapper.message(message, Instant.now()))
-            .toList();
+        List<ReceivedSqsMessage> matches = new ArrayList<>();
+        for (Message sdkMessage : response.messages()) {
+          ReceivedSqsMessage received = AwsResponseMapper.message(sdkMessage, Instant.now());
+          if (matches(sdkMessage, request)) {
+            inFlight
+                .keySet()
+                .removeIf(
+                    existing ->
+                        Objects.equals(
+                            existing.message().messageId(), received.message().messageId()));
+            inFlight.put(
+                received, new SqsVisibility(Optional.empty(), received.message().receivedAt()));
+            matches.add(received);
+          } else {
+            restore(sdkMessage.receiptHandle());
+          }
+        }
+        return List.copyOf(matches);
       } catch (RuntimeException failure) {
         throw failure("SQS", "receive", failure);
       }
     }
 
+    public ReceivedSqsMessage awaitMessage(SqsReceiveRequest request) throws InterruptedException {
+      long deadline = deadline(request.timeout());
+      do {
+        List<ReceivedSqsMessage> messages = receive(remainingRequest(request, deadline));
+        if (!messages.isEmpty()) return messages.getFirst();
+        pause(deadline);
+      } while (System.nanoTime() < deadline);
+      throw new AssertionError("No matching SQS message arrived within the bounded interval");
+    }
+
+    public void assertNoMatchingMessage(SqsReceiveRequest request) throws InterruptedException {
+      long deadline = deadline(request.timeout());
+      do {
+        List<ReceivedSqsMessage> messages = receive(remainingRequest(request, deadline));
+        if (!messages.isEmpty())
+          throw new AssertionError("A matching SQS message arrived during the bounded interval");
+        pause(deadline);
+      } while (System.nanoTime() < deadline);
+    }
+
+    public void assertBody(ReceivedSqsMessage message, String expectedBody) {
+      requireOwned(message);
+      if (!Objects.equals(message.message().body(), expectedBody))
+        throw new AssertionError("SQS message body did not match the expected value");
+    }
+
+    public void assertAttributes(
+        ReceivedSqsMessage message, Map<String, String> expectedAttributes) {
+      requireOwned(message);
+      Objects.requireNonNull(expectedAttributes, "expectedAttributes");
+      if (!message.message().attributes().entrySet().containsAll(expectedAttributes.entrySet()))
+        throw new AssertionError("SQS message attributes did not contain the expected values");
+    }
+
+    public SqsMessageEvidence evidence(ReceivedSqsMessage message) {
+      requireOwned(message);
+      SqsMessage value = message.message();
+      return new SqsMessageEvidence(
+          value.messageId(),
+          value.correlationId(),
+          value.receiveCount(),
+          value.sentAt(),
+          value.receivedAt(),
+          AwsEvidenceSanitizer.attributes(value.attributes()),
+          AwsEvidenceSanitizer.payload(
+              value.body(), connection.getPolicy().getMaximumEvidenceBytes()));
+    }
+
     public void acknowledge(ReceivedSqsMessage message) {
       ensureReady();
+      requireOwned(message);
       try {
         client.deleteMessage(
             builder ->
                 builder.queueUrl(settings.getQueue()).receiptHandle(message.receiptHandle()));
+        inFlight.remove(message);
       } catch (RuntimeException failure) {
         throw failure("SQS", "acknowledge", failure);
       }
@@ -186,6 +256,8 @@ final class DefaultAwsControllers {
 
     public void changeVisibility(ReceivedSqsMessage message, Duration visibility) {
       ensureReady();
+      requireOwned(message);
+      Objects.requireNonNull(visibility, "visibility");
       if (visibility.isNegative()
           || visibility.compareTo(connection.getPolicy().getMaximumVisibility()) > 0)
         throw new IllegalArgumentException("visibility is outside configured bounds");
@@ -196,16 +268,133 @@ final class DefaultAwsControllers {
                     .queueUrl(settings.getQueue())
                     .receiptHandle(message.receiptHandle())
                     .visibilityTimeout(Math.toIntExact(visibility.toSeconds())));
+        inFlight.put(message, new SqsVisibility(Optional.of(visibility), Instant.now()));
       } catch (RuntimeException failure) {
         throw failure("SQS", "change visibility", failure);
+      }
+    }
+
+    public SqsVisibility visibility(ReceivedSqsMessage message) {
+      ensureReady();
+      return requireOwned(message);
+    }
+
+    public SqsQueueDiagnostics diagnostics() {
+      ensureReady();
+      try {
+        SqsQueueCounts source = counts(settings.getQueue());
+        Optional<SqsQueueCounts> dlq =
+            settings.getDeadLetterQueue() == null
+                ? Optional.empty()
+                : Optional.of(counts(settings.getDeadLetterQueue()));
+        return new SqsQueueDiagnostics(source, dlq);
+      } catch (RuntimeException failure) {
+        throw failure("SQS", "diagnostics", failure);
       }
     }
 
     public void close() {
       if (state.getAndSet(ControllerState.CLOSED) == ControllerState.CLOSED) return;
       SqsClient current = client;
+      RuntimeException cleanupFailure = null;
+      if (current != null) {
+        for (ReceivedSqsMessage message : List.copyOf(inFlight.keySet())) {
+          try {
+            current.changeMessageVisibility(
+                builder ->
+                    builder
+                        .queueUrl(settings.getQueue())
+                        .receiptHandle(message.receiptHandle())
+                        .visibilityTimeout(0));
+            inFlight.remove(message);
+          } catch (RuntimeException failure) {
+            if (messageNoLongerInFlight(failure)) inFlight.remove(message);
+            else if (cleanupFailure == null) cleanupFailure = failure;
+            else cleanupFailure.addSuppressed(failure);
+          }
+        }
+        current.close();
+      }
       client = null;
-      if (current != null) current.close();
+      if (cleanupFailure != null) throw failure("SQS", "cleanup visibility", cleanupFailure);
+    }
+
+    private static boolean messageNoLongerInFlight(RuntimeException failure) {
+      return failure instanceof SqsException sqs
+          && sqs.statusCode() == 400
+          && ("ReceiptHandleIsInvalid".equals(sqs.awsErrorDetails().errorCode())
+              || "InvalidParameterValue".equals(sqs.awsErrorDetails().errorCode()));
+    }
+
+    private SqsVisibility requireOwned(ReceivedSqsMessage message) {
+      Objects.requireNonNull(message, "message");
+      SqsVisibility visibility = inFlight.get(message);
+      if (visibility == null)
+        throw new IllegalArgumentException(
+            "message is not an unacknowledged message owned by this controller session");
+      return visibility;
+    }
+
+    private void restore(String receiptHandle) {
+      client.changeMessageVisibility(
+          builder ->
+              builder
+                  .queueUrl(settings.getQueue())
+                  .receiptHandle(receiptHandle)
+                  .visibilityTimeout(0));
+    }
+
+    private SqsQueueCounts counts(String queue) {
+      var response =
+          client.getQueueAttributes(
+              builder ->
+                  builder
+                      .queueUrl(queue)
+                      .attributeNames(
+                          QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES,
+                          QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE,
+                          QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_DELAYED));
+      Map<String, String> values = response.attributesAsStrings();
+      return new SqsQueueCounts(
+          queue,
+          count(values, "ApproximateNumberOfMessages"),
+          count(values, "ApproximateNumberOfMessagesNotVisible"),
+          count(values, "ApproximateNumberOfMessagesDelayed"),
+          Instant.now());
+    }
+
+    private static long count(Map<String, String> values, String name) {
+      return Long.parseLong(values.getOrDefault(name, "0"));
+    }
+
+    private static Map<String, String> sendAttributes(SqsSendRequest request) {
+      if (request.correlationId() == null) return request.attributes();
+      Map<String, String> result = new LinkedHashMap<>(request.attributes());
+      result.put("correlationId", request.correlationId());
+      return Map.copyOf(result);
+    }
+
+    private static long deadline(Duration timeout) {
+      long nanos = timeout.toNanos();
+      long now = System.nanoTime();
+      return nanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + nanos;
+    }
+
+    private static SqsReceiveRequest remainingRequest(SqsReceiveRequest request, long deadline) {
+      long remaining = Math.max(1, deadline - System.nanoTime());
+      return new SqsReceiveRequest(
+          Duration.ofNanos(remaining),
+          request.correlationId(),
+          request.attributes(),
+          request.maximumMessages());
+    }
+
+    private void pause(long deadline) throws InterruptedException {
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0) return;
+      Duration interval = connection.getPolicy().getPollInterval();
+      Thread.sleep(
+          Math.min(interval.toMillis(), Math.max(1, Duration.ofNanos(remaining).toMillis())));
     }
 
     private static Map<String, MessageAttributeValue> toAttributes(Map<String, String> attributes) {
