@@ -18,6 +18,7 @@ public final class McpResourceService {
   private final AuthorizationPolicyEngine policy;
   private final List<SafeConfigurationDescriptor> configuration;
   private final List<EnvironmentReadinessDescriptor> environments;
+  private final List<CapabilityInstanceDescriptor> instances;
 
   public McpResourceService(
       RuntimeCapabilityCatalog capabilities,
@@ -26,6 +27,17 @@ public final class McpResourceService {
       AuthorizationPolicyEngine policy,
       Collection<SafeConfigurationDescriptor> configuration,
       Collection<EnvironmentReadinessDescriptor> environments) {
+    this(capabilities, documentation, evidence, policy, configuration, environments, List.of());
+  }
+
+  public McpResourceService(
+      RuntimeCapabilityCatalog capabilities,
+      DocumentationCatalog documentation,
+      EvidenceMetadataRepository evidence,
+      AuthorizationPolicyEngine policy,
+      Collection<SafeConfigurationDescriptor> configuration,
+      Collection<EnvironmentReadinessDescriptor> environments,
+      Collection<CapabilityInstanceDescriptor> instances) {
     this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
     this.documentation = Objects.requireNonNull(documentation, "documentation");
     this.evidence = Objects.requireNonNull(evidence, "evidence");
@@ -38,6 +50,28 @@ public final class McpResourceService {
         environments.stream()
             .sorted(Comparator.comparing(EnvironmentReadinessDescriptor::environment))
             .toList();
+    this.instances =
+        instances.stream()
+            .sorted(
+                Comparator.comparing(CapabilityInstanceDescriptor::capabilityId)
+                    .thenComparing(CapabilityInstanceDescriptor::instance))
+            .toList();
+  }
+
+  public ResourcePage<CapabilityInstanceDescriptor> discoverCapabilityInstances(
+      ResourceRequestContext caller, ResourceQuery query) {
+    authorize(caller, "discover", CAPABILITY_READ);
+    return DeterministicPaginator.page(
+        instances,
+        query,
+        item ->
+            item.capabilityId()
+                + " "
+                + item.instance()
+                + " "
+                + item.resourceAlias()
+                + " "
+                + item.readiness());
   }
 
   public ResourcePage<RuntimeCapabilityDescriptor> discoverCapabilities(

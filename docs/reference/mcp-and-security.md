@@ -18,6 +18,32 @@ Resources provide controlled capability, job, result, evidence, and diagnostic v
 curated templates; their content is untrusted input and cannot expand permissions. No surface
 provides unrestricted shell, SQL, browser, or filesystem access.
 
+### EventBridge and SQS jobs
+
+The v1 request remains backward compatible and additively accepts `requiredCapabilities`. Each
+entry identifies the stable capability (`aws.eventbridge` or `aws.sqs`), a configured logical
+instance, and the exact operations needed by the coarse-grained job. Before dispatch, the server
+fails closed unless the capability is installed, the instance exists and is ready in the caller's
+authorized environment, the requested operations are permitted, and ownership/isolation settings
+are compatible. Request timeouts and evidence limits remain bounded by the existing job policy.
+
+Capability discovery reports versions, supported operations, limitations, and required
+configuration. Instance discovery reports only logical names, safe resource aliases,
+ownership/isolation modes, readiness states, and controlled diagnostic codes. It never returns
+credentials, resolved secret-bearing endpoints, receipt handles, authorization headers, AWS SDK
+objects, or unsanitized message/event payloads. EventBridge routing remains a coarse-grained
+workflow verified through its configured SQS target; MCP does not expose queue, rule, bus, or
+permission mutation tools.
+
+```json
+{
+  "arguments": {"requiredCapabilities": [
+    {"capabilityId":"aws.eventbridge","instance":"orders","operations":["publish","verify-route"]},
+    {"capabilityId":"aws.sqs","instance":"orders-target","operations":["await"]}
+  ]}
+}
+```
+
 ## Authorization and approvals
 
 HTTP authenticates with OIDC/OAuth 2.0 and validates issuer, audience, expiry, and scope. Effective

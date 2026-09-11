@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "requestId": "request-aws-1",
+  "operation": "execute",
+  "projectId": "project",
+  "environment": "local",
+  "timeoutSeconds": 120,
+  "idempotencyKey": "idempotency-key-aws-1",
+  "arguments": {
+    "selector": "AwsRouteTest",
+    "requiredCapabilities": [
+      {
+        "capabilityId": "aws.eventbridge",
+        "instance": "orders",
+        "operations": [
+          "publish",
+          "verify-route"
+        ]
+      },
+      {
+        "capabilityId": "aws.sqs",
+        "instance": "orders-target",
+        "operations": [
+          "await"
+        ]
+      }
+    ]
+  }
+}

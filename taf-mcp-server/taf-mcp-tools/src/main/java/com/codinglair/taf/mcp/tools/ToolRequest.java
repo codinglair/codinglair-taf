@@ -4,6 +4,7 @@ import com.codinglair.taf.mcp.security.CallerIdentity;
 import com.codinglair.taf.mcp.security.Transport;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -19,7 +20,8 @@ public record ToolRequest(
     String approvalId,
     String targetJobId,
     CallerIdentity identity,
-    Transport transport) {
+    Transport transport,
+    List<RequiredCapability> requiredCapabilities) {
   public ToolRequest {
     requestId = text(requestId, "requestId", 128);
     Objects.requireNonNull(operation, "operation");
@@ -33,6 +35,39 @@ public record ToolRequest(
     if (operation.asynchronous()) text(idempotencyKey, "idempotencyKey", 128);
     Objects.requireNonNull(identity, "identity");
     Objects.requireNonNull(transport, "transport");
+    if (requiredCapabilities == null) {
+      throw new IllegalArgumentException("requiredCapabilities is required");
+    }
+    requiredCapabilities = List.copyOf(requiredCapabilities);
+  }
+
+  public ToolRequest(
+      String requestId,
+      ToolOperation operation,
+      String projectId,
+      String environment,
+      Path workspace,
+      Optional<String> selector,
+      Duration timeout,
+      String idempotencyKey,
+      String approvalId,
+      String targetJobId,
+      CallerIdentity identity,
+      Transport transport) {
+    this(
+        requestId,
+        operation,
+        projectId,
+        environment,
+        workspace,
+        selector,
+        timeout,
+        idempotencyKey,
+        approvalId,
+        targetJobId,
+        identity,
+        transport,
+        List.of());
   }
 
   private static String token(String value, String name, int maximum) {

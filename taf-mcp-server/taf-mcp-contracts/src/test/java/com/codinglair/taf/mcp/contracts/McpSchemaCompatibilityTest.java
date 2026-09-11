@@ -119,6 +119,7 @@ class McpSchemaCompatibilityTest {
   private static Stream<Arguments> validFixtures() {
     return Stream.of(
         Arguments.of("tool-request.schema.json", "tool-request-validate.json"),
+        Arguments.of("tool-request.schema.json", "tool-request-aws.json"),
         Arguments.of("tool-response.schema.json", "tool-response-accepted.json"),
         Arguments.of("resource.schema.json", "resource-report.json"),
         Arguments.of("resource.schema.json", "resource-report-page.json"),
