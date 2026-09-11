@@ -116,6 +116,39 @@ class LocalExecutionWorkerTest {
   @DisplayName("Process lifecycle and output safety")
   class ProcessLifecycle {
     @Test
+    @DisplayName("retries cleanup while a terminated process releases its Windows workspace handle")
+    void retriesTransientWorkspaceLock() throws Exception {
+      Path lockedWorkspace = Files.createDirectory(executionRoot.resolve("locked-workspace"));
+      Process process =
+          new ProcessBuilder(
+                  javaExecutable(),
+                  "-cp",
+                  System.getProperty("java.class.path"),
+                  WorkerProcessFixture.class.getName(),
+                  "child")
+              .directory(lockedWorkspace.toFile())
+              .start();
+      try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+        var release =
+            executor.submit(
+                () -> {
+                  Thread.sleep(150);
+                  process.destroyForcibly();
+                  return process.waitFor();
+                });
+
+        WorkspacePreparer.delete(lockedWorkspace);
+
+        release.get();
+        assertThat(lockedWorkspace).doesNotExist();
+      } finally {
+        if (process.isAlive()) {
+          process.destroyForcibly().waitFor();
+        }
+      }
+    }
+
+    @Test
     @DisplayName("times out and forcibly terminates the complete descendant tree")
     void timeoutKillsDescendants() {
       var result =
