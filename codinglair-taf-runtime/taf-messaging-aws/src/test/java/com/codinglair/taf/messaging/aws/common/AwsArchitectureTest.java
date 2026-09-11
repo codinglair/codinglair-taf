@@ -28,7 +28,10 @@ class AwsArchitectureTest {
             EventBridgeController.class,
             EventPublishRequest.class,
             EventPublishEntryResult.class,
+            EventPublishEvidence.class,
             EventPublishResult.class,
+            EventRouteRequest.class,
+            EventRouteResult.class,
             AwsServiceEnvironmentContributor.class);
     assertThat(
             contracts.stream()

@@ -426,6 +426,7 @@ final class DefaultAwsControllers {
     private final AwsConnectionProperties connection;
     private final EventBridgeControllerProperties settings;
     private final Supplier<EventBridgeClient> clientSupplier;
+    private final EventEnvelopeValidator envelopes;
     private volatile EventBridgeClient client;
 
     DefaultEventBridgeController(
@@ -437,6 +438,7 @@ final class DefaultAwsControllers {
       this.connection = connection;
       this.settings = settings;
       this.clientSupplier = clientSupplier;
+      this.envelopes = new EventEnvelopeValidator(settings.getEnvelopeSchema());
     }
 
     public void initialize(ControllerContext context) {
@@ -456,27 +458,96 @@ final class DefaultAwsControllers {
       if (events == null || events.isEmpty() || events.size() > 10)
         throw new IllegalArgumentException("events must contain between 1 and 10 entries");
       try {
-        var entries =
-            events.stream()
-                .map(
-                    event ->
-                        PutEventsRequestEntry.builder()
-                            .eventBusName(settings.getEventBus())
-                            .source(event.source())
-                            .detailType(event.detailType())
-                            .detail(event.detail())
-                            .build())
-                .toList();
+        List<String> details = events.stream().map(envelopes::detail).toList();
+        List<PutEventsRequestEntry> entries = new ArrayList<>();
+        for (int index = 0; index < events.size(); index++) {
+          EventPublishRequest event = events.get(index);
+          entries.add(
+              PutEventsRequestEntry.builder()
+                  .eventBusName(settings.getEventBus())
+                  .source(event.source())
+                  .detailType(event.detailType())
+                  .detail(details.get(index))
+                  .resources(event.resources())
+                  .traceHeader(event.traceHeader())
+                  .build());
+        }
         var response = client.putEvents(PutEventsRequest.builder().entries(entries).build());
         List<EventPublishEntryResult> results = new ArrayList<>();
-        for (int index = 0; index < response.entries().size(); index++) {
-          var value = response.entries().get(index);
-          results.add(AwsResponseMapper.eventEntry(index, value));
+        List<EventPublishEvidence> evidence = new ArrayList<>();
+        for (int index = 0; index < events.size(); index++) {
+          if (index < response.entries().size())
+            results.add(AwsResponseMapper.eventEntry(index, response.entries().get(index)));
+          else
+            results.add(
+                new EventPublishEntryResult(
+                    index, false, null, "MissingResult", "AWS returned no result for this entry"));
+          EventPublishRequest event = events.get(index);
+          evidence.add(
+              new EventPublishEvidence(
+                  index,
+                  event.source(),
+                  event.detailType(),
+                  event.resources(),
+                  AwsEvidenceSanitizer.attributes(event.metadata()),
+                  event.correlationId(),
+                  AwsEvidenceSanitizer.payload(
+                      envelopes.sanitizedDetail(details.get(index)),
+                      connection.getPolicy().getMaximumEvidenceBytes())));
         }
-        return new EventPublishResult(results, Instant.now());
+        return new EventPublishResult(results, evidence, Instant.now());
       } catch (RuntimeException failure) {
         throw failure("EventBridge", "publish", failure);
       }
+    }
+
+    public EventRouteResult verifyRoute(EventRouteRequest request, SqsController target)
+        throws InterruptedException {
+      requireRouteConfiguration(request, target);
+      EventPublishResult published = publish(List.of(request.event()));
+      EventPublishEntryResult entry = requireAccepted(published);
+      ReceivedSqsMessage message =
+          target.awaitMessage(new SqsReceiveRequest(request.timeout(), null, Map.of(), 10));
+      var envelope =
+          envelopes.validateTargetEnvelope(
+              message.message().body(), request.event().correlationId());
+      envelopes.assertExpected(envelope, request.event());
+      return new EventRouteResult(
+          entry,
+          settings.getTargetIdentity(),
+          request.event().correlationId(),
+          target.evidence(message));
+    }
+
+    public EventPublishResult assertNotRouted(EventRouteRequest request, SqsController target)
+        throws InterruptedException {
+      requireRouteConfiguration(request, target);
+      EventPublishResult published = publish(List.of(request.event()));
+      requireAccepted(published);
+      target.assertNoMatchingMessage(new SqsReceiveRequest(request.timeout(), null, Map.of(), 10));
+      return published;
+    }
+
+    private void requireRouteConfiguration(EventRouteRequest request, SqsController target) {
+      ensureReady();
+      Objects.requireNonNull(request, "request");
+      Objects.requireNonNull(target, "target");
+      if (settings.getTargetSqsController() == null)
+        throw new IllegalStateException(
+            "EventBridge route verification requires a configured target SQS controller and target identity");
+      if (!settings.getTargetSqsController().equals(target.identity().name()))
+        throw new IllegalArgumentException(
+            "SQS target controller does not match the configured EventBridge route target");
+      if (request.event().correlationId() == null)
+        throw new IllegalArgumentException("Route verification requires a correlation identity");
+    }
+
+    private static EventPublishEntryResult requireAccepted(EventPublishResult published) {
+      EventPublishEntryResult entry = published.entries().getFirst();
+      if (!entry.accepted())
+        throw new AssertionError(
+            "EventBridge rejected the route-verification event: " + entry.errorCode());
+      return entry;
     }
 
     public void close() {
