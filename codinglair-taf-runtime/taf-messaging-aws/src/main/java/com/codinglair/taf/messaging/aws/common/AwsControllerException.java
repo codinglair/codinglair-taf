@@ -1,7 +1,8 @@
 package com.codinglair.taf.messaging.aws.common;
 
 /**
- * Stable, sanitized AWS operation failure. The SDK cause is retained for local diagnostics only.
+ * Stable, sanitized AWS operation failure. Raw SDK causes are deliberately not retained because
+ * exception traversal and debug logging are publication boundaries too.
  */
 public final class AwsControllerException extends RuntimeException {
   private final String service;
@@ -22,8 +23,7 @@ public final class AwsControllerException extends RuntimeException {
         service
             + " operation '"
             + operation
-            + "' failed; verify configuration, authorization, resource identity, and service availability",
-        cause);
+            + "' failed; verify configuration, authorization, resource identity, and service availability");
     this.service = service;
     this.operation = operation;
     category = classification.category();

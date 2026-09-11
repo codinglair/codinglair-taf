@@ -3,6 +3,7 @@ package com.codinglair.taf.messaging.aws.common;
 import com.codinglair.taf.messaging.aws.eventbridge.*;
 import com.codinglair.taf.messaging.aws.sqs.*;
 import com.codinglair.taf.runtime.core.controller.*;
+import com.codinglair.taf.runtime.core.reporting.ArtifactCollector;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -59,6 +60,7 @@ final class DefaultAwsControllers {
   private abstract static class BaseController implements TestController {
     final ControllerIdentity identity;
     final AtomicReference<ControllerState> state = new AtomicReference<>(ControllerState.NEW);
+    private volatile AwsEvidencePublisher evidencePublisher;
 
     BaseController(Class<? extends TestController> type, String name) {
       identity = new ControllerIdentity(type, name);
@@ -83,6 +85,25 @@ final class DefaultAwsControllers {
 
     public Stream<TestArtifact> collectArtifacts(ArtifactReason reason) {
       return Stream.empty();
+    }
+
+    void attachEvidence(ControllerContext context, int maximumBytes) {
+      ArtifactCollector collector = context == null ? null : context.artifacts();
+      evidencePublisher =
+          new AwsEvidencePublisher(collector, Math.max(0, Math.min(1_048_576, maximumBytes)));
+    }
+
+    void publish(String service, String operation, Map<String, ?> evidence) {
+      AwsEvidencePublisher publisher = evidencePublisher;
+      if (publisher != null) publisher.publish(service, operation, evidence);
+    }
+
+    AwsControllerException publishFailure(
+        String service, String operation, RuntimeException failure) {
+      AwsControllerException safe = failure(service, operation, failure);
+      AwsEvidencePublisher publisher = evidencePublisher;
+      if (publisher != null) publisher.failure(service, operation, safe);
+      return safe;
     }
 
     void begin() {
@@ -120,13 +141,14 @@ final class DefaultAwsControllers {
 
     public void initialize(ControllerContext context) {
       begin();
+      attachEvidence(context, connection.getPolicy().getMaximumEvidenceBytes());
       try {
         connection.validate("taf.aws.profiles.<resolved>");
         client = clientSupplier.get();
         ready();
       } catch (RuntimeException failure) {
         state.set(ControllerState.FAILED);
-        throw failure("SQS", "initialize", failure);
+        throw publishFailure("SQS", "initialize", failure);
       }
     }
 
@@ -140,9 +162,18 @@ final class DefaultAwsControllers {
                         .queueUrl(settings.getQueue())
                         .messageBody(request.body())
                         .messageAttributes(toAttributes(sendAttributes(request))));
-        return new SqsSendResult(response.messageId(), digest(request.body()), Instant.now());
+        SqsSendResult result =
+            new SqsSendResult(response.messageId(), digest(request.body()), Instant.now());
+        publish(
+            "SQS",
+            "send",
+            Map.of(
+                "messageId", result.messageId(),
+                "bodyDigest", result.bodyDigest(),
+                "sentAt", result.sentAt().toString()));
+        return result;
       } catch (RuntimeException failure) {
-        throw failure("SQS", "send", failure);
+        throw publishFailure("SQS", "send", failure);
       }
     }
 
@@ -189,7 +220,7 @@ final class DefaultAwsControllers {
         }
         return List.copyOf(matches);
       } catch (RuntimeException failure) {
-        throw failure("SQS", "receive", failure);
+        throw publishFailure("SQS", "receive", failure);
       }
     }
 
@@ -200,6 +231,10 @@ final class DefaultAwsControllers {
         if (!messages.isEmpty()) return messages.getFirst();
         pause(deadline);
       } while (System.nanoTime() < deadline);
+      publish(
+          "SQS",
+          "await timeout",
+          Map.of("correlationId", AwsEvidenceSanitizer.sanitize(request.correlationId())));
       throw new AssertionError("No matching SQS message arrived within the bounded interval");
     }
 
@@ -207,38 +242,53 @@ final class DefaultAwsControllers {
       long deadline = deadline(request.timeout());
       do {
         List<ReceivedSqsMessage> messages = receive(remainingRequest(request, deadline));
-        if (!messages.isEmpty())
+        if (!messages.isEmpty()) {
+          publish("SQS", "negative assertion failure", Map.of("matchedMessages", messages.size()));
           throw new AssertionError("A matching SQS message arrived during the bounded interval");
+        }
         pause(deadline);
       } while (System.nanoTime() < deadline);
     }
 
     public void assertBody(ReceivedSqsMessage message, String expectedBody) {
       requireOwned(message);
-      if (!Objects.equals(message.message().body(), expectedBody))
+      if (!Objects.equals(message.message().body(), expectedBody)) {
+        publish(
+            "SQS",
+            "body assertion failure",
+            Map.of("messageId", AwsEvidenceSanitizer.sanitize(message.message().messageId())));
         throw new AssertionError("SQS message body did not match the expected value");
+      }
     }
 
     public void assertAttributes(
         ReceivedSqsMessage message, Map<String, String> expectedAttributes) {
       requireOwned(message);
       Objects.requireNonNull(expectedAttributes, "expectedAttributes");
-      if (!message.message().attributes().entrySet().containsAll(expectedAttributes.entrySet()))
+      if (!message.message().attributes().entrySet().containsAll(expectedAttributes.entrySet())) {
+        publish(
+            "SQS",
+            "attribute assertion failure",
+            Map.of("messageId", AwsEvidenceSanitizer.sanitize(message.message().messageId())));
         throw new AssertionError("SQS message attributes did not contain the expected values");
+      }
     }
 
     public SqsMessageEvidence evidence(ReceivedSqsMessage message) {
       requireOwned(message);
       SqsMessage value = message.message();
-      return new SqsMessageEvidence(
-          value.messageId(),
-          value.correlationId(),
-          value.receiveCount(),
-          value.sentAt(),
-          value.receivedAt(),
-          AwsEvidenceSanitizer.attributes(value.attributes()),
-          AwsEvidenceSanitizer.payload(
-              value.body(), connection.getPolicy().getMaximumEvidenceBytes()));
+      SqsMessageEvidence evidence =
+          new SqsMessageEvidence(
+              value.messageId(),
+              value.correlationId(),
+              value.receiveCount(),
+              value.sentAt(),
+              value.receivedAt(),
+              AwsEvidenceSanitizer.attributes(value.attributes()),
+              AwsEvidenceSanitizer.payload(
+                  value.body(), connection.getPolicy().getMaximumEvidenceBytes()));
+      publish("SQS", "message", sqsEvidence(evidence));
+      return evidence;
     }
 
     public void acknowledge(ReceivedSqsMessage message) {
@@ -250,7 +300,7 @@ final class DefaultAwsControllers {
                 builder.queueUrl(settings.getQueue()).receiptHandle(message.receiptHandle()));
         inFlight.remove(message);
       } catch (RuntimeException failure) {
-        throw failure("SQS", "acknowledge", failure);
+        throw publishFailure("SQS", "acknowledge", failure);
       }
     }
 
@@ -270,7 +320,7 @@ final class DefaultAwsControllers {
                     .visibilityTimeout(Math.toIntExact(visibility.toSeconds())));
         inFlight.put(message, new SqsVisibility(Optional.of(visibility), Instant.now()));
       } catch (RuntimeException failure) {
-        throw failure("SQS", "change visibility", failure);
+        throw publishFailure("SQS", "change visibility", failure);
       }
     }
 
@@ -287,9 +337,19 @@ final class DefaultAwsControllers {
             settings.getDeadLetterQueue() == null
                 ? Optional.empty()
                 : Optional.of(counts(settings.getDeadLetterQueue()));
-        return new SqsQueueDiagnostics(source, dlq);
+        SqsQueueDiagnostics result = new SqsQueueDiagnostics(source, dlq);
+        publish(
+            "SQS",
+            "diagnostics",
+            Map.of(
+                "sourceQueue", AwsEvidenceSanitizer.sanitize(source.queue()),
+                "available", source.available(),
+                "inFlight", source.inFlight(),
+                "delayed", source.delayed(),
+                "collectedAt", source.collectedAt().toString()));
+        return result;
       } catch (RuntimeException failure) {
-        throw failure("SQS", "diagnostics", failure);
+        throw publishFailure("SQS", "diagnostics", failure);
       }
     }
 
@@ -316,7 +376,7 @@ final class DefaultAwsControllers {
         current.close();
       }
       client = null;
-      if (cleanupFailure != null) throw failure("SQS", "cleanup visibility", cleanupFailure);
+      if (cleanupFailure != null) throw publishFailure("SQS", "cleanup visibility", cleanupFailure);
     }
 
     private static boolean messageNoLongerInFlight(RuntimeException failure) {
@@ -443,13 +503,14 @@ final class DefaultAwsControllers {
 
     public void initialize(ControllerContext context) {
       begin();
+      attachEvidence(context, connection.getPolicy().getMaximumEvidenceBytes());
       try {
         connection.validate("taf.aws.profiles.<resolved>");
         client = clientSupplier.get();
         ready();
       } catch (RuntimeException failure) {
         state.set(ControllerState.FAILED);
-        throw failure("EventBridge", "initialize", failure);
+        throw publishFailure("EventBridge", "initialize", failure);
       }
     }
 
@@ -495,9 +556,12 @@ final class DefaultAwsControllers {
                       envelopes.sanitizedDetail(details.get(index)),
                       connection.getPolicy().getMaximumEvidenceBytes())));
         }
-        return new EventPublishResult(results, evidence, Instant.now());
+        EventPublishResult result = new EventPublishResult(results, evidence, Instant.now());
+        for (EventPublishEvidence item : evidence)
+          publish("EventBridge", "publish", eventEvidence(item, results.get(item.index())));
+        return result;
       } catch (RuntimeException failure) {
-        throw failure("EventBridge", "publish", failure);
+        throw publishFailure("EventBridge", "publish", failure);
       }
     }
 
@@ -556,6 +620,44 @@ final class DefaultAwsControllers {
       client = null;
       if (current != null) current.close();
     }
+  }
+
+  private static Map<String, ?> sqsEvidence(SqsMessageEvidence value) {
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("messageId", value.messageId());
+    result.put("correlationId", value.correlationId());
+    result.put("receiveCount", value.receiveCount());
+    result.put("sentAt", value.sentAt() == null ? null : value.sentAt().toString());
+    result.put("receivedAt", value.receivedAt().toString());
+    result.put("attributes", value.attributes());
+    result.put("payload", payloadEvidence(value.payload()));
+    return result;
+  }
+
+  private static Map<String, ?> eventEvidence(
+      EventPublishEvidence value, EventPublishEntryResult entry) {
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("index", value.index());
+    result.put("source", AwsEvidenceSanitizer.sanitize(value.source()));
+    result.put("detailType", AwsEvidenceSanitizer.sanitize(value.detailType()));
+    result.put(
+        "resources", value.resources().stream().map(AwsEvidenceSanitizer::sanitize).toList());
+    result.put("metadata", value.metadata());
+    result.put("correlationId", AwsEvidenceSanitizer.sanitize(value.correlationId()));
+    result.put("detail", payloadEvidence(value.detail()));
+    result.put("accepted", entry.accepted());
+    result.put("eventId", entry.eventId());
+    result.put("errorCode", AwsEvidenceSanitizer.sanitize(entry.errorCode()));
+    result.put("errorMessage", AwsEvidenceSanitizer.sanitize(entry.errorMessage()));
+    return result;
+  }
+
+  private static Map<String, ?> payloadEvidence(AwsEvidencePayload value) {
+    return Map.of(
+        "content", value.content(),
+        "sha256", value.sha256(),
+        "originalBytes", value.originalBytes(),
+        "truncated", value.truncated());
   }
 
   private static String digest(String value) {
