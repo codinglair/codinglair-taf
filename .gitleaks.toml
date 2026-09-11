@@ -18,3 +18,10 @@ regexes = ['''783a40134baf4f3012d4464fbe1571b1612a0dbd2e7a44d14bd8328923443833''
 description = "Documentation-only environment secret reference"
 regexTarget = "line"
 regexes = ['''credential-reference=secret://env/ORDERS_API_TOKEN, outcome=FAILED''']
+
+# Exact historical MCP contract fixture placeholder. The PR scanner examines every introduced
+# commit, including the commit before this value was replaced with a low-entropy fixture value.
+[[allowlists]]
+description = "MCP AWS request idempotency fixture placeholder"
+regexTarget = "match"
+regexes = ['''idempotency-key-aws-1''']

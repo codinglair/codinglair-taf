@@ -5,7 +5,7 @@
   "projectId": "project",
   "environment": "local",
   "timeoutSeconds": 120,
-  "idempotencyKey": "idempotency-key-aws-1",
+  "idempotencyKey": "0000000000000000",
   "arguments": {
     "selector": "AwsRouteTest",
     "requiredCapabilities": [
