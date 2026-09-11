@@ -134,6 +134,7 @@ taf:
           poll-interval: 250ms
           maximum-receive-messages: 10
           maximum-visibility: 15m
+          maximum-evidence-bytes: 16384
         sqs:
           orders:
             queue: http://localhost:4566/000000000000/orders
@@ -173,6 +174,14 @@ EventBridge controller, waits through the separately acquired SQS controller, va
 target envelope and correlation identity, and returns sanitized SQS evidence. Use
 `assertNotRouted(...)` for a full bounded non-matching observation. Both controllers remain usable
 independently and neither operation provisions or destroys infrastructure.
+
+AWS stable evidence is published as `AWS_EVIDENCE` artifacts through the owning `TestSession`'s
+`ArtifactCollector`. Payloads and metadata are sanitized independently, bounded by
+`maximum-evidence-bytes`, and accompanied by the SHA-256 digest and original UTF-8 byte count.
+Receipt handles, trace headers, raw SDK request/result objects, authorization material, resolved
+credentials, and raw exception causes are omitted. Failure, timeout, assertion, diagnostics, and
+cleanup evidence uses the same boundary. Safe message IDs, correlation IDs, receive counts,
+timestamps, target identity, and ownership-safe queue diagnostics remain available for diagnosis.
 
 ## Reporting, evidence, and redaction
 

@@ -70,7 +70,7 @@ class EventBridgeControllerTest {
                           new EventPublishRequest(
                               "orders", "created", "not-json", Map.of(), "c-1"))))
           .isInstanceOf(AwsControllerException.class)
-          .hasCauseInstanceOf(IllegalArgumentException.class);
+          .hasNoCause();
       assertThat(sdk.request).isNull();
     }
   }
