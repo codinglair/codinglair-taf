@@ -1,6 +1,7 @@
 package com.codinglair.taf.mcp.worker;
 
 import java.io.IOException;
+import java.nio.file.FileSystemException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -9,6 +10,9 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 
 final class WorkspacePreparer {
+  private static final long DELETE_RETRY_TIMEOUT_NANOS = java.time.Duration.ofSeconds(2).toNanos();
+  private static final long DELETE_RETRY_DELAY_MILLIS = 25;
+
   private final Path executionRoot;
   private final WorkerLimits limits;
 
@@ -84,13 +88,37 @@ final class WorkspacePreparer {
     if (root == null || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
       return;
     }
+    long deadline = System.nanoTime() + DELETE_RETRY_TIMEOUT_NANOS;
+    while (true) {
+      try {
+        deleteOnce(root);
+        return;
+      } catch (FileSystemException error) {
+        if (System.nanoTime() >= deadline) {
+          throw error;
+        }
+        try {
+          Thread.sleep(DELETE_RETRY_DELAY_MILLIS);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+          throw new IOException(
+              "Interrupted while waiting to clean the worker workspace", interrupted);
+        }
+        if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+          return;
+        }
+      }
+    }
+  }
+
+  private static void deleteOnce(Path root) throws IOException {
     Files.walkFileTree(
         root,
         new SimpleFileVisitor<>() {
           @Override
           public FileVisitResult visitFile(Path file, BasicFileAttributes attributes)
               throws IOException {
-            Files.delete(file);
+            Files.deleteIfExists(file);
             return FileVisitResult.CONTINUE;
           }
 
@@ -100,7 +128,7 @@ final class WorkspacePreparer {
             if (error != null) {
               throw error;
             }
-            Files.delete(directory);
+            Files.deleteIfExists(directory);
             return FileVisitResult.CONTINUE;
           }
         });
