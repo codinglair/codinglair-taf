@@ -19,7 +19,7 @@ on:
         default: true
         type: boolean
       authorized-aws:
-        description: Enter the separately approved authorized-AWS preflight
+        description: Enter the separately approved authorized-AWS approval-boundary preflight
         required: false
         default: false
         type: boolean
@@ -41,7 +41,7 @@ on:
         default: true
         type: boolean
       authorized-aws:
-        description: Run only the approval/identity preflight (not live qualification)
+        description: Run only the approval-boundary preflight (not authentication or live qualification)
         required: true
         default: false
         type: boolean
@@ -230,16 +230,15 @@ jobs:
           retention-days: 30
 
   authorized-aws-preflight:
-    name: Authorized AWS gate (approval and identity preflight only)
+    name: Authorized AWS gate (approval-boundary preflight only)
     if: ${{ inputs.authorized-aws }}
     runs-on: ubuntu-24.04
     environment: authorized-aws-qualification
     permissions:
       contents: read
-      id-token: write
     steps:
       - name: Confirm credential-safe qualification boundary
         run: |
           test -n '${{ vars.TAF_AWS_QUALIFICATION_ROLE }}'
-          echo 'Authorized-AWS execution requires environment approval and short-lived OIDC credentials.'
-          echo 'This INF gate does not claim or execute live-AWS qualification.'
+          echo 'Authorized-AWS execution requires environment approval.'
+          echo 'This INF gate does not request credentials, authenticate, or execute live-AWS qualification.'

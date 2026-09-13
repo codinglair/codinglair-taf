@@ -50,10 +50,12 @@ The dependency versions, licenses, compatibility rationale, and image digest are
 Live AWS is not required for ordinary local, PR, nightly, or LocalStack qualification. The
 `authorized-aws` workflow input is false by default and enters the protected
 `authorized-aws-qualification` GitHub environment only after an explicit dispatch and environment
-approval. That job grants only `contents: read` and `id-token: write`, requires a configured role
-reference, and neither accepts static access-key secrets nor claims that live qualification ran.
-The live qualification command remains release-controlled until its separately approved suite and
-environment exist; LocalStack results must not be reported as authorized-AWS evidence.
+approval. That boundary-only job grants `contents: read`, requires a configured role reference,
+and neither requests an OIDC token nor accepts static access-key secrets. It does not authenticate
+or claim that live qualification ran. OIDC permission and token exchange belong in the future,
+separately approved live qualification workflow rather than in reusable PR/nightly CI. The live
+qualification command remains release-controlled until that suite and environment exist;
+LocalStack results must not be reported as authorized-AWS evidence.
 
 ## Failure triage
 

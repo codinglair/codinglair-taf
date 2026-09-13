@@ -33,7 +33,10 @@ final class AwsInfrastructureContractTest {
     require(workflow, "if: ${{ failure() }}");
     require(workflow, "if: ${{ always() }}");
     require(workflow, "environment: authorized-aws-qualification");
-    require(workflow, "id-token: write");
+    prohibit(workflow, "id-token: write");
+    require(
+        workflow,
+        "does not request credentials, authenticate, or execute live-AWS qualification");
     prohibit(workflow, "AWS_ACCESS_KEY_ID");
     prohibit(workflow, "AWS_SECRET_ACCESS_KEY");
     require(pullRequest, "uses: ./.github/workflows/aws-capability.yml");
