@@ -7,6 +7,7 @@ public class EventBridgeControllerProperties {
   private String targetSqsController;
   private String targetIdentity;
   private String envelopeSchema;
+  private String eventPattern = "{\"source\":[{\"exists\":true}]}";
 
   public String getEventBus() {
     return eventBus;
@@ -40,9 +41,19 @@ public class EventBridgeControllerProperties {
     envelopeSchema = value;
   }
 
+  public String getEventPattern() {
+    return eventPattern;
+  }
+
+  public void setEventPattern(String value) {
+    eventPattern = value;
+  }
+
   public void validate(String path) {
     if (eventBus == null || eventBus.isBlank())
       AwsOperationPolicy.fail(path + ".event-bus", "is required");
+    if (eventPattern == null || eventPattern.isBlank())
+      AwsOperationPolicy.fail(path + ".event-pattern", "is required");
     if ((targetSqsController == null) != (targetIdentity == null))
       AwsOperationPolicy.fail(
           path, "target-sqs-controller and target-identity must be configured together");

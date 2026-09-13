@@ -49,10 +49,13 @@ class SqsControllerTest {
       controller.assertAttributes(received.getFirst(), Map.of("correlationId", "c-1"));
       assertThat(controller.evidence(received.getFirst()).payload().content())
           .isEqualTo("body-wanted");
-      controller.acknowledge(received.getFirst());
+      controller.acknowledgeByMessageId("wanted");
       assertThat(sdk.deleted).containsExactly("r-wanted");
       assertThatThrownBy(() -> controller.visibility(received.getFirst()))
           .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> controller.acknowledgeByMessageId("missing"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageNotContaining("receipt");
     }
 
     @Test

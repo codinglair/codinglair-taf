@@ -304,6 +304,21 @@ final class DefaultAwsControllers {
       }
     }
 
+    public void acknowledgeByMessageId(String messageId) {
+      ensureReady();
+      if (messageId == null || messageId.isBlank())
+        throw new IllegalArgumentException("messageId must not be blank");
+      ReceivedSqsMessage message =
+          inFlight.keySet().stream()
+              .filter(candidate -> messageId.equals(candidate.message().messageId()))
+              .findFirst()
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "Message is not in flight for controller " + identity.name()));
+      acknowledge(message);
+    }
+
     public void changeVisibility(ReceivedSqsMessage message, Duration visibility) {
       ensureReady();
       requireOwned(message);

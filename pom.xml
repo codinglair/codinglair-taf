@@ -815,6 +815,29 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>require-staged-consumer-bom</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <files>
+                                                <file>${maven.multiModuleProjectDirectory}/target/staging-repository/com/codinglair/taf/codinglair-taf-bom/${revision}/codinglair-taf-bom-${revision}.pom</file>
+                                            </files>
+                                            <message>Staged TAF ${revision} artifacts are required. Run the release-staging deploy command first in this checkout.</message>
+                                        </requireFilesExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-invoker-plugin</artifactId>
                         <executions>
                             <execution>

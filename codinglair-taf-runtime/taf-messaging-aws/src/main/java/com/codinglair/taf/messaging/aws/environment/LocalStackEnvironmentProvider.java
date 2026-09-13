@@ -221,7 +221,7 @@ public final class LocalStackEnvironmentProvider extends AbstractEnvironmentProv
                 PutRuleRequest.builder()
                     .name(rule)
                     .eventBusName(eventBus)
-                    .eventPattern("{\"source\":[{\"exists\":true}]}")
+                    .eventPattern(settings.getEventPattern())
                     .state(RuleState.ENABLED)
                     .build());
         add(entries, "event-rule", logical + ".rule", eventBus + "/" + rule, owner, 50);
