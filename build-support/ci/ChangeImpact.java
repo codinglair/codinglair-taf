@@ -40,7 +40,8 @@ final class ChangeImpact {
       boolean integration,
       boolean crossModule,
       boolean browser,
-      boolean appium) {}
+      boolean appium,
+      boolean aws) {}
 
   private ChangeImpact() {}
 
@@ -90,13 +91,26 @@ final class ChangeImpact {
                             || path.startsWith("codinglair-taf-runtime/taf-mobile-appium/")
                             || path.startsWith("containers/android-emulator/")
                             || isMobileQualificationContract(path));
+    boolean aws =
+        global
+            || paths.stream()
+                .anyMatch(
+                    path ->
+                        path.startsWith("codinglair-taf-runtime/taf-messaging-aws/")
+                            || path.startsWith("codinglair-taf-bom/")
+                            || path.startsWith("release/consumer-smoke/aws-messaging/")
+                            || path.equals(".github/workflows/aws-capability.yml")
+                            || path.startsWith("build-support/scripts/aws-ci.")
+                            || path.contains("AWS-110-")
+                            || path.contains("INF-110-001"));
     return new Result(
         List.copyOf(paths),
         modules,
         global || productChange,
         runtimeOrMcp,
         browser,
-        appium);
+        appium,
+        aws);
   }
 
   static List<Change> gitDiff(Path repository, String base, String head)
@@ -214,6 +228,7 @@ final class ChangeImpact {
             "cross_module=" + result.crossModule(),
             "browser=" + result.browser(),
             "appium=" + result.appium(),
+            "aws=" + result.aws(),
             "paths_b64=" + encodePaths(result.paths()));
     output.forEach(System.out::println);
     if (githubOutput != null) {

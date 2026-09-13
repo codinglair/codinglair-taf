@@ -48,6 +48,7 @@ jobs:
       cross_module: ${{ steps.classify.outputs.cross_module }}
       browser: ${{ steps.classify.outputs.browser }}
       appium: ${{ steps.classify.outputs.appium }}
+      aws: ${{ steps.classify.outputs.aws }}
       paths_b64: ${{ steps.classify.outputs.paths_b64 }}
     steps:
       - uses: actions/checkout@v4
@@ -72,12 +73,14 @@ jobs:
           java -cp target/ci-support WorkflowContractTest
           java -cp target/ci-support GitleaksContractTest
           java -cp target/ci-support VerificationMatrixContractTest
+          java -cp target/ci-support AwsInfrastructureContractTest
           java -cp target/ci-support ReferencePipelineContractTest
           # Parse the executable PR workflow with the repository-approved YAML
           # library so malformed YAML fails before path classification.
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/pull-request.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/secret-scanning.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/verification-matrix.yml
+          java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/aws-capability.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/nightly.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .github/workflows/release.yml
           java -cp "target/ci-support:$(cat codinglair-taf-runtime/taf-test-definitions/target/ci-classpath.txt)" WorkflowYamlParse .gitlab-ci.yml
@@ -545,6 +548,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  aws-capability:
+    name: Affected AWS capability gates
+    needs: change-impact
+    if: needs.change-impact.outputs.aws == 'true'
+    uses: ./.github/workflows/aws-capability.yml
+    with:
+      full-reactor: false
+      consumer-smoke: true
+      supply-chain: true
+      authorized-aws: false
+    permissions:
+      contents: read
+
   pr-gate:
     name: PR gate
     if: ${{ always() }}
@@ -557,6 +573,7 @@ jobs:
       - cross-module-smoke
       - browser-smoke
       - appium-smoke
+      - aws-capability
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -579,6 +596,7 @@ jobs:
           | Cross-module smoke | ${{ needs.change-impact.outputs.cross_module }} | ${{ needs.cross-module-smoke.result }} |
           | Browser smoke | ${{ needs.change-impact.outputs.browser }} | ${{ needs.browser-smoke.result }} |
           | Android emulator Appium smoke | ${{ needs.change-impact.outputs.appium }} | ${{ needs.appium-smoke.result }} |
+          | AWS capability | ${{ needs.change-impact.outputs.aws }} | ${{ needs.aws-capability.result }} |
           SUMMARY
           test '${{ needs.documentation-version.result }}' = 'success'
           mkdir -p target/ci-support
@@ -595,3 +613,8 @@ jobs:
             '${{ needs.change-impact.outputs.cross_module }}' \
             '${{ needs.change-impact.outputs.browser }}' \
             '${{ needs.change-impact.outputs.appium }}'
+          if [[ '${{ needs.change-impact.outputs.aws }}' = 'true' ]]; then
+            test '${{ needs.aws-capability.result }}' = 'success'
+          else
+            test '${{ needs.aws-capability.result }}' = 'skipped'
+          fi

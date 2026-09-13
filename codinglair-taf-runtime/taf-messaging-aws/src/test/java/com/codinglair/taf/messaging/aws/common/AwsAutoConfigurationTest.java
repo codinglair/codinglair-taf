@@ -22,6 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 @DisplayName("AWS auto-configuration")
@@ -30,6 +31,18 @@ class AwsAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(
               AutoConfigurations.of(AwsAutoConfiguration.class, TafRuntimeAutoConfiguration.class));
+
+  @Test
+  @DisplayName("orders after the runtime and environment auto-configurations it consumes")
+  void declaresRequiredAutoConfigurationOrdering() {
+    AutoConfigureAfter ordering =
+        AwsAutoConfiguration.class.getAnnotation(AutoConfigureAfter.class);
+
+    assertThat(ordering).isNotNull();
+    assertThat(ordering.value())
+        .containsExactlyInAnyOrder(
+            TafRuntimeAutoConfiguration.class, EnvironmentAutoConfiguration.class);
+  }
 
   @Test
   @DisplayName("is absent by default")

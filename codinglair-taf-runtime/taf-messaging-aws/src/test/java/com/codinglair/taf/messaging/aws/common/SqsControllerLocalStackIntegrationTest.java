@@ -24,7 +24,10 @@ class SqsControllerLocalStackIntegrationTest {
       "qualifies send, match, preservation, visibility, redelivery, acknowledgment and diagnostics")
   void qualifiesControllerLifecycle() throws Exception {
     try (var localstack =
-        new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.8.1"))
+        new LocalStackContainer(
+                DockerImageName.parse(
+                        System.getProperty("taf.localstack.image", "localstack/localstack:4.8.1"))
+                    .asCompatibleSubstituteFor("localstack/localstack"))
             .withServices("sqs")) {
       localstack.start();
       var credentials =

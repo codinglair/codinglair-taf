@@ -94,6 +94,7 @@
             <configuration combine.self="append">
               <systemPropertyVariables>
                 <taf.containers.enabled>true</taf.containers.enabled>
+                <taf.localstack.image>${localstack.image}</taf.localstack.image>
               </systemPropertyVariables>
             </configuration>
           </plugin>

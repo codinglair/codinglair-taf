@@ -28,7 +28,10 @@ class EventBridgeRouteLocalStackIntegrationTest {
   @DisplayName("proves matching delivery, correlation, schema, and a bounded non-matching rule")
   void qualifiesRouteComposition() throws Exception {
     try (var localstack =
-        new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.8.1"))
+        new LocalStackContainer(
+                DockerImageName.parse(
+                        System.getProperty("taf.localstack.image", "localstack/localstack:4.8.1"))
+                    .asCompatibleSubstituteFor("localstack/localstack"))
             .withServices("events", "sqs")) {
       localstack.start();
       var credentials =

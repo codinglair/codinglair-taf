@@ -17,7 +17,7 @@ final class ChangeImpactTest {
         continue;
       }
       String[] columns = line.split("\\|", -1);
-      if (columns.length != 7) {
+      if (columns.length != 8) {
         throw new AssertionError("Malformed fixture: " + line);
       }
       ChangeImpact.Result actual = ChangeImpact.classify(changes(columns[1]), repository);
@@ -26,6 +26,7 @@ final class ChangeImpactTest {
       assertEquals(columns[0], columns[4], Boolean.toString(actual.crossModule()));
       assertEquals(columns[0], columns[5], Boolean.toString(actual.browser()));
       assertEquals(columns[0], columns[6], Boolean.toString(actual.appium()));
+      assertEquals(columns[0], columns[7], Boolean.toString(actual.aws()));
       executed++;
     }
     verifiesNullDelimitedRenameParsing();
