@@ -1,14 +1,13 @@
 package com.codinglair.taf.runtime.cucumber;
 
-import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
-import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
+import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
 import com.codinglair.taf.runtime.core.failure.FailureContext;
+import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
 import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
 import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
 import com.codinglair.taf.runtime.core.history.ExecutionAttemptSummary;
 import com.codinglair.taf.runtime.core.history.HistoryConfiguration;
-import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
-import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
+import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.EmbedEvent;
@@ -20,6 +19,9 @@ import io.cucumber.plugin.event.TestCaseStarted;
 import io.cucumber.plugin.event.TestStepFinished;
 import io.cucumber.plugin.event.TestStepStarted;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +29,6 @@ import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.time.Duration;
-import java.time.Instant;
-import java.nio.file.Path;
 
 /** Maps Cucumber events to a business-only report without technical diagnostics. */
 public final class CucumberBusinessReportPlugin implements ConcurrentEventListener {
@@ -47,8 +46,8 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
     this(listeners, disabledHistory());
   }
 
-  public CucumberBusinessReportPlugin(List<CucumberBusinessResultListener> listeners,
-      AttemptHistoryService attemptHistory) {
+  public CucumberBusinessReportPlugin(
+      List<CucumberBusinessResultListener> listeners, AttemptHistoryService attemptHistory) {
     this.listeners = List.copyOf(listeners);
     this.attemptHistory = java.util.Objects.requireNonNull(attemptHistory);
   }
@@ -121,15 +120,29 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
       return;
     }
     var nativeStatus = event.getResult().getStatus();
-    var outcome = nativeStatus == io.cucumber.plugin.event.Status.PASSED
-        ? ExecutionAttemptSummary.Outcome.PASSED
-        : nativeStatus == io.cucumber.plugin.event.Status.FAILED
-            ? ExecutionAttemptSummary.Outcome.FAILED : ExecutionAttemptSummary.Outcome.INCONCLUSIVE;
-    var completion = attemptHistory.complete(new AttemptHistoryService.AttemptDescriptor(null,
-        hash(state.testCase.getUri() + ":" + state.testCase.getLine()), state.testCase.getId().toString(),
-        "attempt-1", java.time.Instant.now(), outcome,
-        Duration.between(state.startedAt, Instant.now()), null, null, "cucumber",
-        "scenario-or-hook", FailureContext.Boundary.UNKNOWN, event.getResult().getError(), List.of()));
+    var outcome =
+        nativeStatus == io.cucumber.plugin.event.Status.PASSED
+            ? ExecutionAttemptSummary.Outcome.PASSED
+            : nativeStatus == io.cucumber.plugin.event.Status.FAILED
+                ? ExecutionAttemptSummary.Outcome.FAILED
+                : ExecutionAttemptSummary.Outcome.INCONCLUSIVE;
+    var completion =
+        attemptHistory.complete(
+            new AttemptHistoryService.AttemptDescriptor(
+                null,
+                hash(state.testCase.getUri() + ":" + state.testCase.getLine()),
+                state.testCase.getId().toString(),
+                "attempt-1",
+                java.time.Instant.now(),
+                outcome,
+                Duration.between(state.startedAt, Instant.now()),
+                null,
+                null,
+                "cucumber",
+                "scenario-or-hook",
+                FailureContext.Boundary.UNKNOWN,
+                event.getResult().getError(),
+                List.of()));
     CucumberBusinessResult result =
         new CucumberBusinessResult(
             state.testCase.getId().toString(),
@@ -172,16 +185,30 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
 
   private static String hash(String value) {
     try {
-      return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
-          .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-    } catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+      return java.util.HexFormat.of()
+          .formatHex(
+              java.security.MessageDigest.getInstance("SHA-256")
+                  .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException impossible) {
+      throw new IllegalStateException(impossible);
+    }
   }
 
   private static AttemptHistoryService disabledHistory() {
-    var configuration = new HistoryConfiguration(false, Path.of("target", "taf-evidence", "history"),
-        500, Duration.ofDays(30), 50L * 1024 * 1024, HistoryConfiguration.UnavailabilityPolicy.CONTINUE,
-        HistoryConfiguration.CorruptionPolicy.REPORT);
-    return new AttemptHistoryService(new FailureClassificationService(), new FailureSignatureService(),
-        new DisabledExecutionHistoryRepository(), configuration, 2);
+    var configuration =
+        new HistoryConfiguration(
+            false,
+            Path.of("target", "taf-evidence", "history"),
+            500,
+            Duration.ofDays(30),
+            50L * 1024 * 1024,
+            HistoryConfiguration.UnavailabilityPolicy.CONTINUE,
+            HistoryConfiguration.CorruptionPolicy.REPORT);
+    return new AttemptHistoryService(
+        new FailureClassificationService(),
+        new FailureSignatureService(),
+        new DisabledExecutionHistoryRepository(),
+        configuration,
+        2);
   }
 }

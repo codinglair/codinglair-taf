@@ -33,8 +33,13 @@ public class StructuredResultWriter {
     return writeJson(sessionId, testId, testName, steps, artifacts, null);
   }
 
-  public String writeJson(String sessionId, String testId, String testName, List<TestStep> steps,
-      List<TestArtifact> artifacts, FailureAnalysis analysis) {
+  public String writeJson(
+      String sessionId,
+      String testId,
+      String testName,
+      List<TestStep> steps,
+      List<TestArtifact> artifacts,
+      FailureAnalysis analysis) {
     StringBuilder json = new StringBuilder();
     json.append("{\n");
     json.append("  \"sessionId\": \"").append(jsonValue(sessionId)).append("\",\n");
@@ -48,7 +53,9 @@ public class StructuredResultWriter {
       json.append("      \"name\": \"").append(jsonValue(step.name())).append("\",\n");
       json.append("      \"status\": \"").append(jsonValue(step.status())).append("\"");
       if (step.description() != null) {
-        json.append(",\n      \"description\": \"").append(jsonValue(step.description())).append("\"");
+        json.append(",\n      \"description\": \"")
+            .append(jsonValue(step.description()))
+            .append("\"");
       }
       json.append('\n');
       json.append("    }");
@@ -99,8 +106,13 @@ public class StructuredResultWriter {
     return writeJUnitXml(sessionId, testId, testName, className, steps, null);
   }
 
-  public String writeJUnitXml(String sessionId, String testId, String testName, String className,
-      List<TestStep> steps, FailureAnalysis analysis) {
+  public String writeJUnitXml(
+      String sessionId,
+      String testId,
+      String testName,
+      String className,
+      List<TestStep> steps,
+      FailureAnalysis analysis) {
     StringBuilder xml = new StringBuilder();
     xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     xml.append("<testsuite tests=\"1\" name=\"")
@@ -215,19 +227,37 @@ public class StructuredResultWriter {
 
   private String failureJson(FailureAnalysis analysis) {
     if (analysis == null) return "null";
-    String signature = analysis.signature() == null ? "null" : "\"" + escapeJson(analysis.signature().value()) + "\"";
-    String algorithm = analysis.signature() == null ? "null" : "\"" + escapeJson(analysis.signature().algorithm()) + "\"";
-    return "{\"classification\":\"" + analysis.classification().type()
-        + "\",\"classificationSource\":\"" + analysis.classification().source()
-        + "\",\"classificationReason\":\"" + escapeJson(redact(analysis.classification().reason()))
-        + "\",\"stability\":\"" + analysis.stability() + "\",\"historyStatus\":\""
-        + analysis.historyStatus() + "\",\"failureSignature\":" + signature
-        + ",\"signatureAlgorithm\":" + algorithm + "}";
+    String signature =
+        analysis.signature() == null
+            ? "null"
+            : "\"" + escapeJson(analysis.signature().value()) + "\"";
+    String algorithm =
+        analysis.signature() == null
+            ? "null"
+            : "\"" + escapeJson(analysis.signature().algorithm()) + "\"";
+    return "{\"classification\":\""
+        + analysis.classification().type()
+        + "\",\"classificationSource\":\""
+        + analysis.classification().source()
+        + "\",\"classificationReason\":\""
+        + escapeJson(redact(analysis.classification().reason()))
+        + "\",\"stability\":\""
+        + analysis.stability()
+        + "\",\"historyStatus\":\""
+        + analysis.historyStatus()
+        + "\",\"failureSignature\":"
+        + signature
+        + ",\"signatureAlgorithm\":"
+        + algorithm
+        + "}";
   }
 
   private void property(StringBuilder xml, String name, String value) {
-    xml.append("      <property name=\"").append(escapeXml(name)).append("\" value=\"")
-        .append(escapeXml(redact(value))).append("\"/>\n");
+    xml.append("      <property name=\"")
+        .append(escapeXml(name))
+        .append("\" value=\"")
+        .append(escapeXml(redact(value)))
+        .append("\"/>\n");
   }
 
   /**
