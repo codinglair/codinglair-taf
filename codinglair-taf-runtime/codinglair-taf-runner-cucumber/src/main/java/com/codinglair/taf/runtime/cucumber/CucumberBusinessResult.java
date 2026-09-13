@@ -1,7 +1,7 @@
 package com.codinglair.taf.runtime.cucumber;
 
-import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
+import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import java.net.URI;
 import java.util.List;
 
@@ -23,10 +23,25 @@ public record CucumberBusinessResult(
     artifacts = List.copyOf(artifacts);
   }
 
-  public CucumberBusinessResult(String scenarioId, String scenarioName, URI featureUri, int line,
-      String status, List<String> traceabilityTags, List<BusinessStepResult> steps,
+  public CucumberBusinessResult(
+      String scenarioId,
+      String scenarioName,
+      URI featureUri,
+      int line,
+      String status,
+      List<String> traceabilityTags,
+      List<BusinessStepResult> steps,
       List<TestArtifact> artifacts) {
-    this(scenarioId, scenarioName, featureUri, line, status, traceabilityTags, steps, artifacts, null);
+    this(
+        scenarioId,
+        scenarioName,
+        featureUri,
+        line,
+        status,
+        traceabilityTags,
+        steps,
+        artifacts,
+        null);
   }
 
   /** Explicit audience marker prevents accidental mixing with technical results. */

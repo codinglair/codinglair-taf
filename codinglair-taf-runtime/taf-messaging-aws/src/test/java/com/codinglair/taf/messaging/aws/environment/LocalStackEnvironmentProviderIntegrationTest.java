@@ -73,7 +73,10 @@ class LocalStackEnvironmentProviderIntegrationTest {
   @Test
   void externalPreflightAndCleanupNeverMutateDeclaredResources() {
     try (var localstack =
-        new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.8.1"))
+        new LocalStackContainer(
+                DockerImageName.parse(
+                        System.getProperty("taf.localstack.image", "localstack/localstack:4.14.0"))
+                    .asCompatibleSubstituteFor("localstack/localstack"))
             .withServices("sqs", "events")) {
       localstack.start();
       var credentials =
@@ -138,6 +141,26 @@ class LocalStackEnvironmentProviderIntegrationTest {
     } finally {
       provider.cleanup();
     }
+  }
+
+  @Test
+  void concurrentCleanupIsIdempotentAndLeavesNoActiveResource() throws Exception {
+    var provider = new LocalStackEnvironmentProvider(EnvironmentMode.CONTAINER, configuration());
+    LocalStackEnvironmentResource resource =
+        (LocalStackEnvironmentResource) provider.provision(request("concurrent-cleanup"));
+
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(resource::cleanup);
+      var second = executor.submit(resource::cleanup);
+
+      first.get();
+      second.get();
+    } finally {
+      provider.cleanup();
+    }
+
+    assertThat(resource.diagnose().status()).isEqualTo(EnvironmentStatus.UNAVAILABLE);
+    assertThat(provider.activeResources()).isEmpty();
   }
 
   @Test

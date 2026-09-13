@@ -20,6 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codinglair.taf.runtime.core.TestSession;
+import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
+import com.codinglair.taf.runtime.core.history.ExecutionHistoryRepository;
+import com.codinglair.taf.runtime.core.history.FileExecutionHistoryRepository;
 import com.codinglair.taf.runtime.core.lifecycle.CurrentTestSession;
 import com.codinglair.taf.runtime.core.lifecycle.SessionAwareAccessor;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
@@ -28,9 +31,6 @@ import com.codinglair.taf.runtime.core.preflight.ConsumerPreflight;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflightContributor;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflightException;
 import com.codinglair.taf.runtime.core.preflight.PreflightDiagnostic;
-import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
-import com.codinglair.taf.runtime.core.history.ExecutionHistoryRepository;
-import com.codinglair.taf.runtime.core.history.FileExecutionHistoryRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -211,31 +211,44 @@ class TafRuntimeAutoConfigurationTest {
     @Test
     void historyDisabledStartsWithExplicitDisabledProvider() {
       new org.springframework.boot.test.context.runner.ApplicationContextRunner()
-          .withConfiguration(org.springframework.boot.autoconfigure.AutoConfigurations.of(TafRuntimeAutoConfiguration.class))
+          .withConfiguration(
+              org.springframework.boot.autoconfigure.AutoConfigurations.of(
+                  TafRuntimeAutoConfiguration.class))
           .withPropertyValues("taf.history.enabled=false")
-          .run(context -> {
-            assertThat(context).hasSingleBean(ExecutionHistoryRepository.class);
-            assertThat(context.getBean(ExecutionHistoryRepository.class)).isInstanceOf(DisabledExecutionHistoryRepository.class);
-          });
+          .run(
+              context -> {
+                assertThat(context).hasSingleBean(ExecutionHistoryRepository.class);
+                assertThat(context.getBean(ExecutionHistoryRepository.class))
+                    .isInstanceOf(DisabledExecutionHistoryRepository.class);
+              });
     }
 
     @Test
     void enabledHistoryBindsTypedConfiguration() {
       new org.springframework.boot.test.context.runner.ApplicationContextRunner()
-          .withConfiguration(org.springframework.boot.autoconfigure.AutoConfigurations.of(TafRuntimeAutoConfiguration.class))
-          .withPropertyValues("taf.history.enabled=true", "taf.history.maximum-records=17",
-              "taf.history.maximum-age=2d", "taf.history.maximum-bytes=4096",
+          .withConfiguration(
+              org.springframework.boot.autoconfigure.AutoConfigurations.of(
+                  TafRuntimeAutoConfiguration.class))
+          .withPropertyValues(
+              "taf.history.enabled=true",
+              "taf.history.maximum-records=17",
+              "taf.history.maximum-age=2d",
+              "taf.history.maximum-bytes=4096",
               "taf.history.signature-cause-limit=2")
-          .run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context.getBean(ExecutionHistoryRepository.class)).isInstanceOf(FileExecutionHistoryRepository.class);
-          });
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context.getBean(ExecutionHistoryRepository.class))
+                    .isInstanceOf(FileExecutionHistoryRepository.class);
+              });
     }
 
     @Test
     void invalidHistoryBoundsFailAtStartup() {
       new org.springframework.boot.test.context.runner.ApplicationContextRunner()
-          .withConfiguration(org.springframework.boot.autoconfigure.AutoConfigurations.of(TafRuntimeAutoConfiguration.class))
+          .withConfiguration(
+              org.springframework.boot.autoconfigure.AutoConfigurations.of(
+                  TafRuntimeAutoConfiguration.class))
           .withPropertyValues("taf.history.maximum-records=0")
           .run(context -> assertThat(context).hasFailed());
     }

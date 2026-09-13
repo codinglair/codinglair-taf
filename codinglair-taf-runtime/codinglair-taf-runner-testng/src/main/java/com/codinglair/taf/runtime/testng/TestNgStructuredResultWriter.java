@@ -55,11 +55,16 @@ public final class TestNgStructuredResultWriter {
         json.append("null");
       } else {
         var analysis = attempt.failureAnalysis();
-        json.append("{\"classification\":\"").append(analysis.classification().type())
-            .append("\",\"classificationSource\":\"").append(analysis.classification().source())
-            .append("\",\"classificationReason\":\"").append(value(analysis.classification().reason()))
-            .append("\",\"stability\":\"").append(analysis.stability())
-            .append("\",\"historyStatus\":\"").append(analysis.historyStatus())
+        json.append("{\"classification\":\"")
+            .append(analysis.classification().type())
+            .append("\",\"classificationSource\":\"")
+            .append(analysis.classification().source())
+            .append("\",\"classificationReason\":\"")
+            .append(value(analysis.classification().reason()))
+            .append("\",\"stability\":\"")
+            .append(analysis.stability())
+            .append("\",\"historyStatus\":\"")
+            .append(analysis.historyStatus())
             .append("\",\"failureSignature\":");
         if (analysis.signature() == null) json.append("null");
         else json.append('"').append(analysis.signature().value()).append('"');

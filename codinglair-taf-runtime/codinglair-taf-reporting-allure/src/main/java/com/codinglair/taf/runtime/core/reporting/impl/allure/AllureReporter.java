@@ -1,7 +1,7 @@
 package com.codinglair.taf.runtime.core.reporting.impl.allure;
 
-import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
 import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
+import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
 import com.codinglair.taf.runtime.core.reporting.RedactionService;
 import com.codinglair.taf.runtime.core.reporting.abstraction.ReportEvent;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TafTest;
@@ -10,8 +10,8 @@ import com.codinglair.taf.runtime.core.reporting.abstraction.TestReporter;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestStep;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
-import io.qameta.allure.model.Status;
 import io.qameta.allure.model.Label;
+import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import java.nio.charset.StandardCharsets;
@@ -91,22 +91,48 @@ public final class AllureReporter implements TestReporter {
   public void reportFailure(FailureAnalysis analysis) {
     Objects.requireNonNull(analysis, "analysis");
     String uuid = requireActiveTest();
-    lifecycle.updateTestCase(uuid, result -> {
-      result.getLabels().add(new Label().setName("taf.failure.classification")
-          .setValue(analysis.classification().type().name()));
-      result.getLabels().add(new Label().setName("taf.failure.source")
-          .setValue(analysis.classification().source().name()));
-      result.getLabels().add(new Label().setName("taf.failure.stability")
-          .setValue(analysis.stability().name()));
-      result.getLabels().add(new Label().setName("taf.failure.history")
-          .setValue(analysis.historyStatus().name()));
-      if (analysis.signature() != null) {
-        result.getLabels().add(new Label().setName("taf.failure.signature")
-            .setValue(analysis.signature().value()));
-        result.getLabels().add(new Label().setName("taf.failure.signature.algorithm")
-            .setValue(analysis.signature().algorithm()));
-      }
-    });
+    lifecycle.updateTestCase(
+        uuid,
+        result -> {
+          result
+              .getLabels()
+              .add(
+                  new Label()
+                      .setName("taf.failure.classification")
+                      .setValue(analysis.classification().type().name()));
+          result
+              .getLabels()
+              .add(
+                  new Label()
+                      .setName("taf.failure.source")
+                      .setValue(analysis.classification().source().name()));
+          result
+              .getLabels()
+              .add(
+                  new Label()
+                      .setName("taf.failure.stability")
+                      .setValue(analysis.stability().name()));
+          result
+              .getLabels()
+              .add(
+                  new Label()
+                      .setName("taf.failure.history")
+                      .setValue(analysis.historyStatus().name()));
+          if (analysis.signature() != null) {
+            result
+                .getLabels()
+                .add(
+                    new Label()
+                        .setName("taf.failure.signature")
+                        .setValue(analysis.signature().value()));
+            result
+                .getLabels()
+                .add(
+                    new Label()
+                        .setName("taf.failure.signature.algorithm")
+                        .setValue(analysis.signature().algorithm()));
+          }
+        });
   }
 
   @Override

@@ -168,10 +168,21 @@ jobs:
     name: Android emulator Appium and cleanup
     uses: ./.github/workflows/mob-003-qualification.yml
 
+  aws-capability:
+    name: AWS qualification, consumer, and supply chain
+    uses: ./.github/workflows/aws-capability.yml
+    with:
+      full-reactor: true
+      consumer-smoke: true
+      supply-chain: true
+      authorized-aws: false
+    permissions:
+      contents: read
+
   release-gate:
     name: Release verification gate
     if: ${{ always() }}
-    needs: [runtime-and-architecture, browsers, containers, mcp-security, android-emulator]
+    needs: [runtime-and-architecture, browsers, containers, mcp-security, android-emulator, aws-capability]
     runs-on: ubuntu-24.04
     steps:
       - name: Summarize and block on every required suite
@@ -182,6 +193,7 @@ jobs:
             ${{ needs.containers.result }}
             ${{ needs.mcp-security.result }}
             ${{ needs.android-emulator.result }}
+            ${{ needs.aws-capability.result }}
         run: |
           printf '## Required verification results\n\n%s\n' "$REQUIRED_RESULTS" >> "$GITHUB_STEP_SUMMARY"
           for result in $REQUIRED_RESULTS; do

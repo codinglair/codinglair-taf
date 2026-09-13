@@ -41,8 +41,7 @@ class McpSchemaCompatibilityTest {
   @ParameterizedTest(name = "rejects secret-bearing argument name {0}")
   @MethodSource("secretBearingArgumentNames")
   @DisplayName("Conventional secret-bearing argument names are rejected")
-  void conventionalSecretBearingArgumentNamesAreRejected(String argumentName)
-      throws IOException {
+  void conventionalSecretBearingArgumentNamesAreRejected(String argumentName) throws IOException {
     ObjectNode request =
         (ObjectNode) read("/fixtures/v1/valid/tool-request-validate.json").deepCopy();
     ((ObjectNode) request.path("arguments")).put(argumentName, "canary-secret-value");
@@ -96,8 +95,7 @@ class McpSchemaCompatibilityTest {
         .forEach(
             tool ->
                 assertThat(tool.path("timeout").path("maximumSeconds").asInt())
-                    .isGreaterThanOrEqualTo(
-                        tool.path("timeout").path("defaultSeconds").asInt()));
+                    .isGreaterThanOrEqualTo(tool.path("timeout").path("defaultSeconds").asInt()));
   }
 
   private Set<?> validate(String schemaName, String fixture) throws IOException {

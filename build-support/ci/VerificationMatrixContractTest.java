@@ -35,6 +35,8 @@ final class VerificationMatrixContractTest {
     require(matrix, "fail-fast: false");
     require(matrix, "-Pmcp-e2e,security-it");
     require(matrix, "uses: ./.github/workflows/mob-003-qualification.yml");
+    require(matrix, "uses: ./.github/workflows/aws-capability.yml");
+    require(matrix, "${{ needs.aws-capability.result }}");
     require(matrix, "name: Release verification gate");
     require(matrix, "if: ${{ always() }}");
     require(matrix, "test \"$result\" = success");
