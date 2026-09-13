@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("taf.aws")
 public class AwsProperties {
   private boolean enabled;
-  private String localstackImage = "localstack/localstack:4.8.1";
+  private String localstackImage = "localstack/localstack:4.14.0";
   private final Map<String, AwsConnectionProperties> profiles = new LinkedHashMap<>();
 
   public boolean isEnabled() {

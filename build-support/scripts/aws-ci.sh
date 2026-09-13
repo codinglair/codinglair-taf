@@ -9,7 +9,7 @@ case "$mode" in
     "${maven[@]}" -pl codinglair-taf-runtime/taf-messaging-aws -am spotless:check verify
     ;;
   localstack)
-    localstack_image="${TAF_LOCALSTACK_IMAGE:-localstack/localstack:4.8.1}"
+    localstack_image="${TAF_LOCALSTACK_IMAGE:-localstack/localstack:4.14.0}"
     "${maven[@]}" -pl codinglair-taf-runtime/taf-messaging-aws -am spotless:check verify -Pcontainers \
       "-Dlocalstack.image=$localstack_image"
     ;;

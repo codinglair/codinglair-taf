@@ -14,7 +14,7 @@
     {
       "name": "taf.aws.localstack-image",
       "type": "java.lang.String",
-      "defaultValue": "localstack/localstack:4.8.1",
+      "defaultValue": "localstack/localstack:4.14.0",
       "description": "Release-managed LocalStack image used by the managed environment provider."
     }
   ]

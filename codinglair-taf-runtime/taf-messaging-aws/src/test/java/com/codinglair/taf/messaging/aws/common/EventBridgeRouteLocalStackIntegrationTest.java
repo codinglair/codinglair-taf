@@ -30,7 +30,7 @@ class EventBridgeRouteLocalStackIntegrationTest {
     try (var localstack =
         new LocalStackContainer(
                 DockerImageName.parse(
-                        System.getProperty("taf.localstack.image", "localstack/localstack:4.8.1"))
+                        System.getProperty("taf.localstack.image", "localstack/localstack:4.14.0"))
                     .asCompatibleSubstituteFor("localstack/localstack"))
             .withServices("events", "sqs")) {
       localstack.start();

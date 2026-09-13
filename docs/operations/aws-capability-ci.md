@@ -39,6 +39,18 @@ authorization, credential-reference, AWS credential-variable, bearer, receipt, t
 forms. `ArtifactLeakCheck` then fails closed before upload when prohibited material or oversized
 files remain. Raw container inspection, environment dumps, and LocalStack state are not uploaded.
 
+The supply-chain job separates scanner execution from findings disposition. Trivy records high and
+critical vulnerability and embedded-secret findings in `localstack-trivy.json`, and records all
+license severities in `localstack-licenses.json`. Findings do not directly set the action exit code:
+the upstream emulator includes operating-system advisories, example AWS identifiers, emulator CA
+keys, and GPL/LGPL system packages whose relevance cannot be decided from Trivy severity alone.
+Scanner execution, evidence generation, sanitization, and leak-check errors still fail the job.
+
+Every image or digest change requires review of the retained reports before approval. The image is
+an unmodified, ephemeral CI test appliance: it is not published, embedded in a TAF artifact, exposed
+outside the isolated runner, or used for production. Release distribution remains subject to the
+repository's stricter release vulnerability and license policies.
+
 The supply-chain lane pulls the pinned linux/amd64 digest, scans vulnerabilities, secrets, and
 licenses with Trivy, produces a CycloneDX SBOM, and retains the resolved repository digest. The
 Maven full-reactor gate also runs dependency, architecture, API, and schema compatibility profiles.

@@ -24,9 +24,13 @@ final class AwsInfrastructureContractTest {
     require(workflow, "java-version: '25'");
     require(workflow, "cache: maven");
     prohibit(workflow, "actions/cache");
-    require(workflow, "localstack/localstack:4.8.1@sha256:08e57a2147bda1ae1b21c0b571b410ea38a855b0ba4f8b2e2fa2d3a247dc3d2b");
+    require(workflow, "localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a");
     require(workflow, "aquasecurity/trivy-action@v0.36.0");
-    require(workflow, "scanners: vuln,secret,license");
+    require(workflow, "scanners: vuln,secret");
+    require(workflow, "scanners: license");
+    require(workflow, "output: target/aws-supply-chain/localstack-licenses.json");
+    require(workflow, "severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL");
+    prohibit(workflow, "exit-code: '1'");
     require(workflow, "format: cyclonedx");
     require(workflow, "ArtifactLeakCheck");
     require(workflow, "prepare-aws-failure-artifacts.sh");
@@ -41,7 +45,7 @@ final class AwsInfrastructureContractTest {
     prohibit(workflow, "AWS_SECRET_ACCESS_KEY");
     require(pullRequest, "uses: ./.github/workflows/aws-capability.yml");
     require(matrix, "uses: ./.github/workflows/aws-capability.yml");
-    require(dependencyRecord, "sha256:08e57a2147bda1ae1b21c0b571b410ea38a855b0ba4f8b2e2fa2d3a247dc3d2b");
+    require(dependencyRecord, "sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a");
     require(operations, "authorized-aws-qualification");
     verifyFailureEvidenceRedaction();
     System.out.println("AWS infrastructure and CI contracts passed.");

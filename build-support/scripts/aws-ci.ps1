@@ -21,7 +21,7 @@ switch ($Mode) {
         Invoke-Maven -pl 'codinglair-taf-runtime/taf-messaging-aws' -am spotless:check verify
     }
     'localstack' {
-        $localstackImage = if ($env:TAF_LOCALSTACK_IMAGE) { $env:TAF_LOCALSTACK_IMAGE } else { 'localstack/localstack:4.8.1' }
+        $localstackImage = if ($env:TAF_LOCALSTACK_IMAGE) { $env:TAF_LOCALSTACK_IMAGE } else { 'localstack/localstack:4.14.0' }
         Invoke-Maven -pl 'codinglair-taf-runtime/taf-messaging-aws' -am spotless:check verify -Pcontainers "-Dlocalstack.image=$localstackImage"
     }
     'mcp-contract-leak' {
