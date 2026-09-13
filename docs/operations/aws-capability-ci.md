@@ -5,6 +5,10 @@ runners. Docker is needed only for `localstack` and `consumer-smoke`. Testcontai
 host port, so no port forwarding, fixed port, persistent LocalStack volume, or hosts-file entry is
 required. Maven dependency caching is allowed; container state is never cached.
 
+Use the [AWS messaging guide](../reference/aws-messaging.md) for application configuration,
+controller examples, standalone execution, emulator limitations, and the authorized-AWS
+qualification procedure.
+
 LocalStack clients use the non-secret placeholder credential pair `localstack` / `localstack`,
 which LocalStack requires only for request signing. These values are not authorized AWS
 credentials and must never be reused for an AWS endpoint. Live AWS authentication is isolated to

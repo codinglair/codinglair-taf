@@ -183,6 +183,10 @@ credentials, and raw exception causes are omitted. Failure, timeout, assertion, 
 cleanup evidence uses the same boundary. Safe message IDs, correlation IDs, receive counts,
 timestamps, target identity, and ownership-safe queue diagnostics remain available for diagnosis.
 
+For mode-by-mode configuration, the isolation decision, standalone walkthrough, compatibility
+profile, MCP examples, and contributor extension contract, see the
+[AWS messaging guide](aws-messaging.md).
+
 ## Reporting, evidence, and redaction
 
 TAF reporting annotations describe meaningful public actions. Nested helper calls must not create

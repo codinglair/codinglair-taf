@@ -6,6 +6,9 @@ environment-provider boundary, uses dynamically mapped ports, acquires named SQS
 controllers from one `TestSession`, and verifies routing, schema, attributes, negative matching,
 sanitized Allure evidence, acknowledgment, and owned-resource cleanup.
 
+The [AWS messaging guide](../../../docs/reference/aws-messaging.md) explains configuration modes,
+safe SQS isolation, controller behavior, MCP admission, compatibility, and troubleshooting.
+
 From the repository root, run both commands below, in order and in the same checkout. The first
 command creates `target/staging-repository` and must succeed before the consumer command runs. The
 consumer command intentionally fails rather than resolving TAF artifacts from the reactor or the
