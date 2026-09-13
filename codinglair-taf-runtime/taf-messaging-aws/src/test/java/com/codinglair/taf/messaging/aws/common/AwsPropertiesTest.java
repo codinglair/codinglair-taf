@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.codinglair.taf.messaging.aws.eventbridge.EventBridgeControllerProperties;
 import com.codinglair.taf.messaging.aws.sqs.SqsControllerProperties;
 import java.net.URI;
 import org.junit.jupiter.api.DisplayName;
@@ -106,6 +107,20 @@ class AwsPropertiesTest {
     assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
         .hasMessageContaining("must not contain user-info")
         .hasMessageNotContaining("canary-secret");
+  }
+
+  @Test
+  @DisplayName("requires a non-empty EventBridge rule pattern")
+  void eventBridgeRulePatternIsRequired() {
+    AwsConnectionProperties properties = valid();
+    var eventBridge = new EventBridgeControllerProperties();
+    eventBridge.setEventBus("orders");
+    eventBridge.setEventPattern(" ");
+    properties.getEventbridge().put("orders", eventBridge);
+
+    assertThatThrownBy(() -> properties.validate("taf.aws.profiles.local"))
+        .hasMessageContaining("event-pattern")
+        .hasMessageContaining("is required");
   }
 
   private static AwsConnectionProperties valid() {

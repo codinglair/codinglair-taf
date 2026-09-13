@@ -31,6 +31,16 @@ public interface SqsController extends TestController {
   @ControllerAction("Acknowledge SQS message")
   void acknowledge(ReceivedSqsMessage message);
 
+  /**
+   * Acknowledges a message retained by this controller using its receipt-handle-free evidence
+   * identity. This supports composed route results without exposing receipt handles.
+   */
+  @ControllerAction("Acknowledge SQS message by evidence identity")
+  default void acknowledgeByMessageId(String messageId) {
+    throw new UnsupportedOperationException(
+        "This SQS controller does not support acknowledgment by evidence identity");
+  }
+
   @ControllerAction("Change SQS message visibility")
   void changeVisibility(ReceivedSqsMessage message, Duration visibility);
 

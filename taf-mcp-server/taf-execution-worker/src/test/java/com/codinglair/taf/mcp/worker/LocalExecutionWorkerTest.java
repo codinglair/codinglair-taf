@@ -193,8 +193,10 @@ class LocalExecutionWorkerTest {
     void boundsOutput() throws Exception {
       var result =
           worker("large", limits(128))
-              .execute(request("large", Duration.ofSeconds(5), List.of()), CancellationToken.NEVER);
+              .execute(
+                  request("large", Duration.ofSeconds(30), List.of()), CancellationToken.NEVER);
 
+      assertThat(result.status()).isEqualTo(WorkerStatus.SUCCEEDED);
       assertThat(result.outputSummary()).hasSize(128);
       assertThat(result.outputTruncated()).isTrue();
     }
