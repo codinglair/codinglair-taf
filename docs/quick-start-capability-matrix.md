@@ -1,6 +1,6 @@
 # DOC-001 Release Capability and Documentation Matrix
 
-This inventory is derived from `codinglair-taf-bom/pom.xml` for the root POM <!-- taf-version -->`1.0.0`. “Released” means
+This inventory is derived from `codinglair-taf-bom/pom.xml` for the root POM <!-- taf-version -->`1.1.0`. “Released” means
 BOM-managed and publishable; it does not mean a complete DOC-001 consumer example exists. MCP uses
 governed project/job workflows and does not expose each Runtime controller as a low-level tool.
 
@@ -24,6 +24,7 @@ governed project/job workflows and does not expose each Runtime controller as a 
 | `taf-messaging-kafka` | Optional adapter | Public adapter API | Execute Java tests | Container tests; golden scenario is a gap |
 | `taf-messaging-rabbitmq` | Optional adapter | Public adapter API | Execute Java tests | Container tests; golden scenario is a gap |
 | `taf-messaging-jms` | Optional adapter | Public JMS API | Execute Java tests | Provider tests; golden scenario is a gap |
+| `taf-messaging-aws` | Optional capability | Named EventBridge and SQS controllers; [Quick Start](quick-start.md#78-eventbridge-and-sqs) | Execute governed project tests; no raw AWS tool | LocalStack-qualified staged consumer; external resources are preserved; authorized AWS requires separate approval |
 | `taf-environments` | Optional provider | [README](../codinglair-taf-runtime/taf-environments/README.md) | Validate/execute environment | Dynamic ports/cleanup; golden scenario is a gap |
 | `taf-database` | Optional capability | [README](../codinglair-taf-runtime/taf-database/README.md) | No raw SQL tool | Read-only preferred; scalar/row/list/F2B example is a gap |
 | `taf-observability` | Optional capability | Public assertion API | Execute Java tests | Clean consumer example is a gap |

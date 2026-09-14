@@ -113,6 +113,34 @@ class McpWorkflowToolsTest {
         assertThat(fixture.audit.events().toString()).doesNotContain("canary-secret");
       }
     }
+
+    @Test
+    @DisplayName("audit digest never contains required capability metadata")
+    void capabilityDigestContainsNoMetadata() throws Exception {
+      try (var fixture = fixture((_, _) -> success())) {
+        var request =
+            new ToolRequest(
+                "request-capability",
+                ToolOperation.VALIDATE,
+                "project",
+                "local",
+                workspace,
+                Optional.empty(),
+                Duration.ofSeconds(30),
+                null,
+                null,
+                null,
+                identity,
+                Transport.INTERNAL,
+                List.of(
+                    new RequiredCapability("aws.sqs", "canary-instance", Set.of("await", "send"))));
+
+        fixture.tools.invoke(request);
+
+        assertThat(fixture.audit.events().toString())
+            .doesNotContain("requiredCapabilities", "canary-instance", "aws.sqs", "await", "send");
+      }
+    }
   }
 
   @Nested

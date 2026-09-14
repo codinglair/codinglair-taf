@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.0.0` reference
+# Codinglair TAF <!-- taf-version -->`1.1.0` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.0.0`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.1.0`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 
@@ -48,6 +48,7 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-messaging-kafka` | Kafka adapter |
 | `taf-messaging-rabbitmq` | RabbitMQ adapter |
 | `taf-messaging-jms` | JMS/EMS-compatible adapter |
+| `taf-messaging-aws` | Optional typed SQS and EventBridge controllers |
 | `taf-mobile-core` | Mobile provider contracts |
 | `taf-mobile-appium` | Android Appium controller |
 | `taf-environments` | Environment providers, preflight, Testcontainers |

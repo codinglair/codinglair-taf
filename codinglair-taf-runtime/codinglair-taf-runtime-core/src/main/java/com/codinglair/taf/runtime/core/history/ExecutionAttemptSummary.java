@@ -7,7 +7,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Immutable bounded metadata for one attempt; raw failure/evidence content is deliberately absent. */
+/**
+ * Immutable bounded metadata for one attempt; raw failure/evidence content is deliberately absent.
+ */
 public record ExecutionAttemptSummary(
     int schemaVersion,
     String projectId,
@@ -23,7 +25,8 @@ public record ExecutionAttemptSummary(
     String buildId,
     String environmentId) {
   public ExecutionAttemptSummary {
-    if (schemaVersion != 1) throw new IllegalArgumentException("Unsupported history schema version");
+    if (schemaVersion != 1)
+      throw new IllegalArgumentException("Unsupported history schema version");
     projectId = identity(projectId, "projectId");
     testId = identity(testId, "testId");
     executionId = identity(executionId, "executionId");
@@ -51,5 +54,11 @@ public record ExecutionAttemptSummary(
     return value == null || value.isBlank() ? "unknown" : identity(value, "compatibility identity");
   }
 
-  public enum Outcome { PASSED, FAILED, INCONCLUSIVE, SKIPPED, ABORTED }
+  public enum Outcome {
+    PASSED,
+    FAILED,
+    INCONCLUSIVE,
+    SKIPPED,
+    ABORTED
+  }
 }

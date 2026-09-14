@@ -2,11 +2,14 @@ package com.codinglair.taf.mcp.stdio;
 
 import com.codinglair.taf.mcp.security.Transport;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
+import com.codinglair.taf.mcp.tools.RequiredCapability;
 import com.codinglair.taf.mcp.tools.ToolOperation;
 import com.codinglair.taf.mcp.tools.ToolRequest;
 import com.codinglair.taf.mcp.tools.ToolResponse;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.ai.mcp.annotation.McpTool;
 
@@ -69,7 +72,8 @@ public final class StdioWorkflowTools {
             request.approvalReference().orElse(null),
             argument(request, "targetJobId"),
             properties.identity(),
-            Transport.STDIO));
+            Transport.STDIO,
+            requiredCapabilities(request.arguments())));
   }
 
   private Path resolveWorkspace(String workspace) {
@@ -94,5 +98,27 @@ public final class StdioWorkflowTools {
       throw new IllegalArgumentException(name + " must be a string");
     }
     return text;
+  }
+
+  private static List<RequiredCapability> requiredCapabilities(Map<String, Object> arguments) {
+    Object value = arguments.get("requiredCapabilities");
+    if (value == null) return List.of();
+    if (!(value instanceof List<?> entries))
+      throw new IllegalArgumentException("requiredCapabilities must be an array");
+    return entries.stream().map(StdioWorkflowTools::requiredCapability).toList();
+  }
+
+  private static RequiredCapability requiredCapability(Object value) {
+    if (!(value instanceof Map<?, ?> entry)
+        || !(entry.get("capabilityId") instanceof String capability)
+        || !(entry.get("instance") instanceof String instance)
+        || !(entry.get("operations") instanceof List<?> operations)
+        || operations.stream().anyMatch(item -> !(item instanceof String))) {
+      throw new IllegalArgumentException("required capability is invalid");
+    }
+    return new RequiredCapability(
+        capability,
+        instance,
+        operations.stream().map(String.class::cast).collect(java.util.stream.Collectors.toSet()));
   }
 }

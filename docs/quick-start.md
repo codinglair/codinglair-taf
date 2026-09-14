@@ -35,7 +35,7 @@ validation or execution.
 - Java 25
 - Git
 - the Maven Wrapper copied into the consumer project (`mvnw`, `mvnw.cmd`, and `.mvn/wrapper`)
-- access to an approved repository containing the root POM <!-- taf-version -->`1.0.0` of Codinglair TAF, or an approved locally
+- access to an approved repository containing the root POM <!-- taf-version -->`1.1.0` of Codinglair TAF, or an approved locally
   staged build
 - Docker only for capabilities that provision containers
 - external infrastructure for opt-in capabilities such as Appium, Android devices, databases, and
@@ -878,7 +878,92 @@ tests unless the broker contract explicitly supports it.
 These examples have not been compiled or run as clean consumers. They are intentionally practical
 starting points for Codex verification, not claims of end-to-end broker validation.
 
-### 7.8 Service virtualization with WireMock
+### 7.8 EventBridge and SQS
+
+Add `taf-messaging-aws` without a version when the project imports the TAF BOM. EventBridge and SQS
+are separate, independently usable controllers that can be composed in one `TestSession`.
+Controllers consume provisioned resources; they never create or destroy infrastructure implicitly.
+
+```xml
+<dependency>
+  <groupId>com.codinglair.taf</groupId>
+  <artifactId>taf-messaging-aws</artifactId>
+</dependency>
+```
+
+For a local test, let `LocalStackEnvironmentProvider` create isolated, test-owned resources on a
+dynamically assigned port. The logical controller names below must match the names acquired from
+the session:
+
+```yaml
+taf:
+  aws:
+    enabled: true
+    profiles:
+      local:
+        endpoint-mode: localstack
+        region: us-east-1
+        ownership-mode: test-owned
+        policy:
+          operation-timeout: 30s
+          poll-interval: 100ms
+        sqs:
+          orders-target:
+            queue: orders
+            isolation-mode: dedicated-resource
+        eventbridge:
+          orders-events:
+            event-bus: orders
+            target-sqs-controller: orders-target
+            target-identity: orders-target
+            event-pattern: '{"source":["orders.created"]}'
+```
+
+The provider supplies the effective LocalStack endpoint and physical resource identifiers to the
+application context. Do not configure a fixed host port for managed LocalStack. Publish an event,
+verify its route through the observable SQS target, and acknowledge only the matching test-owned
+message:
+
+```java
+try (TestSession session = sessionFactory.create()) {
+  SqsController sqs = session.getController(SqsController.class, "orders-target");
+  EventBridgeController eventBridge =
+      session.getController(EventBridgeController.class, "orders-events");
+
+  EventPublishRequest event = new EventPublishRequest(
+      "orders.created",
+      "order-created",
+      "{\"orderId\":\"42\"}",
+      List.of("arn:example:order:42"),
+      Map.of("scenario", "quick-start"),
+      "quick-start-order-42",
+      null);
+
+  EventRouteResult routed = eventBridge.verifyRoute(
+      new EventRouteRequest(event, Duration.ofSeconds(10)), sqs);
+  sqs.acknowledgeByMessageId(routed.targetEvidence().messageId());
+}
+```
+
+`verifyRoute` publishes to EventBridge and validates the delivered SQS envelope, target, and
+correlation identity; it does not treat EventBridge as a browsable event store. All waits must be
+finite. SQS receive changes visibility, so use a dedicated resource or namespace by default.
+Correlation filtering alone does not make a shared queue safe, and unsafe shared-queue
+configuration fails preflight. Receipt handles remain session-scoped and must never enter logs,
+reports, MCP responses, or durable evidence.
+
+Close the `TestSession` before cleaning the environment. Provider cleanup is idempotent and deletes
+only manifest entries marked as test-owned; external LocalStack and authorized-AWS resources are
+preserved. Authorized AWS must use an opaque credential reference and approved non-production
+resources—never access keys or session tokens in YAML.
+
+The executable clean consumer under `release/consumer-smoke/aws-messaging` covers provisioning,
+route success, a bounded non-match, sanitized Allure evidence, acknowledgment, and cleanup using
+staged artifacts. See the [AWS messaging guide](reference/aws-messaging.md) for complete setup,
+external-mode configuration, isolation choices, schema assertions, emulator deviations, and the
+authorized-AWS boundary.
+
+### 7.9 Service virtualization with WireMock
 
 > **Unverified placeholder:** This section is presentation guidance, not a compile- or
 > runtime-verified consumer workflow. Its released WireMock mapping calls show the intended Java
@@ -944,7 +1029,7 @@ For deterministic delay, use a `FaultProfile.Latency` value supported by the sta
 Network faults require both `network-faults-enabled: true` and a non-production environment. Do not
 enable them as a production default. This example has not been compiled or run as a clean consumer.
 
-### 7.9 OpenAPI, AsyncAPI, and consumer contracts
+### 7.10 OpenAPI, AsyncAPI, and consumer contracts
 
 `taf-contracts` performs bounded structural validation of OpenAPI 3.x and AsyncAPI 2.x/3.x JSON or
 YAML. It can return in-memory, versioned Java wrapper assets around existing `RestController` and
@@ -958,7 +1043,7 @@ structured capability gap and does not imply Pact support.
 No clean OpenAPI/AsyncAPI consumer example is released. Validate the contract API against your
 staged version before adding a build gate.
 
-### 7.10 Environment composition and provisioning
+### 7.11 Environment composition and provisioning
 
 `taf-environments` supplies typed consumer configuration, named capabilities, preflight
 contribution, and environment-provider composition. Provisioning belongs to an
@@ -971,7 +1056,7 @@ must follow an explicit test policy.
 The base/local/CI profile pattern and `ConsumerPreflight.verify()` are the released user workflow.
 A comprehensive external/Testcontainers golden scenario across all providers is not released.
 
-### 7.11 Observability assertions
+### 7.12 Observability assertions
 
 `taf-observability` is a released optional assertion capability for application telemetry. It is not
 an infrastructure provisioning module and is not a substitute for functional assertions.
@@ -981,7 +1066,7 @@ configuration and public workflow. Treat this capability as **partial for onboar
 invent metric/log/trace property names or APIs; request the version-matched reference contract and
 verify a consumer smoke before using it as a release gate.
 
-### 7.12 Controlled data migration
+### 7.13 Controlled data migration
 
 `taf-data-migration` applies consumer-owned Git-managed Flyway migrations to named JDBC SUT
 connections during preflight. It is inert unless explicitly enabled:
@@ -1005,7 +1090,7 @@ them. Production is denied by default.
 Use migration for deterministic non-production setup, not for per-test business cleanup. This
 release has no complete seed/rollback consumer example, and rollback/clean is not implied.
 
-### 7.13 Reporting and Allure
+### 7.14 Reporting and Allure
 
 Consumer code uses TAF-neutral reporting annotations; it does not call Allure APIs. The optional
 `codinglair-taf-reporting-allure` adapter translates TAF events. Without a reporting adapter,
@@ -1120,7 +1205,7 @@ or scenario, workflow/BDD step, page/component/screen/API action, controller dia
 validation—and ensure each logical action appears once. Verify reports with a secret canary before
 enabling artifact publication, and apply the organization's retention/access policy.
 
-### 7.14 Consumer conformance
+### 7.15 Consumer conformance
 
 `taf-consumer-conformance` performs structural validation of generated, migrated, and golden
 projects. Consumer build tests can call:
@@ -1472,6 +1557,7 @@ The following boundaries are intentional or incomplete in this release:
 | Files | Released; bounded public capability, but no golden consumer workflow |
 | Android Appium | Released for native Android; configuration and API-verified excerpt included; external Appium/device required; no iOS/cloud provider |
 | Kafka, RabbitMQ, JMS | Released adapters; configuration/API excerpts included but not yet clean-consumer compiled or live-broker verified |
+| AWS EventBridge and SQS | Released and LocalStack-qualified; staged clean-consumer workflow covers routing, bounded non-match, evidence, acknowledgment, and ownership-safe cleanup; authorized AWS remains separately approved |
 | WireMock | Released provider; mapping API excerpt included, while environment-resource composition remains speculative pending verification |
 | OpenAPI/AsyncAPI | Released structural validation/scaffolding; no golden consumer workflow |
 | Consumer contracts | Provider SPI only; no approved Pact or other provider |

@@ -15,14 +15,24 @@ public record HistoryConfiguration(
     CorruptionPolicy corruptionPolicy) {
   public HistoryConfiguration {
     root = Objects.requireNonNull(root, "root").toAbsolutePath().normalize();
-    if (maximumRecords < 1 || maximumRecords > 100_000) throw new IllegalArgumentException("maximumRecords must be 1-100000");
+    if (maximumRecords < 1 || maximumRecords > 100_000)
+      throw new IllegalArgumentException("maximumRecords must be 1-100000");
     maximumAge = Objects.requireNonNull(maximumAge, "maximumAge");
-    if (maximumAge.isNegative() || maximumAge.isZero()) throw new IllegalArgumentException("maximumAge must be positive");
-    if (maximumBytes < 1024) throw new IllegalArgumentException("maximumBytes must be at least 1024");
+    if (maximumAge.isNegative() || maximumAge.isZero())
+      throw new IllegalArgumentException("maximumAge must be positive");
+    if (maximumBytes < 1024)
+      throw new IllegalArgumentException("maximumBytes must be at least 1024");
     Objects.requireNonNull(unavailabilityPolicy, "unavailabilityPolicy");
     Objects.requireNonNull(corruptionPolicy, "corruptionPolicy");
   }
 
-  public enum UnavailabilityPolicy { CONTINUE, REQUIRE_HISTORY }
-  public enum CorruptionPolicy { REPORT, QUARANTINE }
+  public enum UnavailabilityPolicy {
+    CONTINUE,
+    REQUIRE_HISTORY
+  }
+
+  public enum CorruptionPolicy {
+    REPORT,
+    QUARANTINE
+  }
 }

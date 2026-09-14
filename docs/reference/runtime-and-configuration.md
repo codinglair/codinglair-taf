@@ -32,6 +32,7 @@ references remain opaque until an authorized execution boundary.
 | `taf.messaging.kafka` | Kafka controllers |
 | `taf.messaging.rabbitmq` | RabbitMQ controllers |
 | `taf.messaging.jms` | JMS controllers |
+| `taf.aws` | named AWS profiles with SQS and EventBridge controller instances |
 | `taf.mobile.android` | Android/Appium controllers |
 | `taf.environment` | provider lifecycle and policy |
 | `taf.consumer` | capability declarations and preflight |
@@ -113,6 +114,78 @@ taf:
 
 See the compiled [Quick Start configuration](../quick-start.md) before adding database, messaging,
 or mobile settings. Unknown fields should not be used to infer a capability.
+
+AWS messaging is optional. It uses separate typed controllers while sharing a named connection
+profile. Credential configuration accepts only an opaque `credential://` profile reference; access
+keys and session tokens are not configuration properties.
+
+```yaml
+taf:
+  aws:
+    enabled: true
+    profiles:
+      local:
+        endpoint-mode: localstack
+        endpoint-override: http://localhost:4566
+        region: us-east-1
+        ownership-mode: test-owned
+        policy:
+          operation-timeout: 30s
+          poll-interval: 250ms
+          maximum-receive-messages: 10
+          maximum-visibility: 15m
+          maximum-evidence-bytes: 16384
+        sqs:
+          orders:
+            queue: http://localhost:4566/000000000000/orders
+            dead-letter-queue: http://localhost:4566/000000000000/orders-dlq
+            isolation-mode: dedicated-resource
+            unmatched-message-policy: restore-immediately
+        eventbridge:
+          orders:
+            event-bus: orders
+            target-sqs-controller: orders
+            target-identity: orders-queue
+            envelope-schema: >-
+              {"type":"object","required":["source","detail-type","detail"]}
+```
+
+Acquire instances with
+`session.getControllerRegistry().get(SqsController.class, "orders")` and
+`session.getControllerRegistry().get(EventBridgeController.class, "orders")`. Receipt handles are
+available only on session-scoped `ReceivedSqsMessage` values and must not be logged or persisted.
+SQS receive, wait, and negative-wait operations are bounded by both the request and profile policy.
+`EXTERNAL_SHARED` is intentionally rejected: operator-owned shared queues must declare
+`CONTROLLED_CONSUMER` or `MIRROR_QUEUE`. Non-matching messages are released immediately and are
+never implicitly deleted; unacknowledged matching messages are released when the session closes.
+Queue and DLQ counts are approximate diagnostics. `SqsMessageEvidence` contains sanitized,
+size-bounded payload and attribute evidence but never a receipt handle.
+
+`EventBridgeController.publish(...)` accepts one to ten structured entries with source, detail
+type, JSON-object detail, resources, metadata, correlation identity, and optional AWS trace header.
+TAF places correlation and metadata under `detail._taf`, returns index-stable per-entry results,
+and retains bounded sanitized request evidence. The original five-argument request constructor
+remains supported; resources and trace header default to absent.
+
+Route verification is explicit composition rather than EventBridge browsing. Configure
+`target-sqs-controller`, `target-identity`, and an optional JSON Schema 2020-12 envelope schema,
+then call `verifyRoute(EventRouteRequest, SqsController)`. The operation publishes through the
+EventBridge controller, waits through the separately acquired SQS controller, validates the actual
+target envelope and correlation identity, and returns sanitized SQS evidence. Use
+`assertNotRouted(...)` for a full bounded non-matching observation. Both controllers remain usable
+independently and neither operation provisions or destroys infrastructure.
+
+AWS stable evidence is published as `AWS_EVIDENCE` artifacts through the owning `TestSession`'s
+`ArtifactCollector`. Payloads and metadata are sanitized independently, bounded by
+`maximum-evidence-bytes`, and accompanied by the SHA-256 digest and original UTF-8 byte count.
+Receipt handles, trace headers, raw SDK request/result objects, authorization material, resolved
+credentials, and raw exception causes are omitted. Failure, timeout, assertion, diagnostics, and
+cleanup evidence uses the same boundary. Safe message IDs, correlation IDs, receive counts,
+timestamps, target identity, and ownership-safe queue diagnostics remain available for diagnosis.
+
+For mode-by-mode configuration, the isolation decision, standalone walkthrough, compatibility
+profile, MCP examples, and contributor extension contract, see the
+[AWS messaging guide](aws-messaging.md).
 
 ## Reporting, evidence, and redaction
 

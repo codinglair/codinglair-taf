@@ -1,6 +1,43 @@
 {
   "schemaVersion": "1.0",
   "catalogVersion": "1.0.0",
+  "runtimeCapabilities": [
+    {
+      "id": "aws.eventbridge",
+      "version": "1.1.0",
+      "operations": [
+        "publish",
+        "verify-route",
+        "assert-not-routed"
+      ],
+      "limitations": [
+        "Route observation requires a configured SQS target"
+      ],
+      "requiredConfiguration": [
+        "taf.aws.connections.<profile>.eventbridge.<instance>"
+      ]
+    },
+    {
+      "id": "aws.sqs",
+      "version": "1.1.0",
+      "operations": [
+        "send",
+        "receive",
+        "await",
+        "assert-none",
+        "acknowledge",
+        "visibility",
+        "diagnostics"
+      ],
+      "limitations": [
+        "Observation is bounded",
+        "Receipt handles are never returned"
+      ],
+      "requiredConfiguration": [
+        "taf.aws.connections.<profile>.sqs.<instance>"
+      ]
+    }
+  ],
   "tools": [
     {
       "name": "discover",

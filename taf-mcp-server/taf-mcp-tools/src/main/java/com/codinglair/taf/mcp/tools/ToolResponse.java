@@ -1,6 +1,7 @@
 package com.codinglair.taf.mcp.tools;
 
 import java.util.List;
+import java.util.Objects;
 
 public record ToolResponse(
     String requestId,
@@ -16,6 +17,13 @@ public record ToolResponse(
   }
 
   public ToolResponse {
-    resultReferences = List.copyOf(resultReferences);
+    if (requestId == null || requestId.isBlank()) {
+      throw new IllegalArgumentException("requestId is required");
+    }
+    Objects.requireNonNull(status, "status");
+    if (summary == null || summary.isBlank()) {
+      throw new IllegalArgumentException("summary is required");
+    }
+    resultReferences = List.copyOf(Objects.requireNonNull(resultReferences, "resultReferences"));
   }
 }

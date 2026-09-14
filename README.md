@@ -38,7 +38,7 @@ in this release.
 | Browser | Playwright controller, named browser instances, page/workflow composition, screenshots, DOM, trace, video, console and network evidence |
 | API and contracts | REST, SOAP, OpenAPI and AsyncAPI validation, structured contract adapters |
 | Data | JDBC assertions, versioned CSV/JSON/YAML test definitions, MongoDB definition provider, JDBC and MongoDB migrations |
-| Messaging | Adapter-neutral messaging contracts with Kafka, RabbitMQ, and JMS/EMS-compatible adapters |
+| Messaging | Adapter-neutral Kafka, RabbitMQ, and JMS/EMS-compatible adapters; independently usable AWS EventBridge and SQS controllers with LocalStack qualification |
 | Files | Bounded structured-file validation with path and workspace controls |
 | Mobile | Native Android automation through Appium and UiAutomator2; emulator and authorized physical-device modes |
 | Virtualization | WireMock-backed service virtualization provider |

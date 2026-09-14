@@ -141,13 +141,14 @@ class CucumberRunnerIntegrationTest {
     assertThat(AccountSteps.CLEANUPS).hasValue(1);
     assertThat(plugin.results())
         .singleElement()
-        .satisfies(result -> {
-          assertThat(result.status()).isEqualTo("FAILED");
-          assertThat(result.failureAnalysis()).isNotNull();
-          assertThat(result.failureAnalysis().signature()).isNotNull();
-          assertThat(result.failureAnalysis().classification().type())
-              .isEqualTo(com.codinglair.taf.core.Error.ErrorType.INCONCLUSIVE);
-        });
+        .satisfies(
+            result -> {
+              assertThat(result.status()).isEqualTo("FAILED");
+              assertThat(result.failureAnalysis()).isNotNull();
+              assertThat(result.failureAnalysis().signature()).isNotNull();
+              assertThat(result.failureAnalysis().classification().type())
+                  .isEqualTo(com.codinglair.taf.core.Error.ErrorType.INCONCLUSIVE);
+            });
   }
 
   private static byte run(String feature, CucumberBusinessReportPlugin plugin, int threads) {

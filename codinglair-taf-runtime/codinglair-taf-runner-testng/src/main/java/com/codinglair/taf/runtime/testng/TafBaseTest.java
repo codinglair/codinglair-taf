@@ -6,13 +6,13 @@ import com.codinglair.taf.runtime.core.TestSession;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.context.TestContext;
 import com.codinglair.taf.runtime.core.controller.TestController;
+import com.codinglair.taf.runtime.core.failure.FailureContext;
+import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
+import com.codinglair.taf.runtime.core.history.ExecutionAttemptSummary;
 import com.codinglair.taf.runtime.core.lifecycle.InvocationDescriptor;
 import com.codinglair.taf.runtime.core.lifecycle.InvocationOutcome;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionLifecycle;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflight;
-import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
-import com.codinglair.taf.runtime.core.history.ExecutionAttemptSummary;
-import com.codinglair.taf.runtime.core.failure.FailureContext;
 import com.codinglair.taf.runtime.core.reporting.ArtifactCollector;
 import com.codinglair.taf.runtime.core.reporting.CurrentReportingContext;
 import com.codinglair.taf.runtime.core.reporting.HierarchicalReport;
@@ -154,7 +154,8 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
     return testSession().getController(type, name);
   }
 
-  private void closeAfterSetupFailure(ITestResult result, InvocationDescriptor descriptor, Throwable setupFailure) {
+  private void closeAfterSetupFailure(
+      ITestResult result, InvocationDescriptor descriptor, Throwable setupFailure) {
     try {
       lifecycle.close(descriptor, InvocationOutcome.setupFailed(setupFailure));
     } finally {
@@ -247,30 +248,60 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
     state.dispatchers.forEach(dispatcher -> dispatcher.endTest(state.test));
   }
 
-  private void recordAttempt(ITestResult result, InvocationDescriptor descriptor, boolean setupFailure) {
+  private void recordAttempt(
+      ITestResult result, InvocationDescriptor descriptor, boolean setupFailure) {
     Throwable failure = result.getThrowable();
-    ExecutionAttemptSummary.Outcome outcome = failure != null ? ExecutionAttemptSummary.Outcome.FAILED
-        : result.getStatus() == ITestResult.SKIP ? ExecutionAttemptSummary.Outcome.SKIPPED
-        : ExecutionAttemptSummary.Outcome.PASSED;
-    var completion = attemptHistory.complete(new AttemptHistoryService.AttemptDescriptor(null,
-        hash(result.getTestClass().getName() + "." + result.getMethod().getMethodName()
-            + java.util.Arrays.deepToString(result.getParameters())),
-        hash(result.getTestContext().getSuite().getName() + ":" + result.getTestContext().getStartDate()
-            + ":" + result.getTestClass().getName() + "." + result.getMethod().getMethodName()),
-        "attempt-" + Math.max(1L, result.getStartMillis()) + "-" + System.identityHashCode(result),
-        java.time.Instant.now(), outcome,
-        java.time.Duration.ofMillis(Math.max(0L, result.getEndMillis() - result.getStartMillis())),
-        null, null, "testng", setupFailure ? "configuration" : "test",
-        setupFailure ? FailureContext.Boundary.AUTOMATION : FailureContext.Boundary.UNKNOWN,
-        failure, List.of()));
-    if (completion.analysis() != null) result.setAttribute(TestNgLifecycleListener.ANALYSIS_KEY, completion.analysis());
+    ExecutionAttemptSummary.Outcome outcome =
+        failure != null
+            ? ExecutionAttemptSummary.Outcome.FAILED
+            : result.getStatus() == ITestResult.SKIP
+                ? ExecutionAttemptSummary.Outcome.SKIPPED
+                : ExecutionAttemptSummary.Outcome.PASSED;
+    var completion =
+        attemptHistory.complete(
+            new AttemptHistoryService.AttemptDescriptor(
+                null,
+                hash(
+                    result.getTestClass().getName()
+                        + "."
+                        + result.getMethod().getMethodName()
+                        + java.util.Arrays.deepToString(result.getParameters())),
+                hash(
+                    result.getTestContext().getSuite().getName()
+                        + ":"
+                        + result.getTestContext().getStartDate()
+                        + ":"
+                        + result.getTestClass().getName()
+                        + "."
+                        + result.getMethod().getMethodName()),
+                "attempt-"
+                    + Math.max(1L, result.getStartMillis())
+                    + "-"
+                    + System.identityHashCode(result),
+                java.time.Instant.now(),
+                outcome,
+                java.time.Duration.ofMillis(
+                    Math.max(0L, result.getEndMillis() - result.getStartMillis())),
+                null,
+                null,
+                "testng",
+                setupFailure ? "configuration" : "test",
+                setupFailure ? FailureContext.Boundary.AUTOMATION : FailureContext.Boundary.UNKNOWN,
+                failure,
+                List.of()));
+    if (completion.analysis() != null)
+      result.setAttribute(TestNgLifecycleListener.ANALYSIS_KEY, completion.analysis());
   }
 
   private static String hash(String value) {
     try {
-      return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
-          .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-    } catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+      return java.util.HexFormat.of()
+          .formatHex(
+              java.security.MessageDigest.getInstance("SHA-256")
+                  .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException impossible) {
+      throw new IllegalStateException(impossible);
+    }
   }
 
   private void testSessionArtifacts(ReportingState state) {

@@ -44,6 +44,8 @@ final class WorkflowContractTest {
     require(yaml, "name: Pull Request Verification");
     require(yaml, "name: PR gate");
     require(yaml, "uses: ./.github/workflows/secret-scanning.yml");
+    require(yaml, "uses: ./.github/workflows/aws-capability.yml");
+    require(yaml, "aws: ${{ steps.classify.outputs.aws }}");
     require(yaml, "name: Documentation version");
     require(yaml, "java build-support/scripts/SyncDocVersion.java --check");
     require(yaml, "- documentation-version");

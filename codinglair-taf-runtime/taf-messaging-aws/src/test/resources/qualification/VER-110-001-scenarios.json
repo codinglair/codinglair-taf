@@ -1,0 +1,111 @@
+{
+  "qualificationId": "VER-110-001",
+  "requirements": [
+    "BRD-33.2.1",
+    "BRD-33.2.2",
+    "BRD-33.2.3",
+    "BR-020",
+    "FR-MSG-019",
+    "FR-MSG-020",
+    "FR-MSG-023",
+    "FR-MSG-024",
+    "FR-MSG-027",
+    "FR-REP-006",
+    "NFR-016",
+    "NFR-018",
+    "ADR-023",
+    "ADR-024",
+    "ADR-025"
+  ],
+  "scenarios": [
+    {
+      "id": "route-ack",
+      "test": "EventBridgeRouteLocalStackIntegrationTest#qualifiesRouteComposition",
+      "requirements": [
+        "BRD-33.2.1",
+        "FR-MSG-023",
+        "ADR-023",
+        "ADR-025"
+      ],
+      "budgetMillis": 6000
+    },
+    {
+      "id": "invalid-rule",
+      "test": "EventBridgeControllerTest#rejectsSchemaMismatch",
+      "requirements": [
+        "BRD-33.2.2",
+        "FR-MSG-024"
+      ],
+      "budgetMillis": 1000
+    },
+    {
+      "id": "visibility-receive-redrive",
+      "test": "SqsControllerLocalStackIntegrationTest#qualifiesControllerLifecycle",
+      "requirements": [
+        "BRD-33.2.2",
+        "FR-MSG-019",
+        "ADR-025"
+      ],
+      "budgetMillis": 20000
+    },
+    {
+      "id": "correlation-match-non-match",
+      "test": "SqsControllerLocalStackIntegrationTest#qualifiesControllerLifecycle",
+      "requirements": [
+        "BRD-33.2.2",
+        "FR-MSG-019",
+        "FR-MSG-020"
+      ],
+      "budgetMillis": 6000
+    },
+    {
+      "id": "external-preservation",
+      "test": "LocalStackEnvironmentProviderIntegrationTest#externalPreflightAndCleanupNeverMutateDeclaredResources",
+      "requirements": [
+        "BRD-33.2.2",
+        "BR-020",
+        "FR-MSG-027",
+        "ADR-024"
+      ],
+      "budgetMillis": 30000
+    },
+    {
+      "id": "parallel-isolation",
+      "test": "LocalStackEnvironmentProviderIntegrationTest#concurrentRunsReceiveDifferentNamespacesAndEndpoints",
+      "requirements": [
+        "BRD-33.2.3",
+        "NFR-018",
+        "ADR-024"
+      ],
+      "budgetMillis": 120000
+    },
+    {
+      "id": "controlled-consumer",
+      "test": "AwsPropertiesTest#unsafeSharedQueueFailsPreflight",
+      "requirements": [
+        "BRD-33.2.3",
+        "FR-MSG-020",
+        "ADR-025"
+      ],
+      "budgetMillis": 1000
+    },
+    {
+      "id": "failure-lifecycle",
+      "test": "AwsQualificationEvidenceTest#recordsOutcomeAndCleanupFailureDiagnostics",
+      "requirements": [
+        "FR-REP-006"
+      ],
+      "budgetMillis": 1000
+    },
+    {
+      "id": "sanitized-results",
+      "test": "AwsQualificationEvidenceTest#writesSanitizedMachineAndHumanResults",
+      "requirements": [
+        "BRD-33.2.1",
+        "FR-REP-006",
+        "NFR-016"
+      ],
+      "budgetMillis": 1000
+    }
+  ]
+}
