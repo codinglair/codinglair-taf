@@ -22,26 +22,33 @@ public final class FailureClassificationService {
       throw new IllegalArgumentException("Contradictory authoritative failure classifications");
     }
     if (!explicit.isEmpty()) {
-      return result(explicit.getFirst(), FailureClassification.Source.EXPLICIT, "approved explicit classification");
+      return result(
+          explicit.getFirst(),
+          FailureClassification.Source.EXPLICIT,
+          "approved explicit classification");
     }
-    ErrorType type = switch (context.boundary()) {
-      case PRODUCT -> ErrorType.PRODUCT_DEFECT;
-      case AUTOMATION -> ErrorType.AUTOMATION_FAILURE;
-      case ENVIRONMENT -> ErrorType.ENVIRONMENT_ISSUE;
-      case TEST_DATA -> ErrorType.TEST_DATA_ISSUE;
-      case REQUIREMENT -> ErrorType.REQUIREMENT_AMBIGUITY;
-      case UNKNOWN -> ErrorType.INCONCLUSIVE;
-    };
-    var source = type == ErrorType.INCONCLUSIVE
-        ? FailureClassification.Source.UNCLASSIFIED
-        : FailureClassification.Source.RUNTIME_RULE;
-    String reason = type == ErrorType.INCONCLUSIVE
-        ? "no approved deterministic boundary mapping"
-        : "failure established at " + context.boundary().name().toLowerCase() + " boundary";
+    ErrorType type =
+        switch (context.boundary()) {
+          case PRODUCT -> ErrorType.PRODUCT_DEFECT;
+          case AUTOMATION -> ErrorType.AUTOMATION_FAILURE;
+          case ENVIRONMENT -> ErrorType.ENVIRONMENT_ISSUE;
+          case TEST_DATA -> ErrorType.TEST_DATA_ISSUE;
+          case REQUIREMENT -> ErrorType.REQUIREMENT_AMBIGUITY;
+          case UNKNOWN -> ErrorType.INCONCLUSIVE;
+        };
+    var source =
+        type == ErrorType.INCONCLUSIVE
+            ? FailureClassification.Source.UNCLASSIFIED
+            : FailureClassification.Source.RUNTIME_RULE;
+    String reason =
+        type == ErrorType.INCONCLUSIVE
+            ? "no approved deterministic boundary mapping"
+            : "failure established at " + context.boundary().name().toLowerCase() + " boundary";
     return result(type, source, reason);
   }
 
-  private FailureClassification result(ErrorType type, FailureClassification.Source source, String reason) {
+  private FailureClassification result(
+      ErrorType type, FailureClassification.Source source, String reason) {
     return new FailureClassification(type, source, redaction.redact(reason));
   }
 }

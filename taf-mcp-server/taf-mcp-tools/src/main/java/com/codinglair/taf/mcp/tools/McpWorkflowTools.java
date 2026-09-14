@@ -36,6 +36,7 @@ public final class McpWorkflowTools implements AutoCloseable {
   private final ExecutorService executor;
   private final Clock clock;
   private final ResponseRedactor redactor;
+  private final CapabilityPreflight capabilityPreflight;
 
   public McpWorkflowTools(
       Path workspaceRoot,
@@ -47,6 +48,30 @@ public final class McpWorkflowTools implements AutoCloseable {
       ExecutorService executor,
       Clock clock,
       ResponseRedactor redactor) {
+    this(
+        workspaceRoot,
+        enforcement,
+        jobs,
+        repository,
+        validator,
+        runner,
+        executor,
+        clock,
+        redactor,
+        CapabilityPreflight.NONE);
+  }
+
+  public McpWorkflowTools(
+      Path workspaceRoot,
+      McpEnforcementService enforcement,
+      JobService jobs,
+      JobRepository repository,
+      ProjectValidator validator,
+      WorkflowRunner runner,
+      ExecutorService executor,
+      Clock clock,
+      ResponseRedactor redactor,
+      CapabilityPreflight capabilityPreflight) {
     this.workspaceRoot =
         Objects.requireNonNull(workspaceRoot, "workspaceRoot").toAbsolutePath().normalize();
     this.enforcement = Objects.requireNonNull(enforcement, "enforcement");
@@ -57,6 +82,7 @@ public final class McpWorkflowTools implements AutoCloseable {
     this.executor = Objects.requireNonNull(executor, "executor");
     this.clock = Clock.tick(Objects.requireNonNull(clock, "clock"), java.time.Duration.ofMillis(1));
     this.redactor = Objects.requireNonNull(redactor, "redactor");
+    this.capabilityPreflight = Objects.requireNonNull(capabilityPreflight, "capabilityPreflight");
   }
 
   public List<String> discover() {
@@ -84,6 +110,7 @@ public final class McpWorkflowTools implements AutoCloseable {
             () -> {
               try {
                 validateBoundary(request);
+                capabilityPreflight.validate(request);
                 return dispatch(request);
               } catch (IllegalArgumentException failure) {
                 return failed(request, WorkflowOutcome.VALIDATION_FAILED, failure.getMessage());
@@ -121,18 +148,25 @@ public final class McpWorkflowTools implements AutoCloseable {
   }
 
   private ToolResponse submit(ToolRequest request) {
-    Job job =
-        jobs.create(
-            request.operation().action(),
-            Map.of(
-                "project",
-                sanitize(request.projectId()),
-                "environment",
-                sanitize(request.environment()),
-                "selector",
-                sanitize(request.selector().orElse("all")),
-                "requestId",
-                sanitize(request.requestId())));
+    var payload = new java.util.HashMap<String, String>();
+    payload.put("project", sanitize(request.projectId()));
+    payload.put("environment", sanitize(request.environment()));
+    payload.put("selector", sanitize(request.selector().orElse("all")));
+    payload.put("requestId", sanitize(request.requestId()));
+    if (!request.requiredCapabilities().isEmpty()) {
+      payload.put(
+          "requiredCapabilities",
+          request.requiredCapabilities().stream()
+              .map(
+                  capability ->
+                      capability.capabilityId()
+                          + ":"
+                          + capability.instance()
+                          + ":"
+                          + String.join(",", capability.operations()))
+              .collect(java.util.stream.Collectors.joining(";")));
+    }
+    Job job = jobs.create(request.operation().action(), Map.copyOf(payload));
     try {
       executor.execute(() -> run(job.id(), request));
     } catch (RuntimeException submissionFailure) {
@@ -291,6 +325,7 @@ public final class McpWorkflowTools implements AutoCloseable {
               + request.timeout().toSeconds()
               + '\u001f'
               + String.valueOf(request.idempotencyKey());
+      canonical += '\u001f' + canonicalCapabilities(request.requiredCapabilities());
       return HexFormat.of()
           .formatHex(
               MessageDigest.getInstance("SHA-256")
@@ -298,6 +333,23 @@ public final class McpWorkflowTools implements AutoCloseable {
     } catch (java.security.NoSuchAlgorithmException impossible) {
       throw new IllegalStateException(impossible);
     }
+  }
+
+  private static String canonicalCapabilities(List<RequiredCapability> capabilities) {
+    return capabilities.stream()
+        .sorted(
+            java.util.Comparator.comparing(RequiredCapability::capabilityId)
+                .thenComparing(RequiredCapability::instance))
+        .map(
+            capability ->
+                capability.capabilityId()
+                    + '/'
+                    + capability.instance()
+                    + '/'
+                    + capability.operations().stream()
+                        .sorted()
+                        .collect(java.util.stream.Collectors.joining(",")))
+        .collect(java.util.stream.Collectors.joining(";"));
   }
 
   private ToolResponse response(ToolRequest request, WorkflowResult result) {

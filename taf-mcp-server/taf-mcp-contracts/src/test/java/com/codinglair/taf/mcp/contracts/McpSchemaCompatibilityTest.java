@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class McpSchemaCompatibilityTest {
 
   private static final ObjectMapper JSON = new ObjectMapper();
-  private static final String SCHEMA_ROOT = "/META-INF/taf/mcp/schema/v1/";
+  private static final String SCHEMA_ROOT = McpContractResources.V1_SCHEMA_ROOT;
 
   @ParameterizedTest(name = "{0} accepts {1}")
   @MethodSource("validFixtures")
@@ -41,8 +41,7 @@ class McpSchemaCompatibilityTest {
   @ParameterizedTest(name = "rejects secret-bearing argument name {0}")
   @MethodSource("secretBearingArgumentNames")
   @DisplayName("Conventional secret-bearing argument names are rejected")
-  void conventionalSecretBearingArgumentNamesAreRejected(String argumentName)
-      throws IOException {
+  void conventionalSecretBearingArgumentNamesAreRejected(String argumentName) throws IOException {
     ObjectNode request =
         (ObjectNode) read("/fixtures/v1/valid/tool-request-validate.json").deepCopy();
     ((ObjectNode) request.path("arguments")).put(argumentName, "canary-secret-value");
@@ -68,7 +67,7 @@ class McpSchemaCompatibilityTest {
   @Test
   @DisplayName("Catalog covers every approved coarse-grained workflow with operational semantics")
   void catalogCoversApprovedWorkflows() throws IOException {
-    JsonNode catalog = read("/META-INF/taf/mcp/catalog/v1/capabilities.json");
+    JsonNode catalog = read(McpContractResources.V1_CAPABILITY_CATALOG);
     JsonSchema schema = schema("capability-catalog.schema.json");
     assertThat(schema.validate(catalog)).isEmpty();
     assertThat(catalog.path("catalogVersion").textValue()).isEqualTo("1.0.0");
@@ -96,8 +95,7 @@ class McpSchemaCompatibilityTest {
         .forEach(
             tool ->
                 assertThat(tool.path("timeout").path("maximumSeconds").asInt())
-                    .isGreaterThanOrEqualTo(
-                        tool.path("timeout").path("defaultSeconds").asInt()));
+                    .isGreaterThanOrEqualTo(tool.path("timeout").path("defaultSeconds").asInt()));
   }
 
   private Set<?> validate(String schemaName, String fixture) throws IOException {
@@ -119,6 +117,7 @@ class McpSchemaCompatibilityTest {
   private static Stream<Arguments> validFixtures() {
     return Stream.of(
         Arguments.of("tool-request.schema.json", "tool-request-validate.json"),
+        Arguments.of("tool-request.schema.json", "tool-request-aws.json"),
         Arguments.of("tool-response.schema.json", "tool-response-accepted.json"),
         Arguments.of("resource.schema.json", "resource-report.json"),
         Arguments.of("resource.schema.json", "resource-report-page.json"),

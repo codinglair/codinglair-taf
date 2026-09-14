@@ -14,12 +14,20 @@ public record FailureAnalysis(
     Objects.requireNonNull(historyStatus, "historyStatus");
   }
 
-  public static FailureAnalysis classify(String capability, String phase, FailureContext.Boundary boundary, Throwable failure) {
+  public static FailureAnalysis classify(
+      String capability, String phase, FailureContext.Boundary boundary, Throwable failure) {
     FailureContext context = FailureContext.of(capability, phase, boundary, failure);
-    return new FailureAnalysis(new FailureClassificationService().classify(context),
-        new FailureSignatureService().sign(context), StabilityStatus.INSUFFICIENT_HISTORY,
+    return new FailureAnalysis(
+        new FailureClassificationService().classify(context),
+        new FailureSignatureService().sign(context),
+        StabilityStatus.INSUFFICIENT_HISTORY,
         HistoryStatus.DISABLED);
   }
 
-  public enum HistoryStatus { SUCCESS, DISABLED, UNAVAILABLE, CORRUPT }
+  public enum HistoryStatus {
+    SUCCESS,
+    DISABLED,
+    UNAVAILABLE,
+    CORRUPT
+  }
 }

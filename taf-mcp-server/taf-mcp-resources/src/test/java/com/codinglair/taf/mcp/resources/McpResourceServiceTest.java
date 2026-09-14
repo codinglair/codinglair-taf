@@ -61,6 +61,27 @@ class McpResourceServiceTest {
     }
 
     @Test
+    @DisplayName("reports stable EventBridge and SQS operations limitations and configuration")
+    void reportsAwsCapabilityDetails() {
+      var capabilities =
+          List.of(
+              new Capability(
+                  "aws.eventbridge", "EventBridge", Capability.CapabilityType.CONTROLLER),
+              new Capability("aws.sqs", "SQS", Capability.CapabilityType.CONTROLLER));
+      var catalog =
+          new RuntimeCapabilityCatalog(
+              capabilities, Map.of("aws.eventbridge", "1.1.0", "aws.sqs", "1.1.0"), "1.1.0");
+
+      assertThat(catalog.descriptors())
+          .allSatisfy(
+              descriptor -> {
+                assertThat(descriptor.operations()).isNotEmpty();
+                assertThat(descriptor.limitations()).isNotEmpty();
+                assertThat(descriptor.requiredConfiguration()).isNotEmpty();
+              });
+    }
+
+    @Test
     @DisplayName("paginates a large catalog deterministically without duplicates")
     void paginatesLargeCatalogDeterministically() {
       var service = service(largeCatalog(257, Map.of(), "2.1.0"), allowedPolicy(), _ -> List.of());
@@ -149,6 +170,63 @@ class McpResourceServiceTest {
   @Nested
   @DisplayName("Documentation and safe metadata")
   class DocumentationAndSafeMetadata {
+    @Test
+    @DisplayName("discovers multiple safe named AWS instances without sensitive runtime material")
+    void discoversNamedAwsInstances() throws Exception {
+      var instances =
+          List.of(
+              new CapabilityInstanceDescriptor(
+                  "aws.sqs",
+                  "orders-b",
+                  "queue/orders-b",
+                  "EXTERNAL",
+                  "CONTROLLED_CONSUMER",
+                  EnvironmentStatus.DEGRADED,
+                  List.of("permission-limited")),
+              new CapabilityInstanceDescriptor(
+                  "aws.sqs",
+                  "orders-a",
+                  "queue/orders-a",
+                  "TEST_OWNED",
+                  "DEDICATED_RESOURCE",
+                  EnvironmentStatus.READY,
+                  List.of()));
+      var service =
+          new McpResourceService(
+              largeCatalog(1, Map.of(), "1.0.0"),
+              McpContractDocumentation.load(getClass().getClassLoader()),
+              _ -> List.of(),
+              allowedPolicy(),
+              List.of(),
+              List.of(),
+              instances);
+
+      var page =
+          service.discoverCapabilityInstances(CALLER, new ResourceQuery("aws.sqs", 10, null));
+      var json = new ObjectMapper().writeValueAsString(page.items());
+
+      assertThat(page.items())
+          .extracting(CapabilityInstanceDescriptor::instance)
+          .containsExactly("orders-a", "orders-b");
+      assertThat(json).doesNotContain("receiptHandle", "credential", "https://");
+    }
+
+    @Test
+    @DisplayName("rejects secret-bearing endpoint and diagnostic material at construction")
+    void rejectsUnsafeInstanceMaterial() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              new CapabilityInstanceDescriptor(
+                  "aws.sqs",
+                  "orders",
+                  "https://user:canary-secret@localhost/queue",
+                  "EXTERNAL",
+                  "CONTROLLED_CONSUMER",
+                  EnvironmentStatus.READY,
+                  List.of("token=canary-secret")));
+    }
+
     @Test
     @DisplayName("loads versioned documentation from the authoritative MCP contract artifact")
     void loadsVersionedContractDocumentation() {

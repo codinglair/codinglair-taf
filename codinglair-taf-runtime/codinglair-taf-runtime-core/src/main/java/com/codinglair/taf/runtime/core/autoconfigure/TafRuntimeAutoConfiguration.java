@@ -18,6 +18,12 @@ package com.codinglair.taf.runtime.core.autoconfigure;
 
 import com.codinglair.taf.runtime.core.TestSession;
 import com.codinglair.taf.runtime.core.controller.ControllerRegistry;
+import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
+import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
+import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
+import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
+import com.codinglair.taf.runtime.core.history.ExecutionHistoryRepository;
+import com.codinglair.taf.runtime.core.history.FileExecutionHistoryRepository;
 import com.codinglair.taf.runtime.core.lifecycle.CurrentTestSession;
 import com.codinglair.taf.runtime.core.lifecycle.DefaultSessionAwareAccessor;
 import com.codinglair.taf.runtime.core.lifecycle.SessionAwareAccessor;
@@ -25,12 +31,6 @@ import com.codinglair.taf.runtime.core.lifecycle.TestSessionConfigurer;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionLifecycle;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflight;
-import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
-import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
-import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
-import com.codinglair.taf.runtime.core.history.ExecutionHistoryRepository;
-import com.codinglair.taf.runtime.core.history.FileExecutionHistoryRepository;
-import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflightContributor;
 import com.codinglair.taf.runtime.core.reporting.CurrentReportingContext;
 import com.codinglair.taf.runtime.core.reporting.ReportingActionInterceptor;
@@ -40,9 +40,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * Auto-configuration for TAF Runtime core components.
@@ -70,8 +70,10 @@ public class TafRuntimeAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public FailureSignatureService failureSignatureService(HistoryProperties properties) {
-    return new FailureSignatureService(new com.codinglair.taf.runtime.core.reporting.RedactionPipeline(),
-        properties.getSignatureMessageLimit(), properties.getSignatureStackFrameLimit(),
+    return new FailureSignatureService(
+        new com.codinglair.taf.runtime.core.reporting.RedactionPipeline(),
+        properties.getSignatureMessageLimit(),
+        properties.getSignatureStackFrameLimit(),
         properties.getSignatureCauseLimit());
   }
 
@@ -86,11 +88,19 @@ public class TafRuntimeAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  public AttemptHistoryService attemptHistoryService(FailureClassificationService classifications,
-      FailureSignatureService signatures, ExecutionHistoryRepository repository,
+  public AttemptHistoryService attemptHistoryService(
+      FailureClassificationService classifications,
+      FailureSignatureService signatures,
+      ExecutionHistoryRepository repository,
       HistoryProperties properties) {
-    return new AttemptHistoryService(classifications, signatures, repository, properties.configuration(),
-        properties.getMinimumSamples(), properties.getProjectId(), properties.getBuildId(),
+    return new AttemptHistoryService(
+        classifications,
+        signatures,
+        repository,
+        properties.configuration(),
+        properties.getMinimumSamples(),
+        properties.getProjectId(),
+        properties.getBuildId(),
         properties.getEnvironmentId());
   }
 

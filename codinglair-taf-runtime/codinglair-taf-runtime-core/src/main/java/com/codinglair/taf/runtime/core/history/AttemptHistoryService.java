@@ -15,10 +15,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Completes one immutable attempt by classifying, signing, evaluating, and
- * recording it.
- */
+/** Completes one immutable attempt by classifying, signing, evaluating, and recording it. */
 public final class AttemptHistoryService {
   private final FailureClassificationService classifications;
   private final FailureSignatureService signatures;
@@ -29,17 +26,32 @@ public final class AttemptHistoryService {
   private final String defaultBuildId;
   private final String defaultEnvironmentId;
 
-  public AttemptHistoryService(FailureClassificationService classifications,
-      FailureSignatureService signatures, ExecutionHistoryRepository repository,
-      HistoryConfiguration configuration, int minimumSamples) {
-    this(classifications, signatures, repository, configuration, minimumSamples,
-        "default", "unknown", "local");
+  public AttemptHistoryService(
+      FailureClassificationService classifications,
+      FailureSignatureService signatures,
+      ExecutionHistoryRepository repository,
+      HistoryConfiguration configuration,
+      int minimumSamples) {
+    this(
+        classifications,
+        signatures,
+        repository,
+        configuration,
+        minimumSamples,
+        "default",
+        "unknown",
+        "local");
   }
 
-  public AttemptHistoryService(FailureClassificationService classifications,
-      FailureSignatureService signatures, ExecutionHistoryRepository repository,
-      HistoryConfiguration configuration, int minimumSamples, String defaultProjectId,
-      String defaultBuildId, String defaultEnvironmentId) {
+  public AttemptHistoryService(
+      FailureClassificationService classifications,
+      FailureSignatureService signatures,
+      ExecutionHistoryRepository repository,
+      HistoryConfiguration configuration,
+      int minimumSamples,
+      String defaultProjectId,
+      String defaultBuildId,
+      String defaultEnvironmentId) {
     this.classifications = Objects.requireNonNull(classifications);
     this.signatures = Objects.requireNonNull(signatures);
     this.repository = Objects.requireNonNull(repository);
@@ -58,34 +70,61 @@ public final class AttemptHistoryService {
     FailureSignature signature = null;
     if (attempt.outcome() == ExecutionAttemptSummary.Outcome.FAILED
         || attempt.outcome() == ExecutionAttemptSummary.Outcome.INCONCLUSIVE) {
-      FailureContext context = new FailureContext(attempt.capability(), attempt.phase(), attempt.boundary(),
-          attempt.failure(), attempt.explicitClassifications());
+      FailureContext context =
+          new FailureContext(
+              attempt.capability(),
+              attempt.phase(),
+              attempt.boundary(),
+              attempt.failure(),
+              attempt.explicitClassifications());
       classification = classifications.classify(context);
       signature = signatures.sign(context);
     }
-    HistoryResult prior = repository.findByTest(attempt.projectId(), attempt.testId(),
-        configuration.maximumRecords(), configuration.maximumAge());
+    HistoryResult prior =
+        repository.findByTest(
+            attempt.projectId(),
+            attempt.testId(),
+            configuration.maximumRecords(),
+            configuration.maximumAge());
     StabilityStatus stability = StabilityStatus.INSUFFICIENT_HISTORY;
     if (prior.status() == HistoryResult.Status.SUCCESS) {
       var candidates = new ArrayList<>(prior.records());
       candidates.add(summary(attempt, classification, signature, stability));
-      stability = new HistoricalStabilityEvaluator().evaluate(candidates, minimumSamples,
-          new HistoricalStabilityEvaluator.CompatibilityScope(Set.of(attempt.buildId()),
-              Set.of(attempt.environmentId())));
+      stability =
+          new HistoricalStabilityEvaluator()
+              .evaluate(
+                  candidates,
+                  minimumSamples,
+                  new HistoricalStabilityEvaluator.CompatibilityScope(
+                      Set.of(attempt.buildId()), Set.of(attempt.environmentId())));
     }
     ExecutionAttemptSummary summary = summary(attempt, classification, signature, stability);
     HistoryResult recorded = repository.record(summary);
-    HistoryResult.Status effective = prior.status() == HistoryResult.Status.SUCCESS ? recorded.status()
-        : prior.status();
-    FailureAnalysis analysis = classification == null ? null
-        : new FailureAnalysis(classification, signature, stability, historyStatus(effective));
+    HistoryResult.Status effective =
+        prior.status() == HistoryResult.Status.SUCCESS ? recorded.status() : prior.status();
+    FailureAnalysis analysis =
+        classification == null
+            ? null
+            : new FailureAnalysis(classification, signature, stability, historyStatus(effective));
     return new AttemptCompletion(summary, analysis, effective);
   }
 
-  private static ExecutionAttemptSummary summary(AttemptDescriptor a, FailureClassification c,
-      FailureSignature s, StabilityStatus stability) {
-    return new ExecutionAttemptSummary(1, a.projectId(), a.testId(), a.executionId(), a.attemptId(),
-        a.completedAt(), a.outcome(), c, stability, s, a.duration(), a.buildId(), a.environmentId());
+  private static ExecutionAttemptSummary summary(
+      AttemptDescriptor a, FailureClassification c, FailureSignature s, StabilityStatus stability) {
+    return new ExecutionAttemptSummary(
+        1,
+        a.projectId(),
+        a.testId(),
+        a.executionId(),
+        a.attemptId(),
+        a.completedAt(),
+        a.outcome(),
+        c,
+        stability,
+        s,
+        a.duration(),
+        a.buildId(),
+        a.environmentId());
   }
 
   private static FailureAnalysis.HistoryStatus historyStatus(HistoryResult.Status status) {
@@ -97,29 +136,52 @@ public final class AttemptHistoryService {
     };
   }
 
-  public record AttemptDescriptor(String projectId, String testId, String executionId, String attemptId,
-      Instant completedAt, ExecutionAttemptSummary.Outcome outcome, Duration duration, String buildId,
-      String environmentId, String capability, String phase, FailureContext.Boundary boundary,
-      Throwable failure, List<ErrorType> explicitClassifications) {
+  public record AttemptDescriptor(
+      String projectId,
+      String testId,
+      String executionId,
+      String attemptId,
+      Instant completedAt,
+      ExecutionAttemptSummary.Outcome outcome,
+      Duration duration,
+      String buildId,
+      String environmentId,
+      String capability,
+      String phase,
+      FailureContext.Boundary boundary,
+      Throwable failure,
+      List<ErrorType> explicitClassifications) {
     public AttemptDescriptor {
       Objects.requireNonNull(completedAt);
       Objects.requireNonNull(outcome);
       Objects.requireNonNull(duration);
-      explicitClassifications = List.copyOf(Objects.requireNonNullElse(explicitClassifications, List.of()));
+      explicitClassifications =
+          List.copyOf(Objects.requireNonNullElse(explicitClassifications, List.of()));
     }
 
     AttemptDescriptor withDefaults(String project, String build, String environment) {
-      return new AttemptDescriptor(projectId == null || projectId.isBlank() ? project : projectId,
-          testId, executionId, attemptId, completedAt, outcome, duration,
+      return new AttemptDescriptor(
+          projectId == null || projectId.isBlank() ? project : projectId,
+          testId,
+          executionId,
+          attemptId,
+          completedAt,
+          outcome,
+          duration,
           buildId == null || buildId.isBlank() ? build : buildId,
           environmentId == null || environmentId.isBlank() ? environment : environmentId,
-          capability, phase, boundary, failure, explicitClassifications);
+          capability,
+          phase,
+          boundary,
+          failure,
+          explicitClassifications);
     }
   }
 
-  public record AttemptCompletion(ExecutionAttemptSummary summary, FailureAnalysis analysis,
-      HistoryResult.Status historyStatus) {
-  }
+  public record AttemptCompletion(
+      ExecutionAttemptSummary summary,
+      FailureAnalysis analysis,
+      HistoryResult.Status historyStatus) {}
 
   private static String identity(String value, String name) {
     if (value == null || !value.matches("[A-Za-z0-9._-]{1,160}"))

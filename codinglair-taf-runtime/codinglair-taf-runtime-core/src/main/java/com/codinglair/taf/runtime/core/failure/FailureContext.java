@@ -22,7 +22,8 @@ public record FailureContext(
     }
   }
 
-  public static FailureContext of(String capability, String phase, Boundary boundary, Throwable failure) {
+  public static FailureContext of(
+      String capability, String phase, Boundary boundary, Throwable failure) {
     return new FailureContext(capability, phase, boundary, failure, List.of());
   }
 

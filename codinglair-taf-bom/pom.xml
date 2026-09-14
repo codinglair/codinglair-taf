@@ -14,6 +14,11 @@
     <description>Supported coherent versions for Codinglair TAF Runtime and MCP community artifacts.</description>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>taf-messaging-aws</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- Runtime and MCP publication units; keep this list exhaustive and version-aligned. -->
             <dependency>
                 <groupId>com.codinglair.taf</groupId>

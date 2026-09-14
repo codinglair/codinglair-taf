@@ -41,8 +41,9 @@ public final class OpenApiRestContractValidator implements RestContractValidator
     var responses = operation.path("responses");
     var status = Integer.toString(response.statusCode());
     if (!responses.has(status) && !responses.has("default")) {
-      throw new ContractViolationException(String.format(
-          "OpenAPI response is not declared: %s %s -> %s",
+      throw new ContractViolationException(
+          String.format(
+              "OpenAPI response is not declared: %s %s -> %s",
               request.method(), request.path(), status));
     }
   }

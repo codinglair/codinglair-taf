@@ -1,0 +1,254 @@
+name: AWS Capability Verification
+
+on:
+  workflow_call:
+    inputs:
+      full-reactor:
+        description: Run the clean full-reactor compatibility gate
+        required: false
+        default: false
+        type: boolean
+      consumer-smoke:
+        description: Stage and verify outside-reactor consumers
+        required: false
+        default: false
+        type: boolean
+      supply-chain:
+        description: Scan the pinned LocalStack image and emit an SBOM
+        required: false
+        default: true
+        type: boolean
+      authorized-aws:
+        description: Enter the separately approved authorized-AWS approval-boundary preflight
+        required: false
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      full-reactor:
+        description: Run the clean full-reactor compatibility gate
+        required: true
+        default: true
+        type: boolean
+      consumer-smoke:
+        description: Stage and verify outside-reactor consumers
+        required: true
+        default: true
+        type: boolean
+      supply-chain:
+        description: Scan the pinned LocalStack image and emit an SBOM
+        required: true
+        default: true
+        type: boolean
+      authorized-aws:
+        description: Run only the approval-boundary preflight (not authentication or live qualification)
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  LOCALSTACK_IMAGE: localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a
+
+jobs:
+  unit-contract:
+    name: AWS unit and contract gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: bash build-support/scripts/aws-ci.sh unit-contract
+      - name: Build sanitized failure bundle
+        if: ${{ failure() }}
+        run: bash build-support/scripts/prepare-aws-failure-artifacts.sh
+      - name: Publish sanitized unit and contract failures
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-unit-contract-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/aws-ci-artifacts/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  localstack:
+    name: LocalStack integration, cleanup, and leak gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Run pinned LocalStack qualification
+        env:
+          TAF_LOCALSTACK_IMAGE: ${{ env.LOCALSTACK_IMAGE }}
+        run: bash build-support/scripts/aws-ci.sh localstack
+      - name: Build sanitized failure bundle
+        if: ${{ failure() }}
+        run: bash build-support/scripts/prepare-aws-failure-artifacts.sh
+      - name: Publish sanitized LocalStack failure evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-localstack-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/aws-ci-artifacts/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  mcp-contract-leak:
+    name: AWS MCP contract and leak gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: bash build-support/scripts/aws-ci.sh mcp-contract-leak
+      - name: Build sanitized failure bundle
+        if: ${{ failure() }}
+        run: bash build-support/scripts/prepare-aws-failure-artifacts.sh
+      - name: Publish sanitized MCP failures
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-mcp-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/aws-ci-artifacts/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  consumer-smoke:
+    name: Staged-coordinate AWS consumer smoke
+    if: ${{ inputs.consumer-smoke }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: bash build-support/scripts/aws-ci.sh consumer-smoke
+      - name: Build sanitized failure bundle
+        if: ${{ failure() }}
+        run: bash build-support/scripts/prepare-aws-failure-artifacts.sh
+      - name: Publish sanitized consumer failures
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-consumer-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/aws-ci-artifacts/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  full-reactor:
+    name: Clean full-reactor AWS release gate
+    if: ${{ inputs.full-reactor }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: bash build-support/scripts/aws-ci.sh full-reactor
+      - name: Build sanitized failure bundle
+        if: ${{ failure() }}
+        run: bash build-support/scripts/prepare-aws-failure-artifacts.sh
+      - name: Publish sanitized full-reactor failures
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-full-reactor-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/aws-ci-artifacts/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  supply-chain:
+    name: LocalStack vulnerability, license, secret, and SBOM gate
+    if: ${{ inputs.supply-chain }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare supply-chain evidence directory
+        run: mkdir -p target/aws-supply-chain
+      - name: Pull immutable LocalStack image
+        run: docker pull "$LOCALSTACK_IMAGE"
+      - name: Inventory high and critical vulnerabilities and embedded-secret findings
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.LOCALSTACK_IMAGE }}
+          scanners: vuln,secret
+          format: json
+          output: target/aws-supply-chain/localstack-trivy.json
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+      - name: Inventory image licenses for compliance review
+        if: ${{ always() }}
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.LOCALSTACK_IMAGE }}
+          scanners: license
+          format: json
+          output: target/aws-supply-chain/localstack-licenses.json
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: '0'
+      - name: Generate LocalStack CycloneDX SBOM
+        if: ${{ always() }}
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.LOCALSTACK_IMAGE }}
+          scanners: vuln
+          format: cyclonedx
+          output: target/aws-supply-chain/localstack.cdx.json
+          exit-code: '0'
+      - name: Record immutable provenance
+        if: ${{ always() }}
+        run: |
+          mkdir -p target/aws-supply-chain
+          printf 'image=%s\nplatform=linux/amd64\n' "$LOCALSTACK_IMAGE" > target/aws-supply-chain/provenance.txt
+          docker image inspect --format 'id={{.Id}} repoDigests={{json .RepoDigests}}' "$LOCALSTACK_IMAGE" >> target/aws-supply-chain/provenance.txt
+      - name: Sanitize and leak-check supply-chain evidence
+        if: ${{ always() }}
+        run: |
+          mkdir -p target/aws-ci-support
+          javac -d target/aws-ci-support build-support/ci/ArtifactSanitizer.java build-support/ci/ArtifactLeakCheck.java
+          java -cp target/aws-ci-support ArtifactSanitizer target/aws-supply-chain target/aws-supply-chain-publish
+          java -cp target/aws-ci-support ArtifactLeakCheck target/aws-supply-chain-publish
+      - name: Retain supply-chain evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-localstack-supply-chain-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/aws-supply-chain-publish/**
+          if-no-files-found: error
+          retention-days: 30
+
+  authorized-aws-preflight:
+    name: Authorized AWS gate (approval-boundary preflight only)
+    if: ${{ inputs.authorized-aws }}
+    runs-on: ubuntu-24.04
+    environment: authorized-aws-qualification
+    permissions:
+      contents: read
+    steps:
+      - name: Confirm credential-safe qualification boundary
+        run: |
+          test -n '${{ vars.TAF_AWS_QUALIFICATION_ROLE }}'
+          echo 'Authorized-AWS execution requires environment approval.'
+          echo 'This INF gate does not request credentials, authenticate, or execute live-AWS qualification.'

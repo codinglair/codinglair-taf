@@ -49,9 +49,7 @@ class LocalSecretManagerTest {
     }
     String malformedCiphertext = "AAAAAAAAAAAAAAAA";
     assertThatThrownBy(
-            () ->
-                provider.resolve(
-                    SecretReference.parse("secret://jasypt/" + malformedCiphertext)))
+            () -> provider.resolve(SecretReference.parse("secret://jasypt/" + malformedCiphertext)))
         .isInstanceOf(SecretResolutionException.class)
         .hasMessageNotContaining(first)
         .hasMessageNotContaining(key);

@@ -6,7 +6,9 @@ import java.time.Duration;
 public interface ExecutionHistoryRepository {
   HistoryResult record(ExecutionAttemptSummary summary);
 
-  HistoryResult findByTest(String projectId, String testId, int maximumRecords, Duration maximumAge);
+  HistoryResult findByTest(
+      String projectId, String testId, int maximumRecords, Duration maximumAge);
 
-  HistoryResult findBySignature(String projectId, String signature, int maximumRecords, Duration maximumAge);
+  HistoryResult findBySignature(
+      String projectId, String signature, int maximumRecords, Duration maximumAge);
 }

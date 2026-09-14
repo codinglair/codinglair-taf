@@ -3,6 +3,8 @@ package com.codinglair.taf.runtime.core.reporting.impl.allure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
+import com.codinglair.taf.runtime.core.failure.FailureContext;
 import com.codinglair.taf.runtime.core.reporting.CurrentReportingContext;
 import com.codinglair.taf.runtime.core.reporting.HierarchicalReport;
 import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
@@ -16,8 +18,6 @@ import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestReporter;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestStep;
 import com.codinglair.taf.runtime.core.reporting.annotation.PageAction;
-import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
-import com.codinglair.taf.runtime.core.failure.FailureContext;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
 import java.io.IOException;
@@ -199,17 +199,30 @@ class AllureReporterTest {
   @Test
   void mapsAuthoritativeFailureAnalysisWithoutReclassification() throws IOException {
     RuntimeException failure = new RuntimeException("synthetic failure token=contract-canary");
-    failure.setStackTrace(new StackTraceElement[] {new StackTraceElement("sample.Controller", "execute", "Controller.java", 42)});
-    FailureAnalysis analysis = FailureAnalysis.classify("web", "action", FailureContext.Boundary.UNKNOWN, failure);
-    assertThat(analysis.signature().value()).isEqualTo("failure-signature:v1:9177a40eb1d9f7a5a2731cae8cb9e08a9d276b5b73e3af19114a1097fb5c3439");
+    failure.setStackTrace(
+        new StackTraceElement[] {
+          new StackTraceElement("sample.Controller", "execute", "Controller.java", 42)
+        });
+    FailureAnalysis analysis =
+        FailureAnalysis.classify("web", "action", FailureContext.Boundary.UNKNOWN, failure);
+    assertThat(analysis.signature().value())
+        .isEqualTo(
+            "failure-signature:v1:9177a40eb1d9f7a5a2731cae8cb9e08a9d276b5b73e3af19114a1097fb5c3439");
     AllureReporter reporter = reporter();
     reporter.beginTest(TafTest.of("synthetic", "example.Synthetic"));
     reporter.reportFailure(analysis);
     reporter.endTest(TafTest.of("synthetic", "example.Synthetic", "failed"));
     String output = readResults();
-    assertThat(output).contains("taf.failure.classification", analysis.classification().type().name(),
-        "taf.failure.source", analysis.classification().source().name(), "taf.failure.signature",
-        analysis.signature().value(), "taf.failure.stability", analysis.stability().name());
+    assertThat(output)
+        .contains(
+            "taf.failure.classification",
+            analysis.classification().type().name(),
+            "taf.failure.source",
+            analysis.classification().source().name(),
+            "taf.failure.signature",
+            analysis.signature().value(),
+            "taf.failure.stability",
+            analysis.stability().name());
     assertThat(output).doesNotContain("contract-canary");
   }
 

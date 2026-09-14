@@ -62,11 +62,38 @@ public final class RuntimeCapabilityCatalog {
   private static RuntimeCapabilityDescriptor descriptor(
       Capability capability, Map<String, String> installedVersions, String baselineVersion) {
     var installedVersion = installedVersions.get(capability.name());
+    var details =
+        switch (capability.name()) {
+          case "aws.eventbridge" ->
+              new String[][] {
+                {"publish", "verify-route", "assert-not-routed"},
+                {"route observation requires a configured SQS target"},
+                {"taf.aws.connections.<profile>.eventbridge.<instance>"}
+              };
+          case "aws.sqs" ->
+              new String[][] {
+                {
+                  "send",
+                  "receive",
+                  "await",
+                  "assert-none",
+                  "acknowledge",
+                  "visibility",
+                  "diagnostics"
+                },
+                {"all observation is bounded", "receipt handles are never returned"},
+                {"taf.aws.connections.<profile>.sqs.<instance>"}
+              };
+          default -> new String[][] {{}, {}, {}};
+        };
     return new RuntimeCapabilityDescriptor(
         capability,
         installedVersion == null ? baselineVersion : installedVersion,
         installedVersion == null
             ? RuntimeCapabilityDescriptor.InstallationStatus.ABSENT
-            : RuntimeCapabilityDescriptor.InstallationStatus.INSTALLED);
+            : RuntimeCapabilityDescriptor.InstallationStatus.INSTALLED,
+        List.of(details[0]),
+        List.of(details[1]),
+        List.of(details[2]));
   }
 }

@@ -33,7 +33,8 @@ public final class OpenApiContractAdapter extends StructuredContractAdapter {
   @Override
   protected GeneratedContractAsset generate(ContractScaffoldRequest request, JsonNode root) {
     StringBuilder sb = new StringBuilder();
-    var source = sb.append("package ")
+    var source =
+        sb.append("package ")
             .append(request.packageName())
             .append(";\n\n")
             .append("import com.codinglair.taf.api.rest.RestController;\n\n")
@@ -56,9 +57,10 @@ public final class OpenApiContractAdapter extends StructuredContractAdapter {
             .append("}\n")
             .toString();
 
-    return new GeneratedContractAsset(String.format("src/main/java/%s/%s.java",
-            request.packageName().replace('.', '/'),
-            request.className()),
+    return new GeneratedContractAsset(
+        String.format(
+            "src/main/java/%s/%s.java",
+            request.packageName().replace('.', '/'), request.className()),
         request.document().assetVersion(),
         source);
   }

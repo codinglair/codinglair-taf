@@ -1,23 +1,23 @@
 package com.codinglair.taf.runtime.testng;
 
-import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
 import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
+import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
 import com.codinglair.taf.runtime.core.failure.FailureContext;
+import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
 import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
 import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
 import com.codinglair.taf.runtime.core.history.ExecutionAttemptSummary;
 import com.codinglair.taf.runtime.core.history.HistoryConfiguration;
-import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
-import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
+import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
 import com.codinglair.taf.runtime.core.reporting.ReporterDispatcher;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TafTest;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestReporter;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestStep;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.time.Instant;
-import java.time.Duration;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,15 +25,15 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.testng.IConfigurationListener;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
-import org.testng.IConfigurationListener;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
-import org.testng.ITestResult;
 import org.testng.ITestNGMethod;
+import org.testng.ITestResult;
 
 /** Bridges TestNG lifecycles to isolated sessions and vendor-neutral execution reporting. */
 public final class TestNgLifecycleListener
@@ -42,7 +42,8 @@ public final class TestNgLifecycleListener
   private static final String STATE_KEY = TestNgLifecycleListener.class.getName() + ".state";
   private static final String PENDING_KEY = TestNgLifecycleListener.class.getName() + ".pending";
   private static final String RESULTS_KEY = TestNgLifecycleListener.class.getName() + ".results";
-  private static final String CONFIGURATION_RECORDED_KEY = TestNgLifecycleListener.class.getName() + ".configuration-recorded";
+  private static final String CONFIGURATION_RECORDED_KEY =
+      TestNgLifecycleListener.class.getName() + ".configuration-recorded";
   static final String ANALYSIS_KEY = TestNgLifecycleListener.class.getName() + ".failure-analysis";
 
   private final List<ReporterDispatcher> reporters;
@@ -61,7 +62,9 @@ public final class TestNgLifecycleListener
     this(reporters, resultListeners, disabledHistory());
   }
 
-  public TestNgLifecycleListener(List<TestReporter> reporters, List<TestNgResultListener> resultListeners,
+  public TestNgLifecycleListener(
+      List<TestReporter> reporters,
+      List<TestNgResultListener> resultListeners,
       AttemptHistoryService attemptHistory) {
     RedactionPipeline redaction = new RedactionPipeline();
     this.reporters =
@@ -116,10 +119,11 @@ public final class TestNgLifecycleListener
     // failed configuration method carries that configuration throwable. wasRetried() is therefore
     // the necessary discriminator; throwable type alone cannot distinguish these paths.
     Throwable failure = result.getThrowable();
-    record(result, !result.wasRetried() && failure != null
-            && !(failure instanceof org.testng.SkipException)
-        ? TestNgAttemptResult.Status.CONFIGURATION_FAILED
-        : TestNgAttemptResult.Status.SKIPPED);
+    record(
+        result,
+        !result.wasRetried() && failure != null && !(failure instanceof org.testng.SkipException)
+            ? TestNgAttemptResult.Status.CONFIGURATION_FAILED
+            : TestNgAttemptResult.Status.SKIPPED);
   }
 
   @Override
@@ -156,7 +160,8 @@ public final class TestNgLifecycleListener
     String key = executionKey(result);
     Map<String, ExecutionState> states = states(result.getTestContext());
     ExecutionState state = states.computeIfAbsent(key, ignored -> new ExecutionState(result));
-    TestNgAttemptResult attempt = state.add(result, status, result.getThrowable(), pending, attemptHistory);
+    TestNgAttemptResult attempt =
+        state.add(result, status, result.getThrowable(), pending, attemptHistory);
     // TafBaseTest owns the complete neutral hierarchy. Publishing another ServiceLoader-backed
     // result here would create a duplicate, shallow Allure test containing only "Attempt N".
     if (!(result.getInstance() instanceof TafBaseTest)) {
@@ -270,17 +275,38 @@ public final class TestNgLifecycleListener
       this.className = result.getTestClass().getName();
     }
 
-    private synchronized TestNgAttemptResult add(ITestResult nativeResult,
-        TestNgAttemptResult.Status status, Throwable failure, PendingAttempt pending,
+    private synchronized TestNgAttemptResult add(
+        ITestResult nativeResult,
+        TestNgAttemptResult.Status status,
+        Throwable failure,
+        PendingAttempt pending,
         AttemptHistoryService history) {
       int number = attempts.size() + 1;
-      FailureAnalysis analysis = nativeResult.getAttribute(ANALYSIS_KEY) instanceof FailureAnalysis existing
-          ? existing : history.complete(new AttemptHistoryService.AttemptDescriptor(null,
-              safeId(className + "." + testName), safeId(executionId), "attempt-" + number,
-              pending.completedAt(), outcome(status), Duration.ZERO, null, null, "testng",
-              status == TestNgAttemptResult.Status.CONFIGURATION_FAILED ? "configuration" : "test",
-              status == TestNgAttemptResult.Status.CONFIGURATION_FAILED ? FailureContext.Boundary.AUTOMATION
-                  : FailureContext.Boundary.UNKNOWN, failure, List.of())).analysis();
+      FailureAnalysis analysis =
+          nativeResult.getAttribute(ANALYSIS_KEY) instanceof FailureAnalysis existing
+              ? existing
+              : history
+                  .complete(
+                      new AttemptHistoryService.AttemptDescriptor(
+                          null,
+                          safeId(className + "." + testName),
+                          safeId(executionId),
+                          "attempt-" + number,
+                          pending.completedAt(),
+                          outcome(status),
+                          Duration.ZERO,
+                          null,
+                          null,
+                          "testng",
+                          status == TestNgAttemptResult.Status.CONFIGURATION_FAILED
+                              ? "configuration"
+                              : "test",
+                          status == TestNgAttemptResult.Status.CONFIGURATION_FAILED
+                              ? FailureContext.Boundary.AUTOMATION
+                              : FailureContext.Boundary.UNKNOWN,
+                          failure,
+                          List.of()))
+                  .analysis();
       TestNgAttemptResult attempt =
           new TestNgAttemptResult(
               number, pending.completedAt(), status, failure, pending.artifacts(), analysis);
@@ -303,16 +329,30 @@ public final class TestNgLifecycleListener
 
   private static String safeId(String value) {
     try {
-      return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
-          .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-    } catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+      return java.util.HexFormat.of()
+          .formatHex(
+              java.security.MessageDigest.getInstance("SHA-256")
+                  .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException impossible) {
+      throw new IllegalStateException(impossible);
+    }
   }
 
   private static AttemptHistoryService disabledHistory() {
-    var configuration = new HistoryConfiguration(false, Path.of("target", "taf-evidence", "history"),
-        500, Duration.ofDays(30), 50L * 1024 * 1024, HistoryConfiguration.UnavailabilityPolicy.CONTINUE,
-        HistoryConfiguration.CorruptionPolicy.REPORT);
-    return new AttemptHistoryService(new FailureClassificationService(), new FailureSignatureService(),
-        new DisabledExecutionHistoryRepository(), configuration, 2);
+    var configuration =
+        new HistoryConfiguration(
+            false,
+            Path.of("target", "taf-evidence", "history"),
+            500,
+            Duration.ofDays(30),
+            50L * 1024 * 1024,
+            HistoryConfiguration.UnavailabilityPolicy.CONTINUE,
+            HistoryConfiguration.CorruptionPolicy.REPORT);
+    return new AttemptHistoryService(
+        new FailureClassificationService(),
+        new FailureSignatureService(),
+        new DisabledExecutionHistoryRepository(),
+        configuration,
+        2);
   }
 }
