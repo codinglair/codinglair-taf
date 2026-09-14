@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class McpSchemaCompatibilityTest {
 
   private static final ObjectMapper JSON = new ObjectMapper();
-  private static final String SCHEMA_ROOT = "/META-INF/taf/mcp/schema/v1/";
+  private static final String SCHEMA_ROOT = McpContractResources.V1_SCHEMA_ROOT;
 
   @ParameterizedTest(name = "{0} accepts {1}")
   @MethodSource("validFixtures")
@@ -67,7 +67,7 @@ class McpSchemaCompatibilityTest {
   @Test
   @DisplayName("Catalog covers every approved coarse-grained workflow with operational semantics")
   void catalogCoversApprovedWorkflows() throws IOException {
-    JsonNode catalog = read("/META-INF/taf/mcp/catalog/v1/capabilities.json");
+    JsonNode catalog = read(McpContractResources.V1_CAPABILITY_CATALOG);
     JsonSchema schema = schema("capability-catalog.schema.json");
     assertThat(schema.validate(catalog)).isEmpty();
     assertThat(catalog.path("catalogVersion").textValue()).isEqualTo("1.0.0");
