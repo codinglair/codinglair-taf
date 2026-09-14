@@ -4,7 +4,43 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 
 ## Unreleased
 
-## <!-- taf-version -->`1.0.0`
+## [<!-- taf-version -->`1.1.0`] - 2026-09-13
+
+### Added
+
+- Optional `taf-messaging-aws` capability with independently usable EventBridge and SQS
+  controllers, bounded polling, explicit acknowledgment and visibility control, route-to-SQS
+  verification, sanitized evidence, and Spring Boot auto-configuration.
+- Testcontainers-managed and declared-external LocalStack environment modes with immutable
+  ownership manifests, dependency-ordered cleanup, parallel isolation, and preservation of
+  operator-owned resources.
+- Standalone staged-artifact AWS consumer smoke, LocalStack qualification, MCP contract/leak gates,
+  immutable CI image qualification, and release supply-chain evidence.
+
+### Changed
+
+- The consumer BOM now includes the AWS messaging capability while preserving Runtime independence
+  from MCP and keeping AWS SDK types outside Runtime Core contracts.
+- Public documentation now covers AWS configuration, isolation, ownership, emulator deviations,
+  authorized-AWS boundaries, CI operations, and upgrade guidance.
+
+### Security
+
+- AWS credentials remain opaque references; LocalStack placeholders are emulator-only. Receipt
+  handles, credentials, authorization values, and seeded canaries are excluded from durable Runtime,
+  MCP, and CI evidence.
+- External mode is non-mutating by default, and unsafe shared-queue correlation scanning fails
+  preflight.
+
+### Known limitations
+
+- LocalStack qualification does not establish IAM, service-quota, throttling, latency, or regional
+  behavior on AWS. Authorized-AWS qualification requires a protected, explicitly approved
+  environment and must receive a separate release disposition.
+- LocalStack 4.14.0 accepts some malformed EventBridge patterns that AWS may reject; TAF performs
+  deterministic framework-side envelope/schema validation for the supported contract.
+
+## `1.0.0`
 
 ### Added
 

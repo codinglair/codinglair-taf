@@ -21,7 +21,8 @@ public final class QuickStartDocumentationTest {
     List<String> failures = new ArrayList<>();
     for (String required : List.of(
         "Java 25", "TestNG", "Cucumber", "Playwright", "REST", "DatabaseController",
-        "STDIO", "Streamable HTTP", "secret://", "revision", "F2B", "MCP")) {
+        "EventBridge", "SQS", "STDIO", "Streamable HTTP", "secret://", "revision", "F2B",
+        "MCP")) {
       if (!allDocumentation.contains(required)) failures.add("missing required topic: " + required);
     }
     for (String heading : List.of(
@@ -29,7 +30,8 @@ public final class QuickStartDocumentationTest {
         "## 6. TestNG and Cucumber", "### 6.1 TestNG for technical verification",
         "### 6.2 Cucumber for curated business behavior",
         "### 7.1 Browser UI with Playwright", "### 7.2 REST API",
-        "### 7.4 Database validation", "## 8. Complete front-to-back pattern",
+        "### 7.4 Database validation", "### 7.8 EventBridge and SQS",
+        "## 8. Complete front-to-back pattern",
         "## 12. Troubleshooting user projects")) {
       if (!text.contains(heading)) failures.add("missing required section: " + heading);
     }

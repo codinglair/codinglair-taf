@@ -13,7 +13,7 @@ Generate from the repository root:
 Use `-IncludeBdd` to add the framework Cucumber runner, hooks-based glue, feature, and separate BDD
 suite. Use `-IncludeAllure` to activate the optional Allure adapter dependency. The generator copies
 the repository Maven Wrapper so the output is directly buildable against published or locally
-installed <!-- taf-version -->`1.0.0` artifacts.
+installed <!-- taf-version -->`1.1.0` artifacts.
 
 Blueprint schema 1.0 remains compatible: SAD v1.8 adds corrected examples and enforcement but does
 not remove or reinterpret descriptor fields. Projects generated from the earlier example should
