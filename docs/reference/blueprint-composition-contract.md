@@ -102,9 +102,10 @@ response or audit event, but is excluded from output identity and content.
 
 ## Existing Playwright blueprint inventory
 
-The inventory boundary is every file under `blueprints/playwright-consumer-v1` at contract freeze.
-“Move” means a later contribution assignment relocates or re-renders the asset; this assignment
-does not mutate the executable blueprint.
+The inventory boundary is all 37 versioned files under `blueprints/playwright-consumer-v1` at
+contract freeze, plus the intentionally ignored local workspace overlay when it exists. “Move”
+means a later contribution assignment relocates or re-renders the asset; this assignment does not
+mutate the executable blueprint.
 
 | Existing asset | Classification | Migration disposition |
 | --- | --- | --- |
@@ -133,7 +134,7 @@ does not mutate the executable blueprint.
 | `template/src/test/java/__PACKAGE_PATH__/context/PreflightTest.java` | common | Retain aggregated common preflight; capability contributions add rules. |
 | `template/src/test/java/__PACKAGE_PATH__/functional/ProductFunctionalExample.java` | Web | Move to the Web/TestNG example contribution. |
 | `template/src/test/resources/application.yaml` | common | Split common Spring/environment/secrets nodes from capability-owned configuration pointers. |
-| `template/src/test/resources/application-local.yaml` | provider | Split local external-resource/provider overrides by selected provider. |
+| `template/src/test/resources/application-local.yaml` | provider | Optional, ignored local workspace overlay; split local external-resource/provider overrides by selected provider when present. |
 | `template/src/test/resources/application-ci.yaml` | provider | Split CI external-resource/provider overrides by selected provider. |
 | `template/src/test/resources/taf-project.json` | common | Generate selection metadata from the normalized request; no MCP dependency or operational values. |
 | `template/src/test/resources/testng-functional.xml` | runner/reporting | Move to the TestNG runner contribution. |

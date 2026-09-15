@@ -25,14 +25,16 @@ class BlueprintCompositionContractTest {
       ROOT.resolve("docs/architecture/schemas/scaffold-request-v1.schema.json");
   private static final Path CONTRIBUTION_SCHEMA =
       ROOT.resolve("docs/architecture/schemas/blueprint-contribution-v1.schema.json");
+  private static final String OPTIONAL_LOCAL_OVERLAY =
+      "template/src/test/resources/application-local.yaml";
   private static final ObjectMapper JSON = new ObjectMapper();
 
   @Nested
   @DisplayName("Legacy inventory")
   class LegacyInventory {
     @Test
-    @DisplayName("accounts for every existing Playwright blueprint file exactly once")
-    void accountsForEveryExistingBlueprintFile() throws IOException {
+    @DisplayName("accounts for every versioned Playwright blueprint file exactly once")
+    void accountsForEveryVersionedBlueprintFile() throws IOException {
       String contract = Files.readString(CONTRACT);
       List<String> files;
       try (Stream<Path> paths = Files.walk(BLUEPRINT)) {
@@ -41,17 +43,21 @@ class BlueprintCompositionContractTest {
                 .filter(Files::isRegularFile)
                 .map(BLUEPRINT::relativize)
                 .map(path -> path.toString().replace('\\', '/'))
+                .filter(path -> !path.equals(OPTIONAL_LOCAL_OVERLAY))
                 .sorted()
                 .toList();
       }
 
-      assertThat(files).hasSize(38);
+      assertThat(files).hasSize(37);
       assertThat(files)
           .allSatisfy(
               file ->
                   assertThat(occurrences(contract, "| `" + file + "` |"))
                       .as("inventory row for %s", file)
                       .isEqualTo(1));
+      assertThat(contract)
+          .contains("| `" + OPTIONAL_LOCAL_OVERLAY + "` | provider |")
+          .contains("ignored local workspace overlay");
     }
 
     @Test
