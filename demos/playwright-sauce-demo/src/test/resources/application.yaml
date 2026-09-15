@@ -3,6 +3,9 @@ spring:
     web-application-type: none
 taf:
   secrets:
+    routing:
+      env: environmentSecretProvider
+      jasypt: jasyptSecretProvider
     jasypt-master-key-environment-variable: TAF_JASYPT_MASTER_KEY
     references:
       - ${SAUCE_DEMO_PASSWORD_REF:REPLACE_ME}

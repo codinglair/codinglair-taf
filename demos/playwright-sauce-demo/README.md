@@ -17,6 +17,11 @@ write one HTML file below `target/taf-reports/<yyyyMMddHHmm>/` while preserving
 `application-ci.yaml` changes only CI behavior. Supply these values through the execution
 environment:
 
+The authoritative configuration explicitly routes `env` and `jasypt` references to their named
+local provider beans. This is deliberate multi-provider selection; classpath order and implicit
+fallback are not used. A consumer that supports only one provider should instead configure
+`taf.secrets.provider` as documented by `taf-secrets-local`.
+
 - `SAUCE_DEMO_BASE_URL`
 - `SAUCE_DEMO_PASSWORD_REF` (for example `secret://env/SAUCE_DEMO_PASSWORD`)
 - `TAF_JASYPT_MASTER_KEY_ENV` naming the externally supplied key variable for Jasypt references

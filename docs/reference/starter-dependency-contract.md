@@ -45,7 +45,12 @@ Multiple provider starters therefore share one generic foundation through Maven 
 Presence is not activation. Every operational capability requires the explicit enabled and named
 instance/connection configuration recorded in the manifest. The local secrets provider likewise
 requires explicit configuration or the documented local profile and is never a production
-fallback.
+fallback. Select one provider with `taf.secrets.provider=<provider-id-or-bean-name>`. For multiple
+providers, map each reference provider ID to exactly one bean name with
+`taf.secrets.routing.<provider-id>=<bean-name>`. The `taf-local` Spring profile is the documented
+explicit local shortcut and activates only `env`; Jasypt remains explicitly selected. Missing,
+unavailable, duplicate, or mixed single-provider/routing selection fails startup with sanitized
+capability, field/profile, and corrective-action details.
 
 Supported exclusions remove only integrations identified in the manifest, such as a managed
 Testcontainers provider when infrastructure is external. Excluding a baseline implementation or
