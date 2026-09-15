@@ -161,7 +161,10 @@
     }
   ],
   "activation": {
-    "secretsLocal": "explicit taf.secrets configuration or documented local profile only",
+    "secretsLocal": "taf.secrets.provider, taf.secrets.routing, or the explicit taf-local profile only",
+    "singleProviderSelection": "taf.secrets.provider=<provider-id-or-bean-name>",
+    "multipleProviderRouting": "taf.secrets.routing.<provider-id>=<bean-name>",
+    "documentedLocalProfile": "taf-local selects env only; jasypt remains explicit",
     "defaultPolicy": "classpath availability never activates a capability or provider"
   },
   "forbiddenDependencyTargets": [

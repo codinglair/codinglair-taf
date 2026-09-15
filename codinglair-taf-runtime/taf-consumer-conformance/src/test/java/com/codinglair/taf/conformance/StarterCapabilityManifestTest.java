@@ -56,6 +56,15 @@ class StarterCapabilityManifestTest {
           .forEach(capability -> assertThat(capability.path("requiredConfiguration")).isNotEmpty());
       StreamSupport.stream(manifest.path("messagingProviders").spliterator(), false)
           .forEach(provider -> assertThat(provider.path("requiredConfiguration")).isNotEmpty());
+      assertThat(textValues(manifest.path("sharedFoundation")))
+          .contains("taf-secrets-api", "taf-secrets-local")
+          .doesNotHaveDuplicates();
+      assertThat(manifest.path("activation").path("singleProviderSelection").asText())
+          .contains("taf.secrets.provider");
+      assertThat(manifest.path("activation").path("multipleProviderRouting").asText())
+          .contains("taf.secrets.routing");
+      assertThat(manifest.path("activation").path("documentedLocalProfile").asText())
+          .contains("taf-local", "env only");
     }
   }
 

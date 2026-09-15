@@ -47,6 +47,15 @@ references remain opaque until an authorized execution boundary.
 | `consumer.environment` | clean consumer-smoke environment identity |
 | `taf.demo` | Sauce Demo reference-consumer settings (not a Runtime contract) |
 
+Secret provider availability is separate from activation. A production-like profile must configure
+one `taf.secrets.provider` value, or explicit routes such as
+`taf.secrets.routing.vault=vaultSecretProvider`. Route keys are provider IDs and values are Spring
+bean names. The explicitly activated `taf-local` profile selects only the environment provider.
+Omitting selection, mixing the single-provider and routing forms, or selecting an unavailable or
+ambiguous bean fails startup. Configuration and generated projects contain only references such as
+`secret://env/ORDERS_API_TOKEN`; resolved values are prohibited from configuration, diagnostics,
+logs, reports, artifacts, and MCP responses.
+
 ## Environments and Testcontainers
 
 Use external mode when infrastructure is supplied by an operator and container mode when a
