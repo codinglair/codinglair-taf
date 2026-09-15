@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "image": {
+    "repository": "codinglair/codinglair-taf-mcp",
+    "releaseTag": "1.2.0",
+    "entrypoint": "/opt/taf/bin/taf-mcp",
+    "contents": [
+      "Java 25 runtime",
+      "TAF MCP contracts, jobs, security, resources, tools, and prompts",
+      "STDIO and Streamable HTTP transport adapters",
+      "TAF Runtime and isolated execution-worker launcher",
+      "license, SBOM, provenance, and compatibility metadata"
+    ]
+  },
+  "artifactCompatibility": {
+    "tafRelease": "1.2.0",
+    "mcpSchemaMajor": 1,
+    "javaRuntime": 25
+  },
+  "supportedProfiles": [
+    "stdio",
+    "streamable-http"
+  ]
+}

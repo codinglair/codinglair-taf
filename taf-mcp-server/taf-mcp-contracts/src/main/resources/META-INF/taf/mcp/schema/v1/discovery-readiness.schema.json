@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:discovery-readiness",
+  "title": "Sanitized TAF MCP capability and readiness response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "capabilities",
+    "configuredInstances",
+    "environments"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "runtimeVersion",
+          "status",
+          "operations",
+          "limitations",
+          "requiredConfiguration"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]{1,128}$"
+          },
+          "runtimeVersion": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          },
+          "status": {
+            "enum": [
+              "INSTALLED",
+              "ABSENT"
+            ]
+          },
+          "operations": {
+            "$ref": "#/$defs/safeStrings"
+          },
+          "limitations": {
+            "$ref": "#/$defs/safeStrings"
+          },
+          "requiredConfiguration": {
+            "$ref": "#/$defs/configurationKeys"
+          }
+        }
+      }
+    },
+    "configuredInstances": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "capabilityId",
+          "instance",
+          "resourceAlias",
+          "ownershipMode",
+          "isolationMode",
+          "readiness",
+          "diagnostics"
+        ],
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]{1,128}$"
+          },
+          "instance": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]{1,128}$"
+          },
+          "resourceAlias": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._/-]{1,256}$"
+          },
+          "ownershipMode": {
+            "type": "string",
+            "pattern": "^[A-Z_]{1,64}$"
+          },
+          "isolationMode": {
+            "type": "string",
+            "pattern": "^[A-Z_]{1,64}$"
+          },
+          "readiness": {
+            "$ref": "#/$defs/readiness"
+          },
+          "diagnostics": {
+            "$ref": "#/$defs/safeStrings"
+          }
+        }
+      }
+    },
+    "environments": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "environment",
+          "status",
+          "checks"
+        ],
+        "properties": {
+          "environment": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]{1,128}$"
+          },
+          "status": {
+            "$ref": "#/$defs/readiness"
+          },
+          "checks": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "type",
+                "status"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._-]{1,128}$"
+                },
+                "type": {
+                  "type": "string",
+                  "pattern": "^[A-Z_]{1,64}$"
+                },
+                "status": {
+                  "$ref": "#/$defs/readiness"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "readiness": {
+      "enum": [
+        "READY",
+        "DEGRADED",
+        "UNAVAILABLE",
+        "MISCONFIGURED",
+        "UNKNOWN"
+      ]
+    },
+    "safeStrings": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "maxLength": 512
+      }
+    },
+    "configurationKeys": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+      }
+    }
+  }
+}

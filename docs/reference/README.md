@@ -11,6 +11,7 @@ your work.
 | Test author | [TestNG and Cucumber separation](testng-cucumber-separation.md) |
 | Mobile engineer | [Android and Appium setup](android-appium-setup.md) |
 | MCP client or operator | [MCP contracts, security, approvals, and audit](mcp-and-security.md) |
+| MCP image operator | [MCP image and runtime profile contract](mcp-image-runtime-contract.md) |
 | Platform operator | [CI/CD, Kind, release, and troubleshooting](operations-and-troubleshooting.md) |
 | Extension author | [Controller and provider extension workflow](extension-spi.md) |
 | Maintainer | [Documentation, compatibility, and release workflow](maintainer-guide.md) |
