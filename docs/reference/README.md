@@ -26,6 +26,11 @@ published contract differ, the published contract wins and the documentation dri
 The current compatibility baseline is
 [Java/Spring and ecosystem compatibility](../engineering/compatibility-matrix.md).
 
+Project scaffolding uses the versioned
+[blueprint composition contract](blueprint-composition-contract.md), including its normalized
+request and contribution schemas. Starter dependencies remain authoritative in the separate
+[starter dependency contract](starter-dependency-contract.md).
+
 ## Released API artifacts
 
 Every released artifact below has member-level API entries in its generated Javadoc jar. Optional

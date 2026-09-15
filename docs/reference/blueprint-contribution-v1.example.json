@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "blueprintVersion": "1.0",
+  "id": "web",
+  "kind": "CAPABILITY",
+  "selection": {
+    "capability": "WEB"
+  },
+  "order": 200,
+  "dependencies": [
+    {
+      "manifestId": "WEB",
+      "scope": "COMPILE"
+    }
+  ],
+  "ownedPaths": [
+    {
+      "path": "src/main/java/__PACKAGE_PATH__/page/LoginPage.java",
+      "operation": "CREATE",
+      "source": "web/page/LoginPage.java"
+    }
+  ],
+  "configurationContributions": [
+    {
+      "document": "src/test/resources/application.yaml",
+      "pointer": "/taf/web/playwright",
+      "mergeRule": "DEEP_MERGE_NO_OVERWRITE"
+    }
+  ]
+}
