@@ -9,5 +9,9 @@ public final class McpContractResources {
   public static final String V1_CAPABILITY_CATALOG =
       "/META-INF/taf/mcp/catalog/v1/capabilities.json";
 
+  /** Classpath location of the MCP image/runtime compatibility contract. */
+  public static final String V1_IMAGE_COMPATIBILITY =
+      "/META-INF/taf/mcp/catalog/v1/image-compatibility.json";
+
   private McpContractResources() {}
 }
