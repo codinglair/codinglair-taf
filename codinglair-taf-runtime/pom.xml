@@ -177,6 +177,12 @@
             </dependency>
             <dependency>
                 <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-reporting-allure</artifactId>
+                <version>${project.version}</version>
+                <type>jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
                 <artifactId>codinglair-taf-runner-cucumber</artifactId>
                 <version>${project.version}</version>
                 <type>jar</type>
