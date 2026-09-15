@@ -6,6 +6,15 @@ governed project/job workflows and does not expose each Runtime controller as a 
 
 | Artifact | Disposition | Direct Runtime / enablement | MCP-assisted disposition | Verification and limits |
 | --- | --- | --- | --- | --- |
+| `codinglair-taf-starter-web` | Reserved 1.2.0 starter | See [starter contract](reference/starter-dependency-contract.md) | Future scaffold selection | Contract only; implemented by PKG-120-002 |
+| `codinglair-taf-starter-api` | Reserved 1.2.0 starter | See [starter contract](reference/starter-dependency-contract.md) | Future scaffold selection | Contract only; implemented by PKG-120-002 |
+| `codinglair-taf-starter-database` | Reserved 1.2.0 starter | See [starter contract](reference/starter-dependency-contract.md) | Future scaffold selection | Contract only; implemented by PKG-120-002 |
+| `codinglair-taf-starter-messaging` | Reserved 1.2.0 starter | Provider-neutral SPI | Future scaffold selection requires provider | No concrete provider; implemented by PKG-120-003 |
+| `codinglair-taf-starter-mobile` | Reserved 1.2.0 starter | Android/UiAutomator2 baseline | Future scaffold selection | Contract only; implemented by PKG-120-002 |
+| `codinglair-taf-starter-messaging-kafka` | Reserved 1.2.0 provider starter | Generic messaging plus Kafka | Future provider selection | Contract only; implemented by PKG-120-003 |
+| `codinglair-taf-starter-messaging-rabbitmq` | Reserved 1.2.0 provider starter | Generic messaging plus RabbitMQ | Future provider selection | Contract only; implemented by PKG-120-003 |
+| `codinglair-taf-starter-messaging-jms` | Reserved 1.2.0 provider starter | Generic messaging plus consumer-selected JMS client | Future provider selection | Contract only; implemented by PKG-120-003 |
+| `codinglair-taf-starter-messaging-aws` | Reserved 1.2.0 provider starter | Generic messaging plus EventBridge/SQS | Future provider selection | Contract only; implemented by PKG-120-003 |
 | `codinglair-taf-common` | Internal support | Transitive values; not a capability | None | Not a user workflow |
 | `codinglair-taf-runtime-core` | Required consumer API | `TestSession`; [README](../codinglair-taf-runtime/codinglair-taf-runtime-core/README.md) | Validate/build/execute jobs | Clean runtime smoke; one session per method/scenario |
 | `taf-secrets-api` | Consumer SPI | Opaque references; [README](../codinglair-taf-runtime/taf-secrets-api/README.md) | References only | Values never enter MCP |

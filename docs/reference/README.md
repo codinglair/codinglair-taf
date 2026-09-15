@@ -33,6 +33,15 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 
 | Artifact | Primary API/reference area |
 | --- | --- |
+| `codinglair-taf-starter-web` | 1.2.0 Web dependency contract; POM implementation follows |
+| `codinglair-taf-starter-api` | 1.2.0 API dependency contract; POM implementation follows |
+| `codinglair-taf-starter-database` | 1.2.0 database dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging` | 1.2.0 provider-neutral messaging contract; POM implementation follows |
+| `codinglair-taf-starter-mobile` | 1.2.0 Android/Appium dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-kafka` | 1.2.0 Kafka dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-rabbitmq` | 1.2.0 RabbitMQ dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-jms` | 1.2.0 JMS dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-aws` | 1.2.0 EventBridge/SQS dependency contract; POM implementation follows |
 | `codinglair-taf-runtime-core` | TestSession, registry, failures, reporting, definitions, migration |
 | `codinglair-taf-common` | shared dependency-minimal value contracts |
 | `codinglair-taf-runner-testng` | TestNG invocation lifecycle |
@@ -70,6 +79,10 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-mcp-prompts` | curated MCP prompts |
 | `taf-mcp-transport-stdio` | STDIO transport |
 | `taf-mcp-transport-http` | Streamable HTTP/OIDC transport |
+
+The starter rows above are reserved, version-aligned 1.2.0 coordinates rather than artifacts in
+the current 1.1.0 release. Their authoritative composition and activation requirements are in the
+[starter dependency contract](starter-dependency-contract.md).
 
 Consumer projects are governed by the versioned
 [consumer-project-blueprint-v1 schema](../architecture/schemas/consumer-project-blueprint-v1.schema.json);

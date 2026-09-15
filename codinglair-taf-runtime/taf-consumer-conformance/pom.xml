@@ -11,6 +11,10 @@
     <artifactId>taf-consumer-conformance</artifactId>
     <name>TAF Consumer Conformance</name>
     <description>Executable blueprint conformance validator and consumer test kit</description>
+    <properties>
+        <!-- This module owns the maximal capability graph used by the dependency-analysis gate. -->
+        <taf.dependency.convergence.skip>false</taf.dependency.convergence.skip>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.codinglair.taf</groupId>
@@ -34,7 +38,52 @@
         </dependency>
         <dependency>
             <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-messaging-rabbitmq</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-messaging-jms</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-messaging-aws</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
             <artifactId>taf-database</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-mobile-appium</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-environments</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-secrets-local</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-test-definitions</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-reporting-allure</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-runner-testng</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
