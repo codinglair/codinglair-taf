@@ -48,22 +48,30 @@
         </dependency>
         <dependency>
             <groupId>com.codinglair.taf</groupId>
-            <artifactId>taf-messaging-kafka</artifactId>
+            <artifactId>codinglair-taf-starter-messaging-kafka</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.codinglair.taf</groupId>
-            <artifactId>taf-messaging-rabbitmq</artifactId>
+            <artifactId>codinglair-taf-starter-messaging-rabbitmq</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.codinglair.taf</groupId>
-            <artifactId>taf-messaging-jms</artifactId>
+            <artifactId>codinglair-taf-starter-messaging-jms</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.codinglair.taf</groupId>
-            <artifactId>taf-messaging-aws</artifactId>
+            <artifactId>codinglair-taf-starter-messaging-aws</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
             <scope>test</scope>
         </dependency>
         <dependency>

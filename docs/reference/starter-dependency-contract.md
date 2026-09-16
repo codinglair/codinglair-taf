@@ -63,5 +63,8 @@ or machine path.
 
 The nine starter coordinates are additive for 1.2.0. No 1.1.0 coordinate is removed, renamed, or
 reinterpreted. Existing direct-module consumers remain supported and can adopt the BOM without
-installing a starter. Web, API, database, and mobile are published by PKG-120-002. The generic and
-provider-specific messaging POMs remain assigned to PKG-120-003.
+installing a starter. The generic messaging starter is intentionally non-operational: it supplies
+the common contracts and shared infrastructure but no provider implementation, client, connection,
+listener, or thread. Operational consumers select one or more provider starters and explicitly
+enable and configure each required named instance. Web, API, database, and mobile are published by
+PKG-120-002; the generic and provider-specific messaging POMs are published by PKG-120-003.

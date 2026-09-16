@@ -94,6 +94,36 @@ class StarterCapabilityManifestTest {
                 assertThat(provider.path("implementationModule").asText()).isIn(PROVIDER_MODULES);
               });
     }
+
+    @Test
+    @DisplayName("materializes the generic and provider starters as the exact two-level graph")
+    void materializesMessagingStarters() throws Exception {
+      JsonNode manifest = manifest();
+      JsonNode messaging =
+          StreamSupport.stream(manifest.path("capabilities").spliterator(), false)
+              .filter(capability -> capability.path("id").asText().equals("MESSAGING"))
+              .findFirst()
+              .orElseThrow();
+      Set<String> genericDependencies =
+          new HashSet<>(textValues(manifest.path("sharedFoundation")));
+      genericDependencies.addAll(textValues(messaging.path("implementationModules")));
+
+      Path genericPom = ROOT.resolve(messaging.path("starter").asText()).resolve("pom.xml");
+      assertThat(genericPom).exists();
+      assertThat(projectPackaging(genericPom)).isEqualTo("pom");
+      assertThat(directDependencyArtifacts(genericPom))
+          .containsExactlyInAnyOrderElementsOf(genericDependencies);
+
+      for (JsonNode provider : manifest.path("messagingProviders")) {
+        Path providerPom = ROOT.resolve(provider.path("starter").asText()).resolve("pom.xml");
+        assertThat(providerPom).exists();
+        assertThat(projectPackaging(providerPom)).isEqualTo("pom");
+        assertThat(directDependencyArtifacts(providerPom))
+            .containsExactlyInAnyOrder(
+                provider.path("genericStarter").asText(),
+                provider.path("implementationModule").asText());
+      }
+    }
   }
 
   @Nested

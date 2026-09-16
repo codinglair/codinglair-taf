@@ -19,6 +19,11 @@
         <module>codinglair-taf-starter-api</module>
         <module>codinglair-taf-starter-database</module>
         <module>codinglair-taf-starter-mobile</module>
+        <module>codinglair-taf-starter-messaging</module>
+        <module>codinglair-taf-starter-messaging-kafka</module>
+        <module>codinglair-taf-starter-messaging-rabbitmq</module>
+        <module>codinglair-taf-starter-messaging-jms</module>
+        <module>codinglair-taf-starter-messaging-aws</module>
         <module>codinglair-taf-runtime</module>
         <module>codinglair-taf-mcp</module>
         <module>taf-mcp-server</module>
