@@ -149,8 +149,8 @@
       "implementationModule": "taf-messaging-aws",
       "requiredConfiguration": [
         "taf.aws.enabled=true",
-        "taf.aws.connections.<profile>",
-        "taf.aws.connections.<profile>.eventbridge.<instance> or taf.aws.connections.<profile>.sqs.<instance>"
+        "taf.aws.profiles.<profile>",
+        "taf.aws.profiles.<profile>.eventbridge.<instance> or taf.aws.profiles.<profile>.sqs.<instance>"
       ],
       "optionalIntegrations": [
         "LocalStack through explicit environment configuration"

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>codinglair-taf</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>codinglair-taf-starter-messaging-rabbitmq</artifactId>
+    <packaging>pom</packaging>
+    <name>Codinglair TAF RabbitMQ Messaging Starter</name>
+    <description>RabbitMQ provider composition for Codinglair TAF messaging</description>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-bom</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-starter-messaging</artifactId>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-messaging-rabbitmq</artifactId>
+        </dependency>
+    </dependencies>
+</project>
