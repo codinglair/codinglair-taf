@@ -15,6 +15,10 @@
     <modules>
         <module>codinglair-taf-common</module>
         <module>codinglair-taf-bom</module>
+        <module>codinglair-taf-starter-web</module>
+        <module>codinglair-taf-starter-api</module>
+        <module>codinglair-taf-starter-database</module>
+        <module>codinglair-taf-starter-mobile</module>
         <module>codinglair-taf-runtime</module>
         <module>codinglair-taf-mcp</module>
         <module>taf-mcp-server</module>

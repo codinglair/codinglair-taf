@@ -72,7 +72,8 @@ class StarterCapabilityManifestTest {
   @DisplayName("Messaging isolation")
   class MessagingIsolation {
     @Test
-    @DisplayName("keeps the generic starter provider neutral and composes every provider through it")
+    @DisplayName(
+        "keeps the generic starter provider neutral and composes every provider through it")
     void keepsGenericStarterProviderNeutral() throws IOException {
       JsonNode manifest = manifest();
       JsonNode messaging =
@@ -81,7 +82,8 @@ class StarterCapabilityManifestTest {
               .findFirst()
               .orElseThrow();
 
-      assertThat(textValues(messaging.path("implementationModules"))).containsExactly("taf-messaging-core");
+      assertThat(textValues(messaging.path("implementationModules")))
+          .containsExactly("taf-messaging-core");
       assertThat(textValues(messaging.path("implementationModules")))
           .doesNotContainAnyElementsOf(PROVIDER_MODULES);
       StreamSupport.stream(manifest.path("messagingProviders").spliterator(), false)
@@ -89,8 +91,7 @@ class StarterCapabilityManifestTest {
               provider -> {
                 assertThat(provider.path("genericStarter").asText())
                     .isEqualTo("codinglair-taf-starter-messaging");
-                assertThat(provider.path("implementationModule").asText())
-                    .isIn(PROVIDER_MODULES);
+                assertThat(provider.path("implementationModule").asText()).isIn(PROVIDER_MODULES);
               });
     }
   }
@@ -98,6 +99,31 @@ class StarterCapabilityManifestTest {
   @Nested
   @DisplayName("BOM and architecture boundaries")
   class BomAndArchitectureBoundaries {
+    @Test
+    @DisplayName("materializes every non-messaging starter as its exact manifest graph")
+    void materializesEveryNonMessagingStarterFromTheManifest() throws Exception {
+      JsonNode manifest = manifest();
+      Set<String> sharedFoundation = textValues(manifest.path("sharedFoundation"));
+
+      for (JsonNode capability : manifest.path("capabilities")) {
+        if (capability.path("id").asText().equals("MESSAGING")) continue;
+
+        String starter = capability.path("starter").asText();
+        Path starterPom = ROOT.resolve(starter).resolve("pom.xml");
+        Set<String> expectedDependencies = new HashSet<>(sharedFoundation);
+        expectedDependencies.addAll(textValues(capability.path("implementationModules")));
+
+        assertThat(starterPom).exists();
+        assertThat(projectPackaging(starterPom)).isEqualTo("pom");
+        assertThat(directDependencyArtifacts(starterPom))
+            .as("%s must contain only its manifest-declared graph", starter)
+            .containsExactlyInAnyOrderElementsOf(expectedDependencies);
+        assertThat(textValues(capability.path("supportedExclusions")))
+            .as("required top-level infrastructure must not be advertised as safely excludable")
+            .isEmpty();
+      }
+    }
+
     @Test
     @DisplayName("aligns every public starter and supported direct module in dependency management")
     void alignsEveryPublicArtifactInDependencyManagement() throws Exception {
@@ -107,7 +133,8 @@ class StarterCapabilityManifestTest {
       required.addAll(textValues(manifest.path("capabilities"), "starter"));
       required.addAll(textValues(manifest.path("messagingProviders"), "starter"));
       StreamSupport.stream(manifest.path("capabilities").spliterator(), false)
-          .forEach(capability -> required.addAll(textValues(capability.path("implementationModules"))));
+          .forEach(
+              capability -> required.addAll(textValues(capability.path("implementationModules"))));
       required.addAll(PROVIDER_MODULES);
 
       assertThat(managedArtifacts).containsAll(required);
@@ -121,7 +148,9 @@ class StarterCapabilityManifestTest {
       Set<String> forbidden = textValues(manifest.path("forbiddenDependencyTargets"));
       Set<String> graphArtifacts = new HashSet<>(textValues(manifest.path("sharedFoundation")));
       StreamSupport.stream(manifest.path("capabilities").spliterator(), false)
-          .forEach(capability -> graphArtifacts.addAll(textValues(capability.path("implementationModules"))));
+          .forEach(
+              capability ->
+                  graphArtifacts.addAll(textValues(capability.path("implementationModules"))));
       graphArtifacts.addAll(
           textValues(manifest.path("messagingProviders"), "implementationModule"));
 
@@ -160,6 +189,41 @@ class StarterCapabilityManifestTest {
     return artifacts;
   }
 
+  private static String projectPackaging(Path pom) throws Exception {
+    var document = secureDocumentBuilderFactory().newDocumentBuilder().parse(pom.toFile());
+    var packaging = document.getDocumentElement().getElementsByTagName("packaging");
+    return packaging.getLength() == 0 ? "jar" : packaging.item(0).getTextContent().trim();
+  }
+
+  private static Set<String> directDependencyArtifacts(Path pom) throws Exception {
+    var document = secureDocumentBuilderFactory().newDocumentBuilder().parse(pom.toFile());
+    Element dependencies = null;
+    var projectChildren = document.getDocumentElement().getChildNodes();
+    for (int index = 0; index < projectChildren.getLength(); index++) {
+      Node node = projectChildren.item(index);
+      if (node instanceof Element element && element.getTagName().equals("dependencies")) {
+        dependencies = element;
+        break;
+      }
+    }
+    if (dependencies == null) return Set.of();
+    Set<String> artifacts = new HashSet<>();
+    for (int index = 0; index < dependencies.getChildNodes().getLength(); index++) {
+      Node node = dependencies.getChildNodes().item(index);
+      if (!(node instanceof Element dependency) || !dependency.getTagName().equals("dependency"))
+        continue;
+      var artifactIds = dependency.getElementsByTagName("artifactId");
+      artifacts.add(artifactIds.item(0).getTextContent().trim());
+    }
+    return artifacts;
+  }
+
+  private static DocumentBuilderFactory secureDocumentBuilderFactory() throws Exception {
+    var factory = DocumentBuilderFactory.newInstance();
+    factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    return factory;
+  }
+
   private static void collectArtifactIds(org.w3c.dom.NodeList nodes, Set<String> artifacts) {
     for (int index = 0; index < nodes.getLength(); index++) {
       Node node = nodes.item(index);
@@ -176,6 +240,7 @@ class StarterCapabilityManifestTest {
       if (Files.exists(candidate.resolve("codinglair-taf-bom/pom.xml"))) return candidate;
       candidate = candidate.getParent();
     }
-    throw new IllegalStateException("Cannot locate repository root from " + Path.of("").toAbsolutePath());
+    throw new IllegalStateException(
+        "Cannot locate repository root from " + Path.of("").toAbsolutePath());
   }
 }
