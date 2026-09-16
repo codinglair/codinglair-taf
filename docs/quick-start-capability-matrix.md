@@ -6,11 +6,11 @@ governed project/job workflows and does not expose each Runtime controller as a 
 
 | Artifact | Disposition | Direct Runtime / enablement | MCP-assisted disposition | Verification and limits |
 | --- | --- | --- | --- | --- |
-| `codinglair-taf-starter-web` | Reserved 1.2.0 starter | See [starter contract](reference/starter-dependency-contract.md) | Future scaffold selection | Contract only; implemented by PKG-120-002 |
-| `codinglair-taf-starter-api` | Reserved 1.2.0 starter | See [starter contract](reference/starter-dependency-contract.md) | Future scaffold selection | Contract only; implemented by PKG-120-002 |
-| `codinglair-taf-starter-database` | Reserved 1.2.0 starter | See [starter contract](reference/starter-dependency-contract.md) | Future scaffold selection | Contract only; implemented by PKG-120-002 |
+| `codinglair-taf-starter-web` | 1.2.0 starter | Playwright plus shared foundation; explicit `taf.web.playwright.enabled` | Future scaffold selection | POM aggregator; lazy context smoke covered |
+| `codinglair-taf-starter-api` | 1.2.0 starter | REST plus shared foundation; explicit `taf.api.rest.enabled` | Future scaffold selection | POM aggregator; lazy context smoke covered |
+| `codinglair-taf-starter-database` | 1.2.0 starter | JDBC plus shared foundation; explicit `taf.database.enabled`; consumer selects driver | Future scaffold selection | POM aggregator; lazy context smoke covered |
 | `codinglair-taf-starter-messaging` | Reserved 1.2.0 starter | Provider-neutral SPI | Future scaffold selection requires provider | No concrete provider; implemented by PKG-120-003 |
-| `codinglair-taf-starter-mobile` | Reserved 1.2.0 starter | Android/UiAutomator2 baseline | Future scaffold selection | Contract only; implemented by PKG-120-002 |
+| `codinglair-taf-starter-mobile` | 1.2.0 starter | Android/Appium/UiAutomator2 plus shared foundation; explicit `taf.mobile.android.enabled` | Future scaffold selection | POM aggregator; no device, app, credential, or machine path embedded |
 | `codinglair-taf-starter-messaging-kafka` | Reserved 1.2.0 provider starter | Generic messaging plus Kafka | Future provider selection | Contract only; implemented by PKG-120-003 |
 | `codinglair-taf-starter-messaging-rabbitmq` | Reserved 1.2.0 provider starter | Generic messaging plus RabbitMQ | Future provider selection | Contract only; implemented by PKG-120-003 |
 | `codinglair-taf-starter-messaging-jms` | Reserved 1.2.0 provider starter | Generic messaging plus consumer-selected JMS client | Future provider selection | Contract only; implemented by PKG-120-003 |

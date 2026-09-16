@@ -63,6 +63,5 @@ or machine path.
 
 The nine starter coordinates are additive for 1.2.0. No 1.1.0 coordinate is removed, renamed, or
 reinterpreted. Existing direct-module consumers remain supported and can adopt the BOM without
-installing a starter. The starter POMs are delivered by PKG-120-002 and PKG-120-003; until then the
-BOM entries reserve and align their public coordinates but do not make unpublished artifacts
-consumable.
+installing a starter. Web, API, database, and mobile are published by PKG-120-002. The generic and
+provider-specific messaging POMs remain assigned to PKG-120-003.
