@@ -1,0 +1,5 @@
+taf:
+  mcp:
+    http:
+      enabled: false
+
