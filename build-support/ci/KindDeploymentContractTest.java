@@ -63,6 +63,13 @@ public final class KindDeploymentContractTest {
         "JSON-RPC result shape=",
         "response has no JSON-RPC result/error envelope");
     requireContains("deploy/kind/teardown.sh", "kind delete cluster", "kind get clusters");
+    requireContains(
+        "deploy/kind/teardown.ps1",
+        "$ErrorActionPreference = 'Continue'",
+        "2>&1 | ForEach-Object",
+        "$teardownExitCode = $LASTEXITCODE",
+        "$ErrorActionPreference = $previousErrorActionPreference",
+        "if ($teardownExitCode -ne 0) { exit $teardownExitCode }");
     requireContains("deploy/kind/realm-template.json", "@SMOKE_PASSWORD@");
     requireContains("deploy/kind/realm-template.json", "\"basic\"");
     requireContains("deploy/kind/realm-template.json", "\"protocolMapper\": \"oidc-sub-mapper\"");
@@ -139,13 +146,22 @@ public final class KindDeploymentContractTest {
 
   private static void rejectTrackedSecretManifests() throws IOException {
     try (var paths = Files.walk(ROOT.resolve("deploy/kind"))) {
-      for (Path path : paths.filter(Files::isRegularFile).toList()) {
+      for (Path path :
+          paths
+              .filter(Files::isRegularFile)
+              .filter(KindDeploymentContractTest::isYamlManifest)
+              .toList()) {
         String content = Files.readString(path);
         if (content.contains("kind: Secret")) {
           throw new AssertionError("Tracked Secret manifest is forbidden: " + ROOT.relativize(path));
         }
       }
     }
+  }
+
+  private static boolean isYamlManifest(Path path) {
+    String fileName = path.getFileName().toString();
+    return fileName.endsWith(".yaml") || fileName.endsWith(".yml");
   }
 
   private static void verifyWorkload(String file, String... required) throws IOException {

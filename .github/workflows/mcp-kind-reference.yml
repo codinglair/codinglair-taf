@@ -1,0 +1,77 @@
+name: MCP Kind Reference
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/kind/mcp-reference/**'
+      - 'deploy/kind/bootstrap-mcp.*'
+      - 'deploy/kind/smoke-mcp.*'
+      - 'deploy/kind/realm-template.json'
+      - 'deploy/kind/smoke-client.yaml'
+      - 'containers/mcp/**'
+      - 'taf-mcp-server/**'
+      - 'build-support/ci/McpKindDeploymentContractTest.java'
+      - '.github/workflows/mcp-kind-reference.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-kind-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fresh-cluster-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TAF_KIND_SKIP_IMAGE_BUILD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: Install Kind
+        run: |
+          install_dir="${RUNNER_TEMP}/kind-bin"
+          mkdir -p "$install_dir"
+          curl --fail --location --silent --show-error -o "$install_dir/kind" https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+          curl --fail --location --silent --show-error -o /tmp/kind.sha256 https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64.sha256sum
+          sed "s#kind-linux-amd64#$install_dir/kind#" /tmp/kind.sha256 | sha256sum --check
+          chmod 0555 "$install_dir/kind"
+          echo "$install_dir" >> "$GITHUB_PATH"
+      - name: Verify and render manifests
+        run: |
+          mkdir -p target/inf-120-002
+          javac -d target/inf-120-002 build-support/ci/McpKindDeploymentContractTest.java
+          java -cp target/inf-120-002 McpKindDeploymentContractTest
+          kubectl kustomize deploy/kind/mcp-reference > target/inf-120-002/rendered-template.yaml
+          ! grep -q '^kind: Secret$' target/inf-120-002/rendered-template.yaml
+      - name: Build MCP image from checkout
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          VERSION="$(sed -n 's:.*<revision>\([^<]*\)</revision>.*:\1:p' pom.xml | head -n 1)"
+          echo "TAF_IMAGE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          docker buildx build --pull --no-cache --load --file containers/mcp/Dockerfile \
+            --build-arg VERSION="$VERSION" --build-arg REVISION="$REVISION" \
+            --build-arg CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag "codinglair/codinglair-taf-mcp:$VERSION" .
+      - name: Deploy and qualify fresh cluster
+        run: |
+          bash deploy/kind/bootstrap-mcp.sh
+          bash deploy/kind/smoke-mcp.sh | tee target/inf-120-002/smoke.txt
+          kubectl --context kind-codinglair-taf-mcp -n taf-system get deployment,service,networkpolicy,pod -o wide > target/inf-120-002/rollout.txt
+          kubectl --context kind-codinglair-taf-mcp -n taf-system get configmap,service,deployment,networkpolicy -o yaml > target/inf-120-002/applied-manifests.yaml
+      - name: Retain sanitized evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: inf-120-002-${{ github.run_attempt }}
+          path: target/inf-120-002/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Teardown
+        if: ${{ always() }}
+        env:
+          TAF_KIND_CLUSTER: codinglair-taf-mcp
+        run: bash deploy/kind/teardown.sh
