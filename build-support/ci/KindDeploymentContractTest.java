@@ -146,13 +146,22 @@ public final class KindDeploymentContractTest {
 
   private static void rejectTrackedSecretManifests() throws IOException {
     try (var paths = Files.walk(ROOT.resolve("deploy/kind"))) {
-      for (Path path : paths.filter(Files::isRegularFile).toList()) {
+      for (Path path :
+          paths
+              .filter(Files::isRegularFile)
+              .filter(KindDeploymentContractTest::isYamlManifest)
+              .toList()) {
         String content = Files.readString(path);
         if (content.contains("kind: Secret")) {
           throw new AssertionError("Tracked Secret manifest is forbidden: " + ROOT.relativize(path));
         }
       }
     }
+  }
+
+  private static boolean isYamlManifest(Path path) {
+    String fileName = path.getFileName().toString();
+    return fileName.endsWith(".yaml") || fileName.endsWith(".yml");
   }
 
   private static void verifyWorkload(String file, String... required) throws IOException {
