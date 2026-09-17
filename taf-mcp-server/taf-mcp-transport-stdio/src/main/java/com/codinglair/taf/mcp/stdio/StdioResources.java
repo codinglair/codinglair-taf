@@ -49,6 +49,17 @@ public final class StdioResources {
         .toString();
   }
 
+  @McpResource(
+      name = "taf-capability-instances",
+      uri = "taf://capability-instances",
+      description = "Configured capability instance names and sanitized readiness",
+      mimeType = "text/plain")
+  public String capabilityInstances() {
+    return resources
+        .discoverCapabilityInstances(context(), new ResourceQuery("", DEFAULT_PAGE_SIZE, null))
+        .toString();
+  }
+
   private ResourceRequestContext context() {
     return new ResourceRequestContext(
         properties.identity(), properties.getProject(), properties.getEnvironment());
