@@ -46,6 +46,16 @@ public final class HttpResources {
     return resources.discoverEnvironments(context(), query()).toString();
   }
 
+  @McpResource(
+      name = "taf-capability-instances",
+      uri = "taf://capability-instances",
+      description = "Configured capability instance names and sanitized readiness",
+      mimeType = "text/plain")
+  public String capabilityInstances() {
+    caller.requireScope("taf.resources.read");
+    return resources.discoverCapabilityInstances(context(), query()).toString();
+  }
+
   private ResourceRequestContext context() {
     return new ResourceRequestContext(caller.identity(), caller.project(), caller.environment());
   }
