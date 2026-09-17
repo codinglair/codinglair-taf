@@ -63,6 +63,13 @@ public final class KindDeploymentContractTest {
         "JSON-RPC result shape=",
         "response has no JSON-RPC result/error envelope");
     requireContains("deploy/kind/teardown.sh", "kind delete cluster", "kind get clusters");
+    requireContains(
+        "deploy/kind/teardown.ps1",
+        "$ErrorActionPreference = 'Continue'",
+        "2>&1 | ForEach-Object",
+        "$teardownExitCode = $LASTEXITCODE",
+        "$ErrorActionPreference = $previousErrorActionPreference",
+        "if ($teardownExitCode -ne 0) { exit $teardownExitCode }");
     requireContains("deploy/kind/realm-template.json", "@SMOKE_PASSWORD@");
     requireContains("deploy/kind/realm-template.json", "\"basic\"");
     requireContains("deploy/kind/realm-template.json", "\"protocolMapper\": \"oidc-sub-mapper\"");

@@ -45,6 +45,10 @@ public final class ContainerSupplyChainContractTest {
     require(
         mcpSmoke.contains("notifications/initialized")
             && mcpSmoke.contains("health/liveness")
+            && mcpSmoke.contains("assert_launcher_port 8080")
+            && mcpSmoke.contains("assert_launcher_port 18080 18080")
+            && mcpSmoke.contains("assert_launcher_port 19090 18080 19090")
+            && mcpSmoke.contains("0 -1 65536 invalid")
             && mcpSmoke.contains("docker stop --time 30")
             && mcpSmoke.contains("State.ExitCode")
             && mcpSmoke.contains("== 143"),
