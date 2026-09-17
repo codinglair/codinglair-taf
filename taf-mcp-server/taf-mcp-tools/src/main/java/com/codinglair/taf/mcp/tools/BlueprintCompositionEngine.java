@@ -56,7 +56,7 @@ public final class BlueprintCompositionEngine {
     validateContributions(selected, blueprintVersion, diagnostics);
     var dependencies =
         resolveDependencies(selected, manifest, normalized.tafVersion(), diagnostics);
-    var writes = render(selected, normalized, destination, diagnostics);
+    var writes = render(selected, normalized, dependencies, destination, diagnostics);
     validateConfiguration(selected, diagnostics);
     var configuration =
         selected.stream()
@@ -150,7 +150,7 @@ public final class BlueprintCompositionEngine {
               null,
               null,
               "messaging requires exactly one provider",
-              "Select AWS, JMS, KAFKA, or RABBITMQ."));
+              "Select one of: " + supportedValues(MessagingProvider.class) + "."));
     } else if (!capabilities.contains(Capability.MESSAGING) && provider != null) {
       diagnostics.add(
           error(
@@ -168,18 +168,7 @@ public final class BlueprintCompositionEngine {
     var automationToken = token(request.mobileAutomationName());
     MobilePlatform platform = enumValue(MobilePlatform.class, platformToken);
     if (capabilities.contains(Capability.MOBILE)) {
-      if (platformToken == null) platform = MobilePlatform.ANDROID;
-      if (platform == MobilePlatform.IOS) {
-        diagnostics.add(
-            error(
-                "SCF_UNSUPPORTED_IOS",
-                Phase.SELECTION,
-                null,
-                null,
-                null,
-                "iOS is not implemented in blueprint 1.0",
-                "Select Android/UiAutomator2."));
-      } else if (platform == null) unsupported(diagnostics, "mobile platform");
+      platform = normalizeMobilePlatform(platformToken, platform, diagnostics);
       if (automationToken != null && !"UIAUTOMATOR2".equals(automationToken)) {
         unsupported(diagnostics, "mobile automation name");
       }
@@ -305,6 +294,7 @@ public final class BlueprintCompositionEngine {
   private static List<PlannedWrite> render(
       List<Contribution> selected,
       NormalizedRequest request,
+      List<Dependency> dependencies,
       Path destination,
       List<Diagnostic> diagnostics) {
     var writes = new LinkedHashMap<String, PlannedWrite>();
@@ -315,7 +305,9 @@ public final class BlueprintCompositionEngine {
             "__ARTIFACT_ID__", request.artifactId(),
             "__BASE_PACKAGE__", request.basePackage(),
             "__PACKAGE_PATH__", request.basePackage().replace('.', '/'),
-            "__TAF_VERSION__", request.tafVersion());
+            "__TAF_VERSION__", request.tafVersion(),
+            "__TAF_DEPENDENCIES__", dependencyDeclarations(dependencies),
+            "__TAF_REPORTING_DEPENDENCIES__", reportingDependencyDeclarations(request.reporting()));
     for (var contribution : selected) {
       for (var asset : contribution.assets()) {
         String path = replace(asset.path(), tokens).replace('\\', '/');
@@ -380,6 +372,42 @@ public final class BlueprintCompositionEngine {
     return List.copyOf(writes.values());
   }
 
+  private static String dependencyDeclarations(List<Dependency> dependencies) {
+    return dependencies.stream()
+        .map(
+            dependency ->
+                """
+                <dependency>
+                  <groupId>%s</groupId>
+                  <artifactId>%s</artifactId>
+                  <type>pom</type>
+                </dependency>
+                """
+                    .formatted(dependency.groupId(), dependency.artifactId())
+                    .indent(4)
+                    .stripTrailing())
+        .reduce((left, right) -> left + "\n" + right)
+        .orElse("");
+  }
+
+  private static String reportingDependencyDeclarations(Reporting reporting) {
+    if (reporting == Reporting.NONE) return "";
+    return """
+        <dependency>
+          <groupId>io.qameta.allure</groupId>
+          <artifactId>allure-java-commons</artifactId>
+          <version>2.29.0</version>
+        </dependency>
+        <dependency>
+          <groupId>io.qameta.allure</groupId>
+          <artifactId>allure-testng</artifactId>
+          <version>2.29.0</version>
+        </dependency>
+        """
+        .indent(4)
+        .stripTrailing();
+  }
+
   private static void validateConfiguration(
       List<Contribution> selected, List<Diagnostic> diagnostics) {
     var claims = new ArrayList<ClaimOwner>();
@@ -429,10 +457,37 @@ public final class BlueprintCompositionEngine {
   private static <E extends Enum<E>> E defaulted(
       Class<E> type, String input, E fallback, List<Diagnostic> diagnostics) {
     String value = token(input);
-    if (value == null) return fallback;
-    E parsed = enumValue(type, value);
-    if (parsed == null) unsupported(diagnostics, type.getSimpleName());
-    return parsed;
+    return switch (value) {
+      case null -> fallback;
+      default -> {
+        E parsed = enumValue(type, value);
+        if (parsed == null) unsupported(diagnostics, type.getSimpleName());
+        yield parsed;
+      }
+    };
+  }
+
+  private static MobilePlatform normalizeMobilePlatform(
+      String token, MobilePlatform platform, List<Diagnostic> diagnostics) {
+    return switch (platform) {
+      case ANDROID -> MobilePlatform.ANDROID;
+      case IOS -> {
+        diagnostics.add(
+            error(
+                "SCF_UNSUPPORTED_IOS",
+                Phase.SELECTION,
+                null,
+                null,
+                null,
+                "iOS is not implemented in blueprint 1.0",
+                "Select Android/UiAutomator2."));
+        yield MobilePlatform.IOS;
+      }
+      case null -> {
+        if (token != null) unsupported(diagnostics, "mobile platform");
+        yield MobilePlatform.ANDROID;
+      }
+    };
   }
 
   private static List<Capability> parseCapabilities(
@@ -487,6 +542,10 @@ public final class BlueprintCompositionEngine {
     } catch (IllegalArgumentException _) {
       return null;
     }
+  }
+
+  private static <E extends Enum<E>> String supportedValues(Class<E> type) {
+    return String.join(", ", EnumSet.allOf(type).stream().map(Enum::name).toList());
   }
 
   private static String replace(String value, Map<String, String> replacements) {

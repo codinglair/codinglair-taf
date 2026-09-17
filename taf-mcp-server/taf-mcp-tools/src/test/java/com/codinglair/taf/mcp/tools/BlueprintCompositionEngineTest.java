@@ -27,6 +27,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @DisplayName("Deterministic blueprint composition engine")
 class BlueprintCompositionEngineTest {
@@ -113,6 +115,54 @@ class BlueprintCompositionEngineTest {
   @Nested
   @DisplayName("Validation failures")
   class Validation {
+    @ParameterizedTest(name = "rejects unsupported {0} selection")
+    @CsvSource({"runner,UNKNOWN,,", "reporting,,UNKNOWN,", "testdefinitions,,,UNKNOWN"})
+    @DisplayName("reports unsupported defaultable enum selections")
+    void rejectsUnsupportedDefaultableSelections(
+        String subject, String runner, String reporting, String definitions) {
+      var request =
+          new Request(
+              "com.example",
+              "sample",
+              "com.example.sample",
+              "1.2.0",
+              List.of("WEB"),
+              null,
+              null,
+              null,
+              runner,
+              reporting,
+              definitions);
+
+      var plan = engine.plan(request, "1.0", catalog(), manifest(), temporary.resolve(subject));
+
+      assertThat(plan.valid()).isFalse();
+      assertThat(plan.writes()).isEmpty();
+      assertThat(plan.diagnostics())
+          .singleElement()
+          .satisfies(
+              diagnostic -> {
+                assertThat(diagnostic.code()).isEqualTo("SCF_UNSUPPORTED_SELECTION");
+                assertThat(diagnostic.message()).containsIgnoringCase(subject);
+              });
+    }
+
+    @Test
+    @DisplayName("derives missing messaging provider guidance from supported enum values")
+    void reportsSupportedMessagingProviders() {
+      var request = request(List.of("MESSAGING"));
+
+      var plan =
+          engine.plan(request, "1.0", catalog(), manifest(), temporary.resolve("providerless"));
+
+      assertThat(plan.valid()).isFalse();
+      assertThat(plan.writes()).isEmpty();
+      assertThat(plan.diagnostics())
+          .singleElement()
+          .extracting(BlueprintCompositionEngine.Diagnostic::correctiveAction)
+          .isEqualTo("Select one of: AWS, JMS, KAFKA, RABBITMQ.");
+    }
+
     @Test
     @DisplayName("reports unsupported iOS before mutation")
     void rejectsIos() {
