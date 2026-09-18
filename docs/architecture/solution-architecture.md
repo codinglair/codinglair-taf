@@ -1,4 +1,4 @@
-# Codinglair TAF <!-- taf-version -->`1.2.0` public solution architecture
+# Codinglair TAF <!-- taf-version -->`1.1.0` public solution architecture
 
 ## Scope
 
