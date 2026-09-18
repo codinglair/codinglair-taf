@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "targetRelease": "1.2.0",
+  "snippets": [
+    {
+      "document": "docs/quick-start.md",
+      "validation": "quick-start-contract-and-compiled-examples"
+    },
+    {
+      "document": "docs/reference/consumer-dependencies.md",
+      "languages": [
+        "xml",
+        "groovy",
+        "kotlin"
+      ],
+      "validation": "starter-manifest-and-syntax-contract"
+    },
+    {
+      "document": "docs/operations/mcp-container-deployment.md",
+      "languages": [
+        "bash"
+      ],
+      "validation": "container-launcher-and-image-contract"
+    },
+    {
+      "document": "docs/architecture/solution-architecture.md",
+      "validation": "cross-document-architecture-contract"
+    }
+  ]
+}
