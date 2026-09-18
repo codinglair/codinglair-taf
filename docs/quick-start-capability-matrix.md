@@ -1,6 +1,6 @@
 # DOC-001 Release Capability and Documentation Matrix
 
-This inventory is derived from `codinglair-taf-bom/pom.xml` for the root POM <!-- taf-version -->`1.1.0`. “Released” means
+This inventory describes the public Codinglair TAF <!-- taf-version -->`1.1.0` contract. “Released” means
 BOM-managed and publishable; it does not mean a complete DOC-001 consumer example exists. MCP uses
 governed project/job workflows and does not expose each Runtime controller as a low-level tool.
 
@@ -9,12 +9,12 @@ governed project/job workflows and does not expose each Runtime controller as a 
 | `codinglair-taf-starter-web` | 1.2.0 starter | Playwright plus shared foundation; explicit `taf.web.playwright.enabled` | Future scaffold selection | POM aggregator; lazy context smoke covered |
 | `codinglair-taf-starter-api` | 1.2.0 starter | REST plus shared foundation; explicit `taf.api.rest.enabled` | Future scaffold selection | POM aggregator; lazy context smoke covered |
 | `codinglair-taf-starter-database` | 1.2.0 starter | JDBC plus shared foundation; explicit `taf.database.enabled`; consumer selects driver | Future scaffold selection | POM aggregator; lazy context smoke covered |
-| `codinglair-taf-starter-messaging` | Reserved 1.2.0 starter | Provider-neutral SPI | Future scaffold selection requires provider | No concrete provider; implemented by PKG-120-003 |
+| `codinglair-taf-starter-messaging` | 1.2.0 starter | Provider-neutral SPI | Scaffold selection requires provider | No concrete provider; use a provider starter for operations |
 | `codinglair-taf-starter-mobile` | 1.2.0 starter | Android/Appium/UiAutomator2 plus shared foundation; explicit `taf.mobile.android.enabled` | Future scaffold selection | POM aggregator; no device, app, credential, or machine path embedded |
-| `codinglair-taf-starter-messaging-kafka` | Reserved 1.2.0 provider starter | Generic messaging plus Kafka | Future provider selection | Contract only; implemented by PKG-120-003 |
-| `codinglair-taf-starter-messaging-rabbitmq` | Reserved 1.2.0 provider starter | Generic messaging plus RabbitMQ | Future provider selection | Contract only; implemented by PKG-120-003 |
-| `codinglair-taf-starter-messaging-jms` | Reserved 1.2.0 provider starter | Generic messaging plus consumer-selected JMS client | Future provider selection | Contract only; implemented by PKG-120-003 |
-| `codinglair-taf-starter-messaging-aws` | Reserved 1.2.0 provider starter | Generic messaging plus EventBridge/SQS | Future provider selection | Contract only; implemented by PKG-120-003 |
+| `codinglair-taf-starter-messaging-kafka` | 1.2.0 provider starter | Generic messaging plus Kafka | Provider selection | Explicit activation; optional Testcontainers exclusion |
+| `codinglair-taf-starter-messaging-rabbitmq` | 1.2.0 provider starter | Generic messaging plus RabbitMQ | Provider selection | Explicit activation; optional Testcontainers exclusion |
+| `codinglair-taf-starter-messaging-jms` | 1.2.0 provider starter | Generic messaging plus consumer-selected JMS client | Provider selection | Consumer supplies `ConnectionFactory` |
+| `codinglair-taf-starter-messaging-aws` | 1.2.0 provider starter | Generic messaging plus EventBridge/SQS | Provider selection | Explicit profile; LocalStack or authorized AWS |
 | `codinglair-taf-common` | Internal support | Transitive values; not a capability | None | Not a user workflow |
 | `codinglair-taf-runtime-core` | Required consumer API | `TestSession`; [README](../codinglair-taf-runtime/codinglair-taf-runtime-core/README.md) | Validate/build/execute jobs | Clean runtime smoke; one session per method/scenario |
 | `taf-secrets-api` | Consumer SPI | Opaque references; [README](../codinglair-taf-runtime/taf-secrets-api/README.md) | References only | Values never enter MCP |

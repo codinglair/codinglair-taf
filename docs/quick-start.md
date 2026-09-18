@@ -35,7 +35,7 @@ validation or execution.
 - Java 25
 - Git
 - the Maven Wrapper copied into the consumer project (`mvnw`, `mvnw.cmd`, and `.mvn/wrapper`)
-- access to an approved repository containing the root POM <!-- taf-version -->`1.1.0` of Codinglair TAF, or an approved locally
+- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.1.0`, or an approved locally
   staged build
 - Docker only for capabilities that provision containers
 - external infrastructure for opt-in capabilities such as Appium, Android devices, databases, and
@@ -118,7 +118,32 @@ If `docs/examples/quick-start-pom.xml` has not yet been committed or published w
 ask the TAF distributor for the release-approved consumer POM. Do not use a POM that inherits from
 the TAF source reactor.
 
-### 3.2 Keep only required dependencies
+### 3.2 Select capability starters
+
+For normal <!-- taf-version -->`1.1.0` consumption, import `codinglair-taf-bom` and add the starter that matches the
+capability. The BOM aligns versions only; it installs no capability. Use provider starters for
+operational messaging—`codinglair-taf-starter-messaging` alone is provider-neutral.
+
+| Need | Recommended dependency |
+| --- | --- |
+| Browser UI | `codinglair-taf-starter-web` |
+| REST API | `codinglair-taf-starter-api` |
+| JDBC database | `codinglair-taf-starter-database` plus an approved JDBC driver |
+| Android/Appium | `codinglair-taf-starter-mobile` |
+| Kafka | `codinglair-taf-starter-messaging-kafka` |
+| RabbitMQ | `codinglair-taf-starter-messaging-rabbitmq` |
+| JMS | `codinglair-taf-starter-messaging-jms` plus an approved JMS client/`ConnectionFactory` |
+| AWS EventBridge and SQS | `codinglair-taf-starter-messaging-aws` |
+
+Starters can be combined in one project; their common Runtime, TestSession, environment,
+test-definition, secrets, reporting, and TestNG foundation resolves once through normal dependency
+mediation. Each capability remains inactive until explicitly configured. Copy/paste Maven, Gradle
+Groovy, and Gradle Kotlin declarations, supported exclusions, direct-module choices, and the list
+of internal artifacts to avoid are in the [consumer dependency guide](reference/consumer-dependencies.md).
+Gradle dependency consumption is supported, but Gradle blueprint/project generation is not
+supported in 1.2.0.
+
+### 3.3 Advanced direct modules
 
 Import the Codinglair TAF BOM and declare only the capabilities used by the project. The golden
 consumer/standalone POM is the version authority; do not independently version BOM-managed TAF
@@ -151,7 +176,7 @@ standalone user capabilities. The MCP aggregate and its contracts/jobs/security/
 tool/prompt/transport modules are server-side components; do not add them to an ordinary Runtime
 test project.
 
-### 3.3 Recommended project layout
+### 3.4 Recommended project layout
 
 ```text
 src/main/java/com/example/automation/
@@ -1317,6 +1342,10 @@ create. Closing `TestSession` releases browsers, drivers, connections, consumers
 other framework resources; it does not imply SUT business cleanup.
 
 ## 9. MCP-assisted workflows
+
+For image acquisition and immutable tags, container configuration, STDIO and Streamable HTTP
+commands, Docker/CI, probes, storage, and Kubernetes limitations, see the
+[MCP container deployment guide](operations/mcp-container-deployment.md).
 
 ### 9.1 When to use MCP
 
