@@ -867,7 +867,9 @@
                                             ${maven.multiModuleProjectDirectory}/target/staging-repository</taf.staging.repository>
                                     </filterProperties>
                                     <goals>
-                                        <goal>test</goal>
+                                        <goal>verify</goal>
+                                        <goal>dependency:tree -DoutputFile=target/dependency-tree.txt</goal>
+                                        <goal>help:effective-pom -Doutput=target/effective-pom.xml</goal>
                                     </goals>
                                     <streamLogs>true</streamLogs>
                                 </configuration>

@@ -28,9 +28,28 @@ disabled when `release-staging` is active. They must never appear in a community
 2. Confirm the complete DEVOPS-002 release matrix and container/Kind gates succeeded for that exact SHA.
 3. Run `./mvnw clean deploy -Prelease-staging` (on Windows, `mvnw.cmd`) with the commit timestamp as
    `project.build.outputTimestamp` when producing candidate evidence.
-4. Run `./mvnw -Pconsumer-smoke verify`. Each Invoker project uses a fresh isolated local repository,
-   imports the staged BOM, resolves one supported consumption boundary, and runs a test without
-   framework test fixtures.
+4. Run `./mvnw -Pconsumer-smoke verify`. This is the single local entry point for external
+   consumer conformance. Each Invoker project uses a fresh isolated local repository, imports the
+   staged BOM, resolves one supported consumption boundary, and runs a test without framework test
+   fixtures. The matrix retains the four direct-module consumers and adds isolated projects for
+   Web, API, Database, generic Messaging, Mobile, Kafka, RabbitMQ, JMS, and AWS starters plus a
+   maximal graph containing all five top-level and all four provider starters. Every starter
+   project runs dependency convergence and retains `target/dependency-tree.txt` and
+   `target/effective-pom.xml` below `target/consumer-smoke/<project>/`; Invoker retains the complete
+   graph-specific log at `target/consumer-smoke/<project>/build.log`.
+
+   A failure names the fixture (and therefore the artifact/graph), includes the attempted
+   repository in `build.log`, and should be corrected by staging the reported missing artifact,
+   aligning the reported conflicting dependency through the BOM, or fixing the selected starter's
+   conditional configuration. Do not add internal module declarations to a starter fixture to
+   hide missing published metadata. On Windows hosts whose Java trust store does not recognize the
+   configured repository certificate, use the documented OS trust integration rather than
+   disabling TLS validation:
+
+   ```powershell
+   $env:MAVEN_OPTS='-Djavax.net.ssl.trustStoreType=Windows-ROOT'
+   .\mvnw.cmd -B -ntp -N -Pconsumer-smoke verify
+   ```
 5. Inspect `target/staging-repository`: no Quality Intelligence or demo artifact; required sources,
    Javadoc, CycloneDX, license-bearing POM, and checksums are present.
 6. Run API/schema compatibility, dependency/architecture, and license review gates. Reject unknown,
