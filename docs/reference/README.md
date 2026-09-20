@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.1.0` reference
+# Codinglair TAF <!-- taf-version -->`1.2.0` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.1.0`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.2.0`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 
@@ -86,8 +86,8 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-mcp-transport-stdio` | STDIO transport |
 | `taf-mcp-transport-http` | Streamable HTTP/OIDC transport |
 
-The starter rows above are reserved, version-aligned 1.2.0 coordinates rather than artifacts in
-the current 1.1.0 release. Their authoritative composition and activation requirements are in the
+The starter rows above are published, version-aligned 1.2.0 coordinates. Their authoritative
+composition and activation requirements are in the
 [starter dependency contract](starter-dependency-contract.md).
 
 Consumer projects are governed by the versioned

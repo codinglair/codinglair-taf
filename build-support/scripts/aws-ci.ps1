@@ -28,8 +28,8 @@ switch ($Mode) {
         Invoke-Maven -pl 'taf-mcp-server/taf-mcp-contracts,taf-mcp-server/taf-mcp-resources,taf-mcp-server/taf-mcp-tools' -am verify '-Pmcp-gate,security'
     }
     'consumer-smoke' {
-        Invoke-Maven clean deploy '-Drevision=1.1.0' -Prelease-staging -DskipTests
-        Invoke-Maven -N '-Drevision=1.1.0' -Pconsumer-smoke verify
+        Invoke-Maven clean deploy -Prelease-staging -DskipTests
+        Invoke-Maven -N -Pconsumer-smoke verify
     }
     'full-reactor' {
         Invoke-Maven clean verify '-Pdependency-analysis,architecture,api-compatibility,schema-compatibility'

@@ -35,7 +35,7 @@ validation or execution.
 - Java 25
 - Git
 - the Maven Wrapper copied into the consumer project (`mvnw`, `mvnw.cmd`, and `.mvn/wrapper`)
-- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.1.0`, or an approved locally
+- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.2.0`, or an approved locally
   staged build
 - Docker only for capabilities that provision containers
 - external infrastructure for opt-in capabilities such as Appium, Android devices, databases, and
@@ -120,7 +120,7 @@ the TAF source reactor.
 
 ### 3.2 Select capability starters
 
-For normal <!-- taf-version -->`1.1.0` consumption, import `codinglair-taf-bom` and add the starter that matches the
+For normal <!-- taf-version -->`1.2.0` consumption, import `codinglair-taf-bom` and add the starter that matches the
 capability. The BOM aligns versions only; it installs no capability. Use provider starters for
 operational messaging—`codinglair-taf-starter-messaging` alone is provider-neutral.
 

@@ -1,6 +1,6 @@
 # DOC-001 Release Capability and Documentation Matrix
 
-This inventory describes the public Codinglair TAF <!-- taf-version -->`1.1.0` contract. “Released” means
+This inventory describes the public Codinglair TAF <!-- taf-version -->`1.2.0` contract. “Released” means
 BOM-managed and publishable; it does not mean a complete DOC-001 consumer example exists. MCP uses
 governed project/job workflows and does not expose each Runtime controller as a low-level tool.
 

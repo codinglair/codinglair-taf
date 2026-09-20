@@ -17,6 +17,10 @@ final class VerificationMatrixContractTest {
     require(release, "workflow_dispatch:");
     require(release, "uses: ./.github/workflows/verification-matrix.yml");
     require(release, "java build-support/scripts/SyncDocVersion.java --check");
+    require(release, "persist-credentials: false");
+    require(release, "Verify clean public-repository checkout");
+    require(release, "-Dcentral.skipPublishing=true");
+    require(release, "Verify Central dry-run bundle");
     require(matrix, "workflow_call:");
     require(matrix, "install --with-deps chromium firefox webkit");
     require(matrix, "-Dtest=PlaywrightBrowserSmokeTest");

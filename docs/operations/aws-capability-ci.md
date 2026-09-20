@@ -27,7 +27,7 @@ without a separate LocalStack start or stop operation.
 | `consumer-smoke` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File build-support/scripts/aws-ci.ps1 consumer-smoke` | `bash build-support/scripts/aws-ci.sh consumer-smoke` |
 | `full-reactor` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File build-support/scripts/aws-ci.ps1 full-reactor` | `bash build-support/scripts/aws-ci.sh full-reactor` |
 
-The consumer command deliberately stages version `1.1.0` into
+The consumer command deliberately stages the root-POM release version into
 `target/staging-repository` before launching Maven Invoker. Invoker uses its own repository and the
 staged coordinates, not artifacts installed by another job or a hidden reactor relationship.
 

@@ -31,7 +31,7 @@
     </modules>
 
     <properties>
-        <revision>1.1.0</revision>
+        <revision>1.2.0</revision>
         <!-- Platform baseline -->
         <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
