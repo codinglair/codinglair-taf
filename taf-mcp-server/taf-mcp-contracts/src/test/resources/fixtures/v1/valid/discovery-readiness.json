@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "capabilities": [
+    {
+      "id": "aws.sqs",
+      "runtimeVersion": "1.2.0",
+      "status": "INSTALLED",
+      "operations": [
+        "send",
+        "receive"
+      ],
+      "limitations": [],
+      "requiredConfiguration": [
+        "taf.aws.region",
+        "taf.aws.credentials-ref"
+      ]
+    }
+  ],
+  "configuredInstances": [
+    {
+      "capabilityId": "aws.sqs",
+      "instance": "orders",
+      "resourceAlias": "queue/orders",
+      "ownershipMode": "TEST_OWNED",
+      "isolationMode": "DEDICATED_RESOURCE",
+      "readiness": "READY",
+      "diagnostics": []
+    }
+  ],
+  "environments": [
+    {
+      "environment": "local",
+      "status": "READY",
+      "checks": [
+        {
+          "id": "aws",
+          "type": "CONNECTIVITY",
+          "status": "READY"
+        }
+      ]
+    }
+  ]
+}

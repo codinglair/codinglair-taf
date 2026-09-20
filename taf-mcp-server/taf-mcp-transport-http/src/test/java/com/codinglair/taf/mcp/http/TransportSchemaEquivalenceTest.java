@@ -3,7 +3,10 @@ package com.codinglair.taf.mcp.http;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codinglair.taf.mcp.stdio.StdioPromptReports;
+import com.codinglair.taf.mcp.stdio.StdioResources;
+import com.codinglair.taf.mcp.stdio.StdioScaffoldingTools;
 import com.codinglair.taf.mcp.stdio.StdioWorkflowRequest;
+import com.codinglair.taf.mcp.tools.BlueprintScaffoldResult;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
@@ -46,6 +49,19 @@ class TransportSchemaEquivalenceTest {
             annotatedNames(HttpPromptReports.class, McpTool.class));
   }
 
+  @Test
+  @DisplayName("publishes schema-equivalent scaffolding and discovery surfaces")
+  void usesEquivalentScaffoldingAndDiscoverySurface() {
+    assertThat(toolContracts(StdioScaffoldingTools.class))
+        .containsExactlyInAnyOrderElementsOf(toolContracts(HttpScaffoldingTools.class));
+    assertThat(scaffoldReturnType(StdioScaffoldingTools.class))
+        .isEqualTo(BlueprintScaffoldResult.class)
+        .isEqualTo(scaffoldReturnType(HttpScaffoldingTools.class));
+    assertThat(annotatedNames(StdioResources.class, McpResource.class))
+        .containsExactlyInAnyOrderElementsOf(
+            annotatedNames(HttpResources.class, McpResource.class));
+  }
+
   private static Set<String> components(Class<?> type) {
     return Arrays.stream(type.getRecordComponents())
         .map(RecordComponent::getName)
@@ -58,5 +74,22 @@ class TransportSchemaEquivalenceTest {
         .filter(method -> method.isAnnotationPresent(annotationType))
         .map(Method::getName)
         .collect(Collectors.toSet());
+  }
+
+  private static Set<String> toolContracts(Class<?> type) {
+    return Arrays.stream(type.getDeclaredMethods())
+        .filter(method -> method.isAnnotationPresent(McpTool.class))
+        .map(method -> method.getAnnotation(McpTool.class))
+        .map(annotation -> annotation.name() + "\u001f" + annotation.description())
+        .collect(Collectors.toSet());
+  }
+
+  private static Class<?> scaffoldReturnType(Class<?> type) {
+    return Arrays.stream(type.getDeclaredMethods())
+        .filter(method -> method.isAnnotationPresent(McpTool.class))
+        .filter(method -> method.getAnnotation(McpTool.class).name().equals("scaffold"))
+        .findFirst()
+        .orElseThrow()
+        .getReturnType();
   }
 }

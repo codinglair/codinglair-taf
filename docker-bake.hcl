@@ -13,6 +13,17 @@ group "default" {
   targets = ["control-plane", "worker"]
 }
 
+group "mcp-release" {
+  targets = ["mcp"]
+}
+
+target "mcp" {
+  inherits = ["common"]
+  dockerfile = "containers/mcp/Dockerfile"
+  tags = ["codinglair/codinglair-taf-mcp:${VERSION}"]
+  platforms = ["linux/amd64", "linux/arm64"]
+}
+
 target "common" {
   context = "."
   args = {

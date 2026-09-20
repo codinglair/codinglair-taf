@@ -36,12 +36,10 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-java-commons</artifactId>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-testng</artifactId>
-            <optional>true</optional>
         </dependency>
 
         <!-- Adapter-owned configuration and TestNG run-completion publication -->

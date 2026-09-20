@@ -1,0 +1,183 @@
+name: Publish MCP Image
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Immutable semantic version to publish
+        required: true
+        default: '1.2.0'
+      publish_latest:
+        description: Also point latest at the same manifest digest
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: mcp-image-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: dockerhub-release
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Resolve and validate release version
+        id: release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_LATEST: ${{ inputs.publish_latest }}
+        run: |
+          version="$INPUT_VERSION"
+          publish_latest="$INPUT_LATEST"
+          if [[ "$EVENT_NAME" == release ]]; then
+            version="${RELEASE_TAG#v}"
+            publish_latest=true
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$version" == 1.2.0 ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "publish_latest=$publish_latest" >> "$GITHUB_OUTPUT"
+      - name: Build tag list
+        id: tags
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          PUBLISH_LATEST: ${{ steps.release.outputs.publish_latest }}
+        run: |
+          tags="codinglair/codinglair-taf-mcp:${VERSION}"
+          if [[ "$PUBLISH_LATEST" == true ]]; then
+            tags="${tags}"$'\n'"codinglair/codinglair-taf-mcp:latest"
+          fi
+          {
+            echo 'tags<<EOF'
+            echo "$tags"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - name: Build and publish one multi-architecture manifest
+        id: publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: containers/mcp/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            VERSION=${{ steps.release.outputs.version }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ github.event.repository.updated_at }}
+          sbom: true
+          provenance: mode=max
+      - uses: sigstore/cosign-installer@v3.9.2
+      - name: Sign immutable digest
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: cosign sign --yes "codinglair/codinglair-taf-mcp@${DIGEST}"
+      - name: Capture digest and tag equality
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          PUBLISH_LATEST: ${{ steps.release.outputs.publish_latest }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          mkdir -p target/mcp-image-release
+          printf 'image=codinglair/codinglair-taf-mcp\nversion=%s\ndigest=%s\nrevision=%s\n' \
+            "$VERSION" "$DIGEST" "$GITHUB_SHA" > target/mcp-image-release/digest.txt
+          release_digest="$(docker buildx imagetools inspect "codinglair/codinglair-taf-mcp:${VERSION}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          [[ "$release_digest" == "$DIGEST" ]]
+          if [[ "$PUBLISH_LATEST" == true ]]; then
+            latest_digest="$(docker buildx imagetools inspect codinglair/codinglair-taf-mcp:latest --format '{{json .Manifest.Digest}}' | tr -d '"')"
+            [[ "$latest_digest" == "$DIGEST" ]]
+            printf 'latestDigest=%s\n' "$latest_digest" >> target/mcp-image-release/digest.txt
+          fi
+          docker buildx imagetools inspect "codinglair/codinglair-taf-mcp@${DIGEST}" > target/mcp-image-release/manifest.txt
+          cosign verify "codinglair/codinglair-taf-mcp@${DIGEST}" \
+            --certificate-identity-regexp "^https://github.com/codinglair/codinglair-taf/.github/workflows/mcp-image-release.yml@refs/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            > target/mcp-image-release/signature.txt
+      - name: Generate retained SPDX SBOM for published digest
+        uses: anchore/sbom-action@v0
+        with:
+          image: codinglair/codinglair-taf-mcp@${{ steps.publish.outputs.digest }}
+          format: spdx-json
+          output-file: target/mcp-image-release/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Scan published immutable digest with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: codinglair/codinglair-taf-mcp@${{ steps.publish.outputs.digest }}
+          scanners: vuln
+          format: json
+          output: target/mcp-image-release/trivy.json
+          exit-code: '0'
+          severity: 'CRITICAL'
+      - name: Capture scanner and vulnerability database metadata
+        shell: bash
+        run: trivy --version > target/mcp-image-release/trivy-version.txt
+      - name: Verify required release evidence
+        shell: bash
+        run: |
+          test -s target/mcp-image-release/digest.txt
+          test -s target/mcp-image-release/manifest.txt
+          test -s target/mcp-image-release/signature.txt
+          test -s target/mcp-image-release/sbom.spdx.json
+          test -s target/mcp-image-release/trivy.json
+          test -s target/mcp-image-release/trivy-version.txt
+      - name: Reject unapproved critical vulnerabilities
+        shell: bash
+        run: |
+          report=target/mcp-image-release/trivy.json
+          count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$report")"
+          if (( count == 0 )); then
+            echo "No Critical vulnerabilities detected in the published digest."
+            exit 0
+          fi
+
+          echo "::error title=Release vulnerability gate::Detected ${count} unapproved Critical vulnerability finding(s) in the published MCP image digest."
+          jq -r '
+            .Results[]
+            | .Target as $target
+            | .Vulnerabilities[]?
+            | [
+                $target,
+                .PkgName,
+                .InstalledVersion,
+                (.FixedVersion // "not fixed"),
+                .VulnerabilityID,
+                (.Title // "")
+              ]
+            | @tsv
+          ' "$report" | while IFS=$'\t' read -r target package installed fixed vulnerability title; do
+            printf '::error title=%s in %s::Package %s %s; fixed version: %s. %s\n' \
+              "$vulnerability" "$target" "$package" "$installed" "$fixed" "$title"
+          done
+          exit 1
+      - name: Retain MCP image release evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-image-release-${{ steps.release.outputs.version }}-${{ github.run_attempt }}
+          path: target/mcp-image-release/
+          if-no-files-found: error
+          retention-days: 90

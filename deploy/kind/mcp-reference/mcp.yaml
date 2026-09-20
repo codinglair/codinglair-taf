@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taf-mcp-config
+data:
+  application.yaml: |
+    server:
+      shutdown: graceful
+    spring:
+      lifecycle:
+        timeout-per-shutdown-phase: 25s
+    taf:
+      mcp:
+        kind-reference:
+          enabled: true
+        http:
+          enabled: true
+          issuer-uri: http://taf-keycloak:8080/realms/taf
+          audience: taf-mcp
+          workspace-root: /workspace
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taf-mcp
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: taf-mcp
+  ports:
+    - name: mcp-http
+      port: 8080
+      targetPort: mcp-http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taf-mcp
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: taf-mcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: taf-mcp
+    spec:
+      automountServiceAccountToken: false
+      # Prevent Kubernetes from injecting TAF_MCP_PORT=tcp://... for the taf-mcp Service.
+      # That legacy service-link name collides with the launcher's numeric TAF_MCP_PORT contract.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 35
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp
+          image: codinglair/codinglair-taf-mcp@sha256:IMAGE_DIGEST
+          imagePullPolicy: Never
+          args: ["streamable-http"]
+          ports:
+            - name: mcp-http
+              containerPort: 8080
+          env:
+            - name: TAF_MCP_SECRET_PROVIDER_REF
+              valueFrom:
+                secretKeyRef:
+                  name: taf-mcp-runtime
+                  key: secret-provider-ref
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: mcp-http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: mcp-http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: mcp-http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/taf-mcp
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: workspace
+              mountPath: /workspace
+            - name: state
+              mountPath: /var/lib/taf-mcp
+      volumes:
+        - name: config
+          configMap:
+            name: taf-mcp-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: workspace
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: state
+          emptyDir:
+            sizeLimit: 256Mi

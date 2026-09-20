@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.1.0` reference
+# Codinglair TAF <!-- taf-version -->`1.2.0` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.1.0`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.2.0`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 
@@ -11,6 +11,7 @@ your work.
 | Test author | [TestNG and Cucumber separation](testng-cucumber-separation.md) |
 | Mobile engineer | [Android and Appium setup](android-appium-setup.md) |
 | MCP client or operator | [MCP contracts, security, approvals, and audit](mcp-and-security.md) |
+| MCP image operator | [MCP image and runtime profile contract](mcp-image-runtime-contract.md) |
 | Platform operator | [CI/CD, Kind, release, and troubleshooting](operations-and-troubleshooting.md) |
 | Extension author | [Controller and provider extension workflow](extension-spi.md) |
 | Maintainer | [Documentation, compatibility, and release workflow](maintainer-guide.md) |
@@ -26,6 +27,11 @@ published contract differ, the published contract wins and the documentation dri
 The current compatibility baseline is
 [Java/Spring and ecosystem compatibility](../engineering/compatibility-matrix.md).
 
+Project scaffolding uses the versioned
+[blueprint composition contract](blueprint-composition-contract.md), including its normalized
+request and contribution schemas. Starter dependencies remain authoritative in the separate
+[starter dependency contract](starter-dependency-contract.md).
+
 ## Released API artifacts
 
 Every released artifact below has member-level API entries in its generated Javadoc jar. Optional
@@ -33,6 +39,15 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 
 | Artifact | Primary API/reference area |
 | --- | --- |
+| `codinglair-taf-starter-web` | 1.2.0 Web dependency contract; POM implementation follows |
+| `codinglair-taf-starter-api` | 1.2.0 API dependency contract; POM implementation follows |
+| `codinglair-taf-starter-database` | 1.2.0 database dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging` | 1.2.0 provider-neutral messaging contract; POM implementation follows |
+| `codinglair-taf-starter-mobile` | 1.2.0 Android/Appium dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-kafka` | 1.2.0 Kafka dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-rabbitmq` | 1.2.0 RabbitMQ dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-jms` | 1.2.0 JMS dependency contract; POM implementation follows |
+| `codinglair-taf-starter-messaging-aws` | 1.2.0 EventBridge/SQS dependency contract; POM implementation follows |
 | `codinglair-taf-runtime-core` | TestSession, registry, failures, reporting, definitions, migration |
 | `codinglair-taf-common` | shared dependency-minimal value contracts |
 | `codinglair-taf-runner-testng` | TestNG invocation lifecycle |
@@ -70,6 +85,10 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-mcp-prompts` | curated MCP prompts |
 | `taf-mcp-transport-stdio` | STDIO transport |
 | `taf-mcp-transport-http` | Streamable HTTP/OIDC transport |
+
+The starter rows above are published, version-aligned 1.2.0 coordinates. Their authoritative
+composition and activation requirements are in the
+[starter dependency contract](starter-dependency-contract.md).
 
 Consumer projects are governed by the versioned
 [consumer-project-blueprint-v1 schema](../architecture/schemas/consumer-project-blueprint-v1.schema.json);

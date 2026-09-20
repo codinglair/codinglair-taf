@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codinglair.com/taf/schemas/scaffold-request-v1.schema.json",
+  "title": "Codinglair TAF normalized scaffold request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "blueprintVersion",
+    "groupId",
+    "artifactId",
+    "basePackage",
+    "tafVersion",
+    "capabilities",
+    "runner",
+    "reporting",
+    "testDefinitions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "blueprintVersion": {
+      "const": "1.0"
+    },
+    "groupId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 200
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 100
+    },
+    "basePackage": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 200
+    },
+    "tafVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "API",
+          "DATABASE",
+          "MESSAGING",
+          "MOBILE",
+          "WEB"
+        ]
+      }
+    },
+    "providers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "messaging": {
+          "enum": [
+            "AWS",
+            "JMS",
+            "KAFKA",
+            "RABBITMQ"
+          ]
+        }
+      }
+    },
+    "mobile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "automationName"
+      ],
+      "properties": {
+        "platform": {
+          "enum": [
+            "ANDROID",
+            "IOS"
+          ]
+        },
+        "automationName": {
+          "enum": [
+            "UIAUTOMATOR2"
+          ]
+        }
+      }
+    },
+    "runner": {
+      "enum": [
+        "TESTNG",
+        "CUCUMBER_TESTNG"
+      ]
+    },
+    "reporting": {
+      "enum": [
+        "ALLURE",
+        "NONE"
+      ]
+    },
+    "testDefinitions": {
+      "enum": [
+        "FILE_CSV",
+        "MONGODB"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "capabilities": {
+            "contains": {
+              "const": "MESSAGING"
+            }
+          }
+        },
+        "required": [
+          "capabilities"
+        ]
+      },
+      "then": {
+        "required": [
+          "providers"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "providers"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "capabilities": {
+            "contains": {
+              "const": "MOBILE"
+            }
+          }
+        },
+        "required": [
+          "capabilities"
+        ]
+      },
+      "then": {
+        "required": [
+          "mobile"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "mobile"
+          ]
+        }
+      }
+    }
+  ]
+}

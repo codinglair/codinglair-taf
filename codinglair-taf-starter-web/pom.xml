@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>codinglair-taf</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>codinglair-taf-starter-web</artifactId>
+    <packaging>pom</packaging>
+    <name>Codinglair TAF Web Starter</name>
+    <description>Consumer dependency aggregator for the Playwright web capability</description>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-bom</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-web-playwright</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-runtime-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-environments</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-secrets-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-secrets-local</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>taf-test-definitions</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-reporting-allure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-runner-testng</artifactId>
+        </dependency>
+    </dependencies>
+</project>

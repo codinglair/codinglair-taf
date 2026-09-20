@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.codinglair.taf.mcp.prompts.McpPromptReportService;
+import com.codinglair.taf.mcp.security.ApprovalService;
+import com.codinglair.taf.mcp.security.McpEnforcementService;
+import com.codinglair.taf.mcp.tools.BlueprintScaffoldingService;
+import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -54,6 +58,33 @@ class TafMcpHttpAutoConfigurationTest {
           .withBean(JwtDecoder.class, () -> token -> null)
           .withBean(McpPromptReportService.class, () -> mock(McpPromptReportService.class))
           .run(context -> assertThat(context).hasSingleBean(HttpPromptReports.class));
+    }
+
+    @Test
+    @DisplayName("binds scaffolding only when the governed shared service is available")
+    void scaffoldBindingIsConditional() {
+      runner
+          .withBean(JwtDecoder.class, () -> token -> null)
+          .withBean(
+              BlueprintScaffoldingService.class, () -> mock(BlueprintScaffoldingService.class))
+          .run(context -> assertThat(context).hasSingleBean(HttpScaffoldingTools.class));
+    }
+
+    @Test
+    @DisplayName("composes the shared scaffold service from governed prerequisites")
+    void scaffoldServiceCompositionIsConditional() {
+      runner
+          .withBean(JwtDecoder.class, () -> token -> null)
+          .withBean(McpEnforcementService.class, () -> mock(McpEnforcementService.class))
+          .withBean(ApprovalService.class, () -> mock(ApprovalService.class))
+          .withBean(
+              ScaffoldCompiler.class,
+              () -> _ -> new ScaffoldCompiler.CompilationResult(true, "passed"))
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(BlueprintScaffoldingService.class)
+                      .hasSingleBean(HttpScaffoldingTools.class));
     }
   }
 }

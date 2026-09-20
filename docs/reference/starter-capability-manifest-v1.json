@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "1.0",
+  "targetRelease": "1.2.0",
+  "groupId": "com.codinglair.taf",
+  "packaging": "pom",
+  "sharedFoundation": [
+    "codinglair-taf-runtime-core",
+    "taf-environments",
+    "taf-secrets-api",
+    "taf-secrets-local",
+    "taf-test-definitions",
+    "codinglair-taf-reporting-allure",
+    "codinglair-taf-runner-testng"
+  ],
+  "capabilities": [
+    {
+      "id": "WEB",
+      "starter": "codinglair-taf-starter-web",
+      "implementationModules": [
+        "taf-web-playwright"
+      ],
+      "requiredConfiguration": [
+        "taf.web.playwright.enabled=true",
+        "taf.web.playwright.instances.<name>"
+      ],
+      "optionalIntegrations": [],
+      "supportedExclusions": []
+    },
+    {
+      "id": "API",
+      "starter": "codinglair-taf-starter-api",
+      "implementationModules": [
+        "taf-api-rest"
+      ],
+      "requiredConfiguration": [
+        "taf.api.rest.enabled=true",
+        "taf.api.rest.instances.<name>"
+      ],
+      "optionalIntegrations": [
+        "taf-api-soap",
+        "taf-contracts",
+        "taf-virtualization-wiremock"
+      ],
+      "supportedExclusions": []
+    },
+    {
+      "id": "DATABASE",
+      "starter": "codinglair-taf-starter-database",
+      "implementationModules": [
+        "taf-database"
+      ],
+      "requiredConfiguration": [
+        "taf.database.enabled=true",
+        "taf.database.connections.<name>"
+      ],
+      "optionalIntegrations": [
+        "JDBC driver selected by the consumer",
+        "taf-data-migration"
+      ],
+      "supportedExclusions": []
+    },
+    {
+      "id": "MESSAGING",
+      "starter": "codinglair-taf-starter-messaging",
+      "implementationModules": [
+        "taf-messaging-core"
+      ],
+      "requiredConfiguration": [
+        "provider is required for generated operational projects"
+      ],
+      "optionalIntegrations": [
+        "custom MessagingProvider implementation"
+      ],
+      "supportedExclusions": [
+        "all concrete provider SDKs"
+      ]
+    },
+    {
+      "id": "MOBILE",
+      "starter": "codinglair-taf-starter-mobile",
+      "implementationModules": [
+        "taf-mobile-core",
+        "taf-mobile-appium"
+      ],
+      "requiredConfiguration": [
+        "taf.mobile.android.enabled=true",
+        "taf.mobile.android.instances.<name>"
+      ],
+      "optionalIntegrations": [
+        "consumer-managed Appium server, Android device, emulator, and application"
+      ],
+      "supportedExclusions": []
+    }
+  ],
+  "messagingProviders": [
+    {
+      "id": "KAFKA",
+      "starter": "codinglair-taf-starter-messaging-kafka",
+      "genericStarter": "codinglair-taf-starter-messaging",
+      "implementationModule": "taf-messaging-kafka",
+      "requiredConfiguration": [
+        "taf.messaging.kafka.enabled=true",
+        "taf.messaging.kafka.bootstrap-servers",
+        "taf.messaging.kafka.controllers.<name>"
+      ],
+      "optionalIntegrations": [
+        "taf.messaging.kafka.container.enabled=true"
+      ],
+      "supportedExclusions": [
+        "Testcontainers Kafka when externally managed"
+      ]
+    },
+    {
+      "id": "RABBITMQ",
+      "starter": "codinglair-taf-starter-messaging-rabbitmq",
+      "genericStarter": "codinglair-taf-starter-messaging",
+      "implementationModule": "taf-messaging-rabbitmq",
+      "requiredConfiguration": [
+        "taf.messaging.rabbitmq.enabled=true",
+        "taf.messaging.rabbitmq.addresses",
+        "taf.messaging.rabbitmq.controllers.<name>"
+      ],
+      "optionalIntegrations": [
+        "taf.messaging.rabbitmq.container.enabled=true"
+      ],
+      "supportedExclusions": [
+        "Testcontainers RabbitMQ when externally managed"
+      ]
+    },
+    {
+      "id": "JMS",
+      "starter": "codinglair-taf-starter-messaging-jms",
+      "genericStarter": "codinglair-taf-starter-messaging",
+      "implementationModule": "taf-messaging-jms",
+      "requiredConfiguration": [
+        "taf.messaging.jms.enabled=true",
+        "taf.messaging.jms.controllers.<name>",
+        "consumer-provided jakarta.jms.ConnectionFactory"
+      ],
+      "optionalIntegrations": [
+        "JMS provider client selected by the consumer"
+      ],
+      "supportedExclusions": []
+    },
+    {
+      "id": "AWS",
+      "starter": "codinglair-taf-starter-messaging-aws",
+      "genericStarter": "codinglair-taf-starter-messaging",
+      "implementationModule": "taf-messaging-aws",
+      "requiredConfiguration": [
+        "taf.aws.enabled=true",
+        "taf.aws.profiles.<profile>",
+        "taf.aws.profiles.<profile>.eventbridge.<instance> or taf.aws.profiles.<profile>.sqs.<instance>"
+      ],
+      "optionalIntegrations": [
+        "LocalStack through explicit environment configuration"
+      ],
+      "supportedExclusions": [
+        "Testcontainers LocalStack when using authorized AWS or externally managed LocalStack"
+      ]
+    }
+  ],
+  "activation": {
+    "secretsLocal": "taf.secrets.provider, taf.secrets.routing, or the explicit taf-local profile only",
+    "singleProviderSelection": "taf.secrets.provider=<provider-id-or-bean-name>",
+    "multipleProviderRouting": "taf.secrets.routing.<provider-id>=<bean-name>",
+    "documentedLocalProfile": "taf-local selects env only; jasypt remains explicit",
+    "defaultPolicy": "classpath availability never activates a capability or provider"
+  },
+  "forbiddenDependencyTargets": [
+    "demos",
+    "examples",
+    "codinglair-taf-mcp",
+    "taf-mcp-server",
+    "control-plane",
+    "quality-intelligence",
+    "consumer-projects"
+  ]
+}

@@ -13,10 +13,14 @@ public final class ContainerSupplyChainContractTest {
     var control = read("containers/control-plane/Dockerfile");
     var worker = read("containers/worker/Dockerfile");
     var workerEntrypoint = read("containers/worker/entrypoint.sh");
+    var mcp = read("containers/mcp/Dockerfile");
+    var mcpEntrypoint = read("containers/mcp/taf-mcp");
+    var mcpSmoke = read("containers/mcp/smoke.sh");
     var bake = read("docker-bake.hcl");
     var workflow = read(".github/workflows/container-images.yml");
+    var publication = read(".github/workflows/mcp-image-release.yml");
 
-    for (var dockerfile : List.of(control, worker)) {
+    for (var dockerfile : List.of(control, worker, mcp)) {
       require(dockerfile.contains("@sha256:"), "base images must be digest pinned");
       require(dockerfile.contains("USER 1000"), "runtime must use a numeric non-root identity");
       require(dockerfile.contains("HEALTHCHECK"), "runtime must define a health check");
@@ -29,7 +33,30 @@ public final class ContainerSupplyChainContractTest {
     }
     require(workerEntrypoint.contains("umask 0077"), "worker must default to private created files");
     require(worker.contains("TAF_WORKSPACE=/workspace"), "worker workspace boundary missing");
-    require(bake.contains("control-plane") && bake.contains("worker"), "bake targets incomplete");
+    require(
+        mcpEntrypoint.contains("exec java")
+            && mcpEntrypoint.contains("stdio")
+            && mcpEntrypoint.contains("streamable-http"),
+        "MCP entrypoint must preserve signals and select both profiles");
+    require(
+        mcpEntrypoint.contains("unknown option")
+            && mcpEntrypoint.contains("profile argument conflicts"),
+        "MCP profile configuration must fail closed");
+    require(
+        mcpSmoke.contains("notifications/initialized")
+            && mcpSmoke.contains("health/liveness")
+            && mcpSmoke.contains("assert_launcher_port 8080")
+            && mcpSmoke.contains("assert_launcher_port 18080 18080")
+            && mcpSmoke.contains("assert_launcher_port 19090 18080 19090")
+            && mcpSmoke.contains("0 -1 65536 invalid")
+            && mcpSmoke.contains("docker stop --time 30")
+            && mcpSmoke.contains("State.ExitCode")
+            && mcpSmoke.contains("== 143"),
+        "MCP profile and signal qualification is incomplete");
+    require(
+        bake.contains("control-plane") && bake.contains("worker") && bake.contains("mcp"),
+        "bake targets incomplete");
+    require(bake.contains("linux/arm64"), "official MCP image must declare arm64 policy");
     require(workflow.contains("load: true"), "scan and smoke image must load into Docker");
     require(
         workflow.contains("id: maven-version")
@@ -69,6 +96,48 @@ public final class ContainerSupplyChainContractTest {
     require(
         !workflow.contains("ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION"),
         "insecure Node runtime override forbidden");
+    require(
+        publication.contains("codinglair/codinglair-taf-mcp:${VERSION}")
+            && publication.contains("codinglair/codinglair-taf-mcp:latest"),
+        "release and optional latest tags are incomplete");
+    require(
+        publication.contains("platforms: linux/amd64,linux/arm64")
+            && publication.contains("provenance: mode=max")
+            && publication.contains("sbom: true"),
+        "multi-architecture attestations are incomplete");
+    require(
+        publication.contains("cosign sign --yes")
+            && publication.contains("latest_digest")
+            && publication.contains("[[ \"$latest_digest\" == \"$DIGEST\" ]]"),
+        "signing or tag-digest equality evidence is incomplete");
+    require(
+        publication.contains("image: codinglair/codinglair-taf-mcp@${{ steps.publish.outputs.digest }}")
+            && publication.contains("output-file: target/mcp-image-release/sbom.spdx.json")
+            && publication.contains("upload-artifact: false"),
+        "standalone digest-bound SPDX SBOM evidence is incomplete");
+    require(
+        publication.contains("uses: aquasecurity/trivy-action@v0.36.0")
+            && publication.contains("image-ref: codinglair/codinglair-taf-mcp@${{ steps.publish.outputs.digest }}")
+            && publication.contains("output: target/mcp-image-release/trivy.json")
+            && publication.contains("severity: 'CRITICAL'")
+            && publication.contains("exit-code: '0'"),
+        "digest-bound Trivy JSON scan is incomplete");
+    require(
+        publication.contains("trivy --version > target/mcp-image-release/trivy-version.txt")
+            && publication.contains("Vulnerabilities[]?")
+            && publication.contains("exit 1"),
+        "scanner metadata or explicit vulnerability gate is incomplete");
+    require(
+        publication.contains("test -s target/mcp-image-release/sbom.spdx.json")
+            && publication.contains("test -s target/mcp-image-release/trivy.json")
+            && publication.contains("test -s target/mcp-image-release/trivy-version.txt")
+            && publication.contains("if: ${{ always() }}")
+            && publication.contains("path: target/mcp-image-release/"),
+        "release evidence validation or failure-path retention is incomplete");
+    require(
+        !publication.contains("COSIGN_PRIVATE_KEY")
+            && !publication.contains("ignore-unfixed: true"),
+        "stored signing keys and blanket vulnerability waivers are forbidden");
     System.out.println("Container supply-chain contract checks passed");
   }
 

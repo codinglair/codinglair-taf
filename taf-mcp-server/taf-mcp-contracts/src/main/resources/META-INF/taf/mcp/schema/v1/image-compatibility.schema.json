@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:image-compatibility",
+  "title": "TAF MCP image compatibility contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "image",
+    "artifactCompatibility",
+    "supportedProfiles"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "releaseTag",
+        "entrypoint",
+        "contents"
+      ],
+      "properties": {
+        "repository": {
+          "const": "codinglair/codinglair-taf-mcp"
+        },
+        "releaseTag": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "entrypoint": {
+          "const": "/opt/taf/bin/taf-mcp"
+        },
+        "contents": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "artifactCompatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tafRelease",
+        "mcpSchemaMajor",
+        "javaRuntime"
+      ],
+      "properties": {
+        "tafRelease": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "mcpSchemaMajor": {
+          "const": 1
+        },
+        "javaRuntime": {
+          "const": 25
+        }
+      }
+    },
+    "supportedProfiles": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "const": "stdio"
+          }
+        },
+        {
+          "contains": {
+            "const": "streamable-http"
+          }
+        }
+      ],
+      "items": {
+        "enum": [
+          "stdio",
+          "streamable-http"
+        ]
+      }
+    }
+  }
+}

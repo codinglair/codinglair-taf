@@ -15,6 +15,15 @@
     <modules>
         <module>codinglair-taf-common</module>
         <module>codinglair-taf-bom</module>
+        <module>codinglair-taf-starter-web</module>
+        <module>codinglair-taf-starter-api</module>
+        <module>codinglair-taf-starter-database</module>
+        <module>codinglair-taf-starter-mobile</module>
+        <module>codinglair-taf-starter-messaging</module>
+        <module>codinglair-taf-starter-messaging-kafka</module>
+        <module>codinglair-taf-starter-messaging-rabbitmq</module>
+        <module>codinglair-taf-starter-messaging-jms</module>
+        <module>codinglair-taf-starter-messaging-aws</module>
         <module>codinglair-taf-runtime</module>
         <module>codinglair-taf-mcp</module>
         <module>taf-mcp-server</module>
@@ -22,7 +31,7 @@
     </modules>
 
     <properties>
-        <revision>1.1.0</revision>
+        <revision>1.2.0</revision>
         <!-- Platform baseline -->
         <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -88,6 +97,7 @@
         <cyclonedx.maven.plugin.version>2.9.2</cyclonedx.maven.plugin.version>
         <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <central.skipPublishing>false</central.skipPublishing>
+        <taf.dependency.convergence.skip>true</taf.dependency.convergence.skip>
 
         <!-- Checkstyle -->
         <maven.checkstyle.plugin.version>3.6.0</maven.checkstyle.plugin.version>
@@ -857,7 +867,9 @@
                                             ${maven.multiModuleProjectDirectory}/target/staging-repository</taf.staging.repository>
                                     </filterProperties>
                                     <goals>
-                                        <goal>test</goal>
+                                        <goal>verify</goal>
+                                        <goal>dependency:tree -DoutputFile=target/dependency-tree.txt</goal>
+                                        <goal>help:effective-pom -Doutput=target/effective-pom.xml</goal>
                                     </goals>
                                     <streamLogs>true</streamLogs>
                                 </configuration>
@@ -927,6 +939,25 @@
             <id>dependency-analysis</id>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-dependency-convergence</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${taf.dependency.convergence.skip}</skip>
+                                    <rules>
+                                        <dependencyConvergence />
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>

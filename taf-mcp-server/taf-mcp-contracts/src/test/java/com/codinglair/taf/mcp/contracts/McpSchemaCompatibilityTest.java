@@ -56,12 +56,24 @@ class McpSchemaCompatibilityTest {
         Set.of(
             "common.schema.json",
             "capability-catalog.schema.json",
+            "image-compatibility.schema.json",
+            "runtime-profile-config.schema.json",
+            "discovery-readiness.schema.json",
             "tool-request.schema.json",
             "tool-response.schema.json",
             "resource.schema.json",
             "prompt.schema.json")) {
       assertThat(schema(name)).as(name).isNotNull();
     }
+  }
+
+  @Test
+  @DisplayName("Image compatibility metadata validates against the runtime profile contract")
+  void imageCompatibilityMetadataValidates() throws IOException {
+    assertThat(
+            schema("image-compatibility.schema.json")
+                .validate(read(McpContractResources.V1_IMAGE_COMPATIBILITY)))
+        .isEmpty();
   }
 
   @Test
@@ -123,13 +135,18 @@ class McpSchemaCompatibilityTest {
         Arguments.of("resource.schema.json", "resource-report-page.json"),
         Arguments.of("prompt.schema.json", "prompt-failure-analysis.json"),
         Arguments.of("prompt.schema.json", "prompt-execution-summary.json"),
-        Arguments.of("prompt.schema.json", "prompt-environment-triage.json"));
+        Arguments.of("prompt.schema.json", "prompt-environment-triage.json"),
+        Arguments.of("discovery-readiness.schema.json", "discovery-readiness.json"));
   }
 
   private static Stream<Arguments> invalidFixtures() {
     return Stream.of(
         Arguments.of("tool-request.schema.json", "tool-request-secret-value.json"),
-        Arguments.of("tool-response.schema.json", "tool-response-accepted-without-job.json"));
+        Arguments.of("tool-response.schema.json", "tool-response-accepted-without-job.json"),
+        Arguments.of("runtime-profile-config.schema.json", "image-runtime-both-profiles.json"),
+        Arguments.of("discovery-readiness.schema.json", "discovery-readiness-secret.json"),
+        Arguments.of("discovery-readiness.schema.json", "discovery-readiness-receipt.json"),
+        Arguments.of("discovery-readiness.schema.json", "discovery-readiness-payload.json"));
   }
 
   private static Stream<String> secretBearingArgumentNames() {
