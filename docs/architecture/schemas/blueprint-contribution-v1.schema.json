@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codinglair.com/taf/schemas/blueprint-contribution-v1.schema.json",
+  "title": "Codinglair TAF blueprint contribution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "blueprintVersion",
+    "id",
+    "kind",
+    "selection",
+    "order",
+    "dependencies",
+    "ownedPaths",
+    "configurationContributions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "blueprintVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 100
+    },
+    "kind": {
+      "enum": [
+        "COMMON",
+        "CAPABILITY",
+        "PROVIDER",
+        "RUNNER",
+        "REPORTING"
+      ]
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "capability": {
+          "enum": [
+            "API",
+            "DATABASE",
+            "MESSAGING",
+            "MOBILE",
+            "WEB"
+          ]
+        },
+        "provider": {
+          "enum": [
+            "AWS",
+            "JMS",
+            "KAFKA",
+            "RABBITMQ"
+          ]
+        },
+        "runner": {
+          "enum": [
+            "TESTNG",
+            "CUCUMBER_TESTNG"
+          ]
+        },
+        "reporting": {
+          "enum": [
+            "ALLURE",
+            "NONE"
+          ]
+        },
+        "always": {
+          "const": true
+        }
+      }
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9999
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "manifestId"
+        ],
+        "properties": {
+          "manifestId": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "scope": {
+            "enum": [
+              "COMPILE",
+              "TEST"
+            ]
+          }
+        }
+      }
+    },
+    "ownedPaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "operation",
+          "source"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "^(?![A-Za-z]:|/|.*(?:^|/)\\.\\.(?:/|$)).+$"
+          },
+          "operation": {
+            "enum": [
+              "CREATE",
+              "MERGE"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    },
+    "configurationContributions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document",
+          "pointer",
+          "mergeRule"
+        ],
+        "properties": {
+          "document": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "pointer": {
+            "type": "string",
+            "pattern": "^/(?:[^~/]|~[01])*(?:/(?:[^~/]|~[01])*)*$"
+          },
+          "mergeRule": {
+            "enum": [
+              "APPEND_UNIQUE_BY_ID",
+              "DEEP_MERGE_NO_OVERWRITE",
+              "REQUIRE_EQUAL",
+              "SET_IF_ABSENT"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

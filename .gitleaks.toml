@@ -25,3 +25,12 @@ regexes = ['''credential-reference=secret://env/ORDERS_API_TOKEN, outcome=FAILED
 description = "MCP AWS request idempotency fixture placeholder"
 regexTarget = "match"
 regexes = ['''idempotency-key-aws-1''']
+
+# Exact synthetic marker used to prove that VER-120-002 retained evidence rejects canary values.
+# The PR scanner examines the introducing commit as well as this repair commit, so renaming the
+# marker cannot remove the historical match. This value is not a credential or accepted by a
+# product boundary; default Gitleaks rules remain active for every other value.
+[[allowlists]]
+description = "VER-120-002 evidence leak-scan synthetic marker"
+regexTarget = "match"
+regexes = ['''ver-120-002-secret-canary-7dcb7f''']

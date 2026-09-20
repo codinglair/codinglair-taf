@@ -3,6 +3,7 @@ package com.codinglair.taf.mcp.http;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import java.nio.file.Path;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -35,6 +36,7 @@ public final class TafMcpHttpProperties {
   private int requestsPerMinute = 120;
 
   private Duration requestTimeout = Duration.ofSeconds(30);
+  private Path workspaceRoot = Path.of(".");
 
   public boolean isEnabled() {
     return enabled;
@@ -122,5 +124,14 @@ public final class TafMcpHttpProperties {
 
   public void setRequestTimeout(Duration value) {
     requestTimeout = value;
+  }
+
+  public Path getWorkspaceRoot() {
+    return workspaceRoot;
+  }
+
+  public void setWorkspaceRoot(Path value) {
+    if (value == null) throw new IllegalArgumentException("workspaceRoot is required");
+    workspaceRoot = value;
   }
 }

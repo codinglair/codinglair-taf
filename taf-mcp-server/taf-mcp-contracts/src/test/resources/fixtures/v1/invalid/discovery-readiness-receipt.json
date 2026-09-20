@@ -1,0 +1,17 @@
+{
+    "schemaVersion": "1.0",
+    "capabilities": [],
+    "configuredInstances": [
+        {
+            "capabilityId": "aws.sqs",
+            "instance": "orders",
+            "resourceAlias": "queue/orders",
+            "ownershipMode": "TEST_OWNED",
+            "isolationMode": "DEDICATED_RESOURCE",
+            "readiness": "READY",
+            "diagnostics": [],
+            "receiptHandle": "opaque"
+        }
+    ],
+    "environments": []
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codinglair:taf:mcp:schema:v1:runtime-profile-config",
+  "title": "TAF MCP mutually exclusive runtime profile selection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "profile"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "profile": {
+      "enum": [
+        "stdio",
+        "streamable-http"
+      ]
+    }
+  }
+}

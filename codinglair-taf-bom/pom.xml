@@ -14,6 +14,62 @@
     <description>Supported coherent versions for Codinglair TAF Runtime and MCP community artifacts.</description>
     <dependencyManagement>
         <dependencies>
+            <!-- Capability starters are version-aligned only. Importing this BOM does not add them
+            to a consumer dependency graph. Their POMs are implemented by PKG-120-002/003. -->
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-web</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-api</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-database</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-messaging</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-mobile</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-messaging-kafka</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-messaging-rabbitmq</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-messaging-jms</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>codinglair-taf-starter-messaging-aws</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
             <dependency>
                 <groupId>com.codinglair.taf</groupId>
                 <artifactId>taf-messaging-aws</artifactId>

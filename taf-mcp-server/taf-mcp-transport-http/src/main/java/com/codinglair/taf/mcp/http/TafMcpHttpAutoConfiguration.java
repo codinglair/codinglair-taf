@@ -2,7 +2,12 @@ package com.codinglair.taf.mcp.http;
 
 import com.codinglair.taf.mcp.prompts.McpPromptReportService;
 import com.codinglair.taf.mcp.resources.McpResourceService;
+import com.codinglair.taf.mcp.security.ApprovalService;
+import com.codinglair.taf.mcp.security.McpEnforcementService;
+import com.codinglair.taf.mcp.tools.BlueprintCompositionEngine;
+import com.codinglair.taf.mcp.tools.BlueprintScaffoldingService;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
+import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import java.time.Clock;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties;
@@ -37,6 +42,30 @@ import tools.jackson.databind.json.JsonMapper;
     havingValue = "true",
     matchIfMissing = true)
 public class TafMcpHttpAutoConfiguration {
+  @Bean
+  @ConditionalOnBean({McpEnforcementService.class, ApprovalService.class, ScaffoldCompiler.class})
+  @ConditionalOnMissingBean
+  BlueprintScaffoldingService blueprintScaffoldingService(
+      TafMcpHttpProperties properties,
+      McpEnforcementService enforcement,
+      ApprovalService approvals,
+      ScaffoldCompiler preflight) {
+    return new BlueprintScaffoldingService(
+        properties.getWorkspaceRoot(),
+        new BlueprintCompositionEngine(),
+        enforcement,
+        approvals,
+        preflight);
+  }
+
+  @Bean
+  @ConditionalOnBean(BlueprintScaffoldingService.class)
+  @ConditionalOnMissingBean
+  HttpScaffoldingTools httpScaffoldingTools(
+      BlueprintScaffoldingService scaffolding, HttpCallerContext caller) {
+    return new HttpScaffoldingTools(scaffolding, caller);
+  }
+
   @Bean
   @ConditionalOnMissingBean
   Clock tafMcpHttpClock() {

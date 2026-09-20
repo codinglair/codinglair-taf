@@ -1,127 +1,127 @@
-# Codinglair TAF public architecture
+# Codinglair TAF <!-- taf-version -->`1.2.0` public solution architecture
 
-## Purpose and scope
+## Scope
 
-This document describes the architecture implemented by the open-source Codinglair Test Automation Framework (TAF) repository. It defines the boundaries needed to consume, extend, operate, and maintain TAF Runtime and the TAF MCP Server. Source code, Maven POMs, configuration metadata, versioned schemas, tests, and accepted architecture decision records (ADRs) are authoritative.
+This document describes the current public architecture for TAF Runtime and the TAF MCP Server.
+It intentionally excludes internal design rationale, commercial plans, proprietary strategy, and
+unreleased roadmap commitments. Source, public schemas, Maven metadata, configuration metadata,
+tests, and accepted ADRs remain authoritative.
 
-The planned Quality Intelligence product is outside this repository and the Community distribution boundary. This document makes no functionality claims for that product area.
+## Product boundaries
 
-## Product and component overview
-
-TAF has two independently usable open-source layers:
-
-- **TAF Runtime** supplies invocation-scoped lifecycle, controllers, configuration, reporting, test data, environment management, and runner integrations. It does not require MCP or an AI client.
-- **TAF MCP Server** supplies governed MCP contracts and coarse-grained workflows over Runtime. It adds persistent jobs, authorization, explicit approval where required, audit, bounded resources, isolated execution, and STDIO or Streamable HTTP transports.
+TAF Runtime is deterministic and usable without MCP or AI. It supplies invocation-scoped test
+lifecycle, optional controllers, environments, test definitions, secrets, reporting, and TestNG
+and Cucumber integration. The MCP Server depends on Runtime and exposes governed framework
+interaction; Runtime never depends on MCP. Community artifacts never depend on proprietary code.
 
 ```mermaid
 flowchart LR
-    Test[Consumer tests] --> Runner[TestNG or Cucumber adapter]
-    Runner --> Runtime[TAF Runtime Core]
-    Runtime --> Cap[Optional capability modules]
-    Runtime --> Env[Environment providers]
-    Runtime --> Report[Reporting and artifacts]
-    Client[MCP client] --> Transport[STDIO or Streamable HTTP]
-    Transport --> Control[MCP control plane]
-    Control --> Worker[Isolated execution worker]
-    Worker --> Runtime
+  Tests[Consumer tests] --> Runners[TestNG or Cucumber]
+  Runners --> Session[TestSession and ControllerRegistry]
+  Session --> Caps[Capability modules]
+  Session --> Env[Environment providers]
+  Session --> Evidence[Reporting and evidence]
+  Client[MCP client] --> Transport[STDIO or Streamable HTTP]
+  Transport --> MCP[MCP tools, resources, prompts, security and jobs]
+  MCP --> Worker[Bounded execution worker]
+  Worker --> Tests
 ```
 
-## Maven organization
+## Starter and module architecture
 
-The root reactor and `codinglair-taf-bom` align versions for released artifacts. Modules are grouped by responsibility:
+Normal consumers select capability-oriented POM starters:
 
-- **Foundation:** `codinglair-taf-common`, `codinglair-taf-runtime-core`, Runtime contracts, and the consumer conformance validator.
-- **Test capabilities:** browser, REST, SOAP, database, files, service virtualization, observability, mobile, and messaging modules. Provider-neutral contracts are separated from provider adapters where multiple implementations are possible.
-- **Data and infrastructure:** test-definition repositories, secret providers, environment providers, and data-migration adapters.
-- **Execution integration:** independent TestNG and Cucumber adapters plus the optional Allure reporting adapter.
-- **MCP control plane:** versioned contracts, jobs, security, worker, tools, resources, prompts, and transport adapters under `taf-mcp-server`.
+- `codinglair-taf-starter-web`, `-api`, `-database`, and `-mobile`;
+- provider-neutral `codinglair-taf-starter-messaging`; and
+- provider starters `-messaging-kafka`, `-rabbitmq`, `-jms`, and `-aws`.
 
-Consumers select only the capability artifacts they need. Capability modules depend toward Runtime contracts; Runtime does not depend on MCP. The proprietary-boundary module must not become a dependency of Community modules.
+Each top-level starter composes its capability with the shared Runtime/TestSession, environment,
+secrets, test-definition, reporting, and TestNG foundation. Multiple starters share this foundation
+through Maven mediation. The BOM aligns a compatible version set but installs no capability.
+Starters contain no implementation classes and classpath presence does not activate a configured
+controller or infrastructure resource.
 
-## Runtime session and controller lifecycle
+Messaging provider starters transitively compose the generic messaging starter and exactly one
+provider. The generic starter is useful to extension authors implementing the provider SPI but is
+not operational by itself. Advanced consumers may continue to select supported direct modules for
+fine-grained dependency control. Internal support, MCP server, worker, build, demo, and conformance
+artifacts are not consumer capabilities. See the [dependency guide](../reference/consumer-dependencies.md)
+and [machine-readable starter manifest](../reference/starter-capability-manifest-v1.json).
 
-`TestSession` is the ownership boundary for one test invocation. It holds the session identifier, test and correlation context, environment access, reporting context, cleanup listeners, and a `ControllerRegistry`. A session may be created directly or by Spring composition through a `TestSessionFactory` and configured with `TestSessionConfigurer` implementations.
+## Runtime lifecycle and capabilities
 
-The registry identifies a controller by Java contract type and logical name. Registered controllers are initialized lazily on first access. The registry synchronizes initialization, retains an initialization failure, exposes typed health and state through each `TestController`, and rejects access after closure. This permits several independently configured instances of the same capability without global mutable controller state.
+`TestSession` owns one invocation's named, typed `ControllerRegistry`, correlation context,
+reporting, evidence, and scoped cleanup. Controllers initialize lazily, several instances of one
+type may coexist, and cleanup is reverse ordered and idempotent. Controllers consume provisioned
+resources; `EnvironmentProvider` implementations own provisioning and cleanup.
 
-The runner integration owns the session it opens. Closing `TestSession` closes the controller registry first, then invokes cleanup listeners in reverse registration order. Controller cleanup is also reverse-order and idempotent. Cleanup attempts continue after a failure so later resources are not abandoned; failures are aggregated and returned to the owning runner. A controller owns its client resources, while an environment provider owns infrastructure it created. Controllers must not stop externally owned services.
+Optional public capabilities include Playwright web, REST and SOAP, JDBC, structured files,
+Appium/Android, Kafka, RabbitMQ, JMS, EventBridge, SQS, contracts, WireMock, observability, data
+migration, test-definition providers, and environment providers. Conditional auto-configuration
+keeps unrelated technologies inactive and absent.
 
-See [ADR-003](adrs/ADR-003_approve-the-testcontroller-breaking-redesign.md) and [ADR-004](adrs/ADR-004_use-a-typed-named-controller-registry-within-testsession.md).
+The AWS messaging module uses named profiles and independent EventBridge and SQS controller
+instances. LocalStack provides deterministic local AWS integration and Testcontainers-based
+qualification without changing the public controller contracts. This provider boundary permits
+additional AWS integrations in later compatible versions; it makes no commitment to a specific
+future capability.
 
-## Optional capabilities
+## Configuration, secrets, reporting, and data
 
-Runtime Core contains technology-neutral lifecycle, reporting, preflight, history, failure, and controller contracts. Optional modules add Playwright browser automation; REST and SOAP clients; OpenAPI and AsyncAPI validation; JDBC and migration support; Kafka, RabbitMQ, and JMS-compatible messaging; Android automation through Appium; structured-file handling; WireMock virtualization; observability assertions; test-definition providers; and environment providers.
+Spring Boot 4 is the composition baseline while Runtime Core remains Spring-light. Public settings
+use typed configuration properties. Secrets cross consumer, test-definition, and MCP boundaries as
+opaque references and resolve only inside an authorized execution boundary. Resolved values must
+not enter logs, reports, screenshots, artifacts, MCP payloads, exceptions, or audit records.
 
-Each capability publishes conditional Spring Boot auto-configuration. Adding one adapter must not make unrelated technologies mandatory for Runtime consumers. See the [runtime and configuration reference](../reference/runtime-and-configuration.md) and [extension SPI guide](../reference/extension-spi.md).
+TAF-owned reporting contracts remain vendor neutral. Allure is isolated in its adapter, and
+controller evidence passes through `ArtifactCollector`. Test definitions are separate from
+transient session state, results, large artifacts, audit records, and SUT data. MongoDB is the
+recommended optional repository behind the test-definition SPI.
 
-## TestNG and Cucumber boundaries
+## MCP server architecture
 
-TestNG and Cucumber are separate adapters over the same lifecycle contracts. The TestNG adapter opens one session per TestNG invocation and binds test metadata and typed definition input to that invocation. The Cucumber adapter opens one session per scenario and binds it through framework hooks. Neither runner delegates to or requires the other, and parallel execution must not share a session. Both propagate business-test and cleanup failures through their native result model. See [ADR-006](adrs/ADR-006_keep-testng-and-cucumber-runner-integrations-independent.md) and the [runner separation guide](../reference/testng-cucumber-separation.md).
+The MCP Server provides coarse-grained discovery, validation, scaffolding/configuration services,
+controlled build and execution, inspection, cancellation, resources, and reporting over versioned
+contracts. A deployed transport exposes only the operations in its advertised tool catalog;
+server-side scaffolding classes are not by themselves a callable MCP operation.
+Tools do not expose unrestricted shell, SQL, browser, broker, or filesystem access. Security
+centralizes OIDC/OAuth identity, authorization, approval, audit, size/time limits, workspace
+confinement, and redaction. Long work uses bounded jobs and controlled artifact references.
 
-## Configuration and Spring Boot composition
+STDIO and Streamable HTTP adapt the same governed services. STDIO is a client-launched local
+subprocess: protocol frames use stdout and logs use stderr. Streamable HTTP uses `/mcp` behind the
+configured resource-server boundary and is the supported transport for detached containers, CI,
+and Kubernetes.
 
-Spring Boot is the default composition mechanism, but Runtime Core remains usable without an application server. Auto-configuration is conditional on required classes, properties, and the absence of a consumer-provided bean. Consumers may replace extension beans using normal Spring composition.
+## Official container and deployment topology
 
-Configuration uses typed `@ConfigurationProperties` classes and generated Spring configuration metadata. Secrets do not belong in ordinary configuration values. The [configuration reference](../reference/runtime-and-configuration.md) lists public prefixes and examples. [ADR-002](adrs/ADR-002_use-spring-boot-composition-with-a-lightweight-framework-core.md) defines the composition boundary.
+The official image is `codinglair/codinglair-taf-mcp`. Immutable semantic tags such as `1.2.0` are
+authoritative; `latest` is movable and prohibited for reproducible CI and supported Kubernetes.
+One image provides mutually exclusive `stdio` and `streamable-http` profiles.
 
-## Reporting and artifacts
+Local STDIO uses `docker run --rm -i` without a pseudo-TTY or published port. Streamable HTTP uses
+port 8080 by default and publishes liveness/readiness groups. Docker and CI provide external
+configuration, secret references, bounded writable workspace/state, non-root execution, and
+graceful termination.
 
-Runtime reporting contracts are vendor-neutral. Controller and workflow annotations emit structured actions through the Runtime reporter abstraction. Evidence collection applies size, type, path, and redaction controls before publication. Failure classification and execution history are Runtime services; adapters consume their results without owning lifecycle.
+The supported Kubernetes reference uses Streamable HTTP, an immutable image digest, a ClusterIP
+Service, probes, ConfigMap/Secret references, non-root/read-only security, resource bounds,
+NetworkPolicy intent, and explicit writable volumes. The current single-replica profile has
+process-local jobs, approvals, audit, and retained-result state; its `emptyDir` storage is not
+durable. Multi-replica or HA operation requires those authorities to be externalized and qualified.
+See the [container guide](../operations/mcp-container-deployment.md) and
+[Kubernetes reference](../operations/mcp-kubernetes-reference.md).
 
-Allure is optional and its AspectJ integration does not leak into Runtime Core. See the [single-file Allure guide](../reporting/single-file-allure.md) and [ADR-005](adrs/ADR-005_keep-reporting-vendor-neutral-and-isolate-allure-and-aspectj.md).
+## Compatibility and authoritative references
 
-## Environments and Testcontainers
+Java 25 and Spring Boot 4 are the public platform baseline. TestNG and Cucumber remain independent;
+the new typed/named controller lifecycle is the approved lifecycle. Public compatibility is
+governed by published contracts and the accepted ADRs, especially
+[ADR-026](adrs/ADR-026_publish-capability-oriented-starters-with-provider-specific-messaging-starters.md),
+[ADR-029](adrs/ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md), and
+[ADR-030](adrs/ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md).
 
-Environment provisioning is separate from controllers. An `EnvironmentProvider` validates or starts a resource, performs readiness checks, and publishes connection metadata through `EnvironmentAccess`. Providers distinguish external resources from framework-owned resources and apply isolated or shared lifecycle policy. Testcontainers implementations are opt-in and require a container runtime.
-
-Controllers consume connection descriptions but do not create or destroy the underlying service. The provider that creates a resource owns its cleanup. See [ADR-007](adrs/ADR-007_separate-environment-provisioning-from-controllers-and-support-testcontainers.md) and [operations and troubleshooting](../reference/operations-and-troubleshooting.md).
-
-## Secrets and redaction
-
-Test definitions and MCP inputs carry secret references, not resolved values. `taf-secrets-api` defines the resolution boundary; `taf-secrets-local` provides an authorized local implementation. Resolution occurs only inside deterministic execution and resolved material must not be returned to an MCP client, persisted in job state, or included in logs, reports, artifacts, exceptions, or audit metadata.
-
-Runtime reporting and MCP security apply separate redaction pipelines at their output boundaries. Redaction is defense in depth, not permission to place plaintext secrets in model or transport context. See [ADR-011](adrs/ADR-011_keep-secrets-outside-model-and-mcp-context.md), the [MCP threat model](../security/mcp-threat-model.md), and the [MCP security reference](../reference/mcp-and-security.md).
-
-## Test definitions and database ownership
-
-`taf-test-definitions` owns versioned repository contracts and file providers for structured test input and expected output. `taf-test-definitions-mongodb` is an optional provider behind that SPI; consumers may supply another provider without changing runner or controller contracts.
-
-TAF context data and system-under-test (SUT) data are separate planes. Framework repositories own their schema, migration, retention, and access policies. Database controllers act on explicitly configured SUT connections and do not treat SUT schemas as framework storage. Migration managers execute only declared, bounded migration locations against their designated target. See [ADR-008](adrs/ADR-008_use-mongodb-as-the-recommended-test-definition-store-behind-an-spi.md) and [ADR-022](adrs/ADR-022_separate-taf-context-and-sut-data-planes-and-govern-versioned-database-lifecycles.md).
-
-## MCP architecture and security boundaries
-
-The MCP Server is a control plane over versioned, bounded contracts:
-
-- `taf-mcp-contracts` owns request, response, resource, prompt, and capability-catalog schemas.
-- `taf-mcp-tools`, `taf-mcp-resources`, and `taf-mcp-prompts` expose coarse-grained operations, not a general shell, filesystem, SQL client, or browser session.
-- `taf-mcp-jobs` owns persistent asynchronous job state and legal transitions.
-- `taf-mcp-security` centralizes identity, role and capability authorization, approval policy, audit events, output limits, and redaction.
-- `taf-execution-worker` prepares a bounded workspace, executes an allowlisted operation, applies time and output limits, and returns controlled artifact references.
-- STDIO and Streamable HTTP adapt the same application contracts. HTTP adds the configured OIDC/OAuth resource-server boundary; transport choice must not change tool semantics or bypass authorization.
-
-A request is authenticated at the transport boundary, authorized for the requested capability, checked for any required approval, and recorded by the audit service before controlled execution. Workers are isolated from the control-plane process boundary and reject path escapes and symbolic-link traversal. Responses contain bounded values or controlled `taf://` references rather than unrestricted host paths.
-
-Authoritative references are the [MCP architecture records](mcp/), [authorization matrix](../security/mcp-authorization-matrix.md), [threat model](../security/mcp-threat-model.md), and [MCP operations and security guide](../reference/mcp-and-security.md). Wire contracts come from JSON schemas under `taf-mcp-server/taf-mcp-contracts/src/main/resources/META-INF/taf/mcp/schema/v1` and take precedence over prose.
-
-## Deployment topology
-
-The simplest topology is an in-process consumer test suite using Runtime modules and external or Testcontainers-managed dependencies. MCP STDIO adds a local control-plane process and isolated local worker for one trusted host. Streamable HTTP runs the control plane behind an identity-aware HTTP boundary and uses the same worker and contract layers. The repository also contains a functional Kind reference topology for deployment qualification; it is not required for Runtime consumers. See the [Kind deployment guide](../operations/kind-reference-deployment.md), [container image guide](../operations/container-images.md), and [release packaging guide](../operations/release-packaging.md).
-
-## Extension and dependency rules
-
-Supported extension points include controller implementations and factories, environment and secret providers, test-definition repositories, messaging adapters, reporters, preflight contributors, session configurers, and transport-independent MCP services. Extensions should:
-
-1. depend on the narrowest provider-neutral contract module;
-2. use `TestSession` ownership instead of static or cross-test mutable state;
-3. keep provisioning in environment providers and technology operations in controllers;
-4. preserve bounded output, redaction, authorization, and cleanup semantics;
-5. expose conditional auto-configuration and allow consumer bean replacement; and
-6. avoid dependencies from Runtime toward MCP, from neutral SPIs toward provider adapters, or from Community modules toward the proprietary boundary.
-
-The [consumer project blueprint](consumer-project-blueprint.md), [consumer conformance checklist](consumer-conformance-checklist.md), and [extension SPI guide](../reference/extension-spi.md) provide implementation guidance. Architectural changes are recorded as focused ADRs in the [ADR index](adrs/README.md); this document links to those decisions rather than duplicating them.
-
-## Compatibility baseline and authoritative documentation
-
-The first public release establishes Codinglair TAF's compatibility baseline; there is no earlier public release contract to preserve. Current Java, Spring, and ecosystem support is documented in the [compatibility matrix](../engineering/compatibility-matrix.md).
-
-Public entry points are the [Quick Start](../quick-start.md), [reference index](../reference/README.md), [security documentation](../security/), and [operational guides](../operations/). Released Java artifacts include generated Javadoc, Spring configuration metadata is generated from configuration types, and MCP and consumer-project JSON schemas are the authoritative generated or packaged API contracts.
+Consumer entry points are the [Quick Start](../quick-start.md),
+[dependency guide](../reference/consumer-dependencies.md),
+[blueprint architecture](consumer-project-blueprint.md), and MCP operational guides. These
+documents describe supported 1.2.0 behavior and do not imply unreleased features.

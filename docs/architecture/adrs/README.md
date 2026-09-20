@@ -41,6 +41,11 @@ Accepted ADRs are immutable except for corrections that do not change the decisi
 | [ADR-023](ADR-023_use-separate-eventbridge-and-sqs-controllers-in-one-aws-capability-module.md) | Use Separate EventBridge and SQS Controllers in One AWS Capability Module) | Accepted |
 | [ADR-024](ADR-024_provision-localstack-resources-through-the-environment-provider-and-enforce-ownership.md) | Provision LocalStack Resources Through the Environment Provider and Enforce Ownership| Accepted |
 | [ADR-025](ADR-025_require-non-destructive-sqs-isolation-and-verify-eventbridge-routing-through-sqs.md) | Require Non Destructive SQS Isolation and Verify EventBridge Routing Through SQS| Accepted |
+| [ADR-026](ADR-026_publish-capability-oriented-starters-with-provider-specific-messaging-starters.md) | Publish Capability-Oriented Starters with Provider-Specific Messaging Starters| Accepted |
+| [ADR-027](ADR-027_compose-projects-from-a-common-blueprint-and-capability-contributions.md) | Require Compose Projects from a Common Blueprint and Capability Contributions| Accepted |
+| [ADR-028](ADR-028_include-secrets-api-and-an-explicitly-activated-local-provider-in-starters.md) | Include Secrets API and an Explicitly Activated Local Provider in Starters| Accepted |
+| [ADR-029](ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md) | Require Non Distribute One MCP Image with STDIO and Streamable HTTP Profiles| Accepted |
+| [ADR-030](ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md) | Require Non Gate Releases with External Starter and Blueprint Conformance| Accepted |
 
 ## Authoring rules
 

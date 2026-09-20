@@ -3,6 +3,42 @@
 This optional Runtime capability supplies Spring-managed environment and Jasypt providers. It has no
 Vault/cloud/Kubernetes substitutes. Runtime Core does not depend on this module or Jasypt.
 
+Classpath presence never activates either provider. Select exactly one provider explicitly:
+
+```yaml
+taf:
+  secrets:
+    provider: env
+    references:
+      - secret://env/ORDERS_API_TOKEN
+```
+
+`provider` accepts one `SecretProvider` bean name or one provider ID that uniquely identifies a
+bean. When more than one provider is enabled, configure explicit reference-provider-to-bean routing:
+
+```yaml
+taf:
+  secrets:
+    routing:
+      env: environmentSecretProvider
+      jasypt: jasyptSecretProvider
+```
+
+The route key must equal the provider ID and the value must be its Spring bean name. Configuring
+both `provider` and `routing`, omitting both, selecting an unavailable provider, or leaving a route
+ambiguous fails startup with the capability, configuration field/profile, and corrective action.
+Provider IDs and bean names are metadata only; never place a credential value in either field.
+
+For deliberate local onboarding, activating the `taf-local` Spring profile selects only the
+environment provider. This is an explicit operator action, not a production fallback:
+
+```text
+--spring.profiles.active=taf-local
+```
+
+Production-like profiles must set `taf.secrets.provider` or `taf.secrets.routing`; do not combine
+`taf-local` with a production profile. Jasypt always requires explicit selection or routing.
+
 Jasypt uses `PBEWITHHMACSHA512ANDAES_256`, random salt, random IV, and Base64 output. Re-encrypting the
 same plaintext therefore produces different ciphertext. Jasypt is intended for local, air-gapped, and
 legacy-compatible use; an approved enterprise secret store is preferred in managed environments.
@@ -12,6 +48,7 @@ Configure only the name of the bootstrap environment variable:
 ```yaml
 taf:
   secrets:
+    provider: jasypt
     jasypt-master-key-environment-variable: ${TAF_JASYPT_MASTER_KEY_ENV:REPLACE_ME}
 ```
 

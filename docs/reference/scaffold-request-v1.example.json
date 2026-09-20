@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "blueprintVersion": "1.0",
+  "groupId": "com.example.taf",
+  "artifactId": "shop-tests",
+  "basePackage": "com.example.taf.shop",
+  "tafVersion": "1.2.0",
+  "capabilities": [
+    "MESSAGING",
+    "MOBILE",
+    "WEB"
+  ],
+  "providers": {
+    "messaging": "KAFKA"
+  },
+  "mobile": {
+    "platform": "ANDROID",
+    "automationName": "UIAUTOMATOR2"
+  },
+  "runner": "TESTNG",
+  "reporting": "ALLURE",
+  "testDefinitions": "FILE_CSV"
+}

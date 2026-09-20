@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'taf-mcp: %s\n' "$1" >&2
+  exit 64
+}
+
+[[ $# -ge 1 ]] || fail "exactly one profile is required: stdio or streamable-http"
+profile="$1"
+shift
+[[ "$profile" == stdio || "$profile" == streamable-http ]] || fail "unsupported profile"
+if [[ -n "${TAF_MCP_PROFILE:-}" && "$TAF_MCP_PROFILE" != "$profile" ]]; then
+  fail "profile argument conflicts with TAF_MCP_PROFILE"
+fi
+
+port="${TAF_MCP_PORT:-8080}"
+workspace="${TAF_MCP_WORKSPACE:-/workspace}"
+state_dir="${TAF_MCP_STATE_DIR:-/var/lib/taf-mcp}"
+secret_provider="${TAF_MCP_SECRET_PROVIDER_REF:-}"
+
+java_args=("--spring.config.additional-location=optional:file:/etc/taf-mcp/application.yaml")
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port|--workspace|--state-dir|--secret-provider-ref)
+      [[ $# -ge 2 ]] || fail "$1 requires a value"
+      case "$1" in
+        --port) port="$2" ;;
+        --workspace) workspace="$2" ;;
+        --state-dir) state_dir="$2" ;;
+        --secret-provider-ref) secret_provider="$2" ;;
+      esac
+      shift 2
+      ;;
+    *) fail "unknown option" ;;
+  esac
+done
+
+[[ "$workspace" == /workspace || "$workspace" == /workspace/* ]] || fail "workspace must be within /workspace"
+[[ "$state_dir" == /var/lib/taf-mcp || "$state_dir" == /var/lib/taf-mcp/* ]] || fail "state directory must be within /var/lib/taf-mcp"
+[[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || fail "port must be between 1 and 65535"
+[[ "$secret_provider" != *$'\n'* && "$secret_provider" != *$'\r'* ]] || fail "invalid secret provider reference"
+
+if [[ "$profile" == stdio ]]; then
+  [[ "$port" == 8080 && -z "${TAF_MCP_PORT:-}" ]] || fail "port is only valid for streamable-http"
+  exec java -cp '/opt/taf/stdio/app.jar:/opt/taf/stdio/lib/*' \
+    com.codinglair.taf.mcp.stdio.TafMcpStdioApplication \
+    "--taf.mcp.stdio.workspace-root=$workspace" "${java_args[@]}"
+fi
+
+[[ -n "${TAF_MCP_OIDC_ISSUER:-}" ]] && java_args+=("--taf.mcp.http.issuer-uri=${TAF_MCP_OIDC_ISSUER}")
+[[ -n "${TAF_MCP_OIDC_AUDIENCE:-}" ]] && java_args+=("--taf.mcp.http.audience=${TAF_MCP_OIDC_AUDIENCE}")
+java_args+=("--server.port=$port" "--taf.mcp.http.workspace-root=$workspace")
+exec java -cp '/opt/taf/http/app.jar:/opt/taf/http/lib/*' \
+  com.codinglair.taf.mcp.http.TafMcpHttpApplication "${java_args[@]}"
+

@@ -1,6 +1,6 @@
 # GATE-006 Runtime/MCP contract snapshots
 
-Snapshot date: 2026-08-24. Baseline artifact version: <!-- taf-version -->`1.1.0`. MCP schema major:
+Snapshot date: 2026-08-24. Baseline artifact version: <!-- taf-version -->`1.2.0`. MCP schema major:
 `1.0`; capability catalog: `1.0.0`; Spring AI MCP server identity: `codinglair-taf/1.0.0`.
 
 ## Runtime public-contract baseline

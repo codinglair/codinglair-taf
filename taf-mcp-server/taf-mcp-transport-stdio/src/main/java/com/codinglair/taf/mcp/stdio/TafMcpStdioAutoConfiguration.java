@@ -4,7 +4,12 @@ import com.codinglair.taf.mcp.jobs.JobRepository;
 import com.codinglair.taf.mcp.jobs.JobService;
 import com.codinglair.taf.mcp.prompts.McpPromptReportService;
 import com.codinglair.taf.mcp.resources.McpResourceService;
+import com.codinglair.taf.mcp.security.ApprovalService;
+import com.codinglair.taf.mcp.security.McpEnforcementService;
+import com.codinglair.taf.mcp.tools.BlueprintCompositionEngine;
+import com.codinglair.taf.mcp.tools.BlueprintScaffoldingService;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
+import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
 import java.time.Clock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -23,6 +28,30 @@ import org.springframework.context.annotation.Bean;
     havingValue = "true",
     matchIfMissing = true)
 public class TafMcpStdioAutoConfiguration {
+  @Bean
+  @ConditionalOnBean({McpEnforcementService.class, ApprovalService.class, ScaffoldCompiler.class})
+  @ConditionalOnMissingBean
+  BlueprintScaffoldingService blueprintScaffoldingService(
+      TafMcpStdioProperties properties,
+      McpEnforcementService enforcement,
+      ApprovalService approvals,
+      ScaffoldCompiler preflight) {
+    return new BlueprintScaffoldingService(
+        properties.getWorkspaceRoot(),
+        new BlueprintCompositionEngine(),
+        enforcement,
+        approvals,
+        preflight);
+  }
+
+  @Bean
+  @ConditionalOnBean(BlueprintScaffoldingService.class)
+  @ConditionalOnMissingBean
+  StdioScaffoldingTools stdioScaffoldingTools(
+      BlueprintScaffoldingService scaffolding, TafMcpStdioProperties properties) {
+    return new StdioScaffoldingTools(scaffolding, properties);
+  }
+
   @Bean
   @ConditionalOnBean(McpWorkflowTools.class)
   @ConditionalOnMissingBean

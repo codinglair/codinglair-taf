@@ -24,7 +24,13 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        image: [control-plane, worker]
+        include:
+          - image: control-plane
+            repository: codinglair/taf-control-plane
+          - image: worker
+            repository: codinglair/taf-worker
+          - image: mcp
+            repository: codinglair/codinglair-taf-mcp
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v4
@@ -45,7 +51,7 @@ jobs:
           file: containers/${{ matrix.image }}/Dockerfile
           load: true
           push: false
-          tags: codinglair/taf-${{ matrix.image }}:${{ github.sha }}
+          tags: ${{ matrix.repository }}:${{ github.sha }}
           build-args: |
             VERSION=${{ steps.maven-version.outputs.version }}
             REVISION=${{ github.sha }}
@@ -61,7 +67,7 @@ jobs:
       - name: Generate retained SPDX SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: codinglair/taf-${{ matrix.image }}:${{ github.sha }}
+          image: ${{ matrix.repository }}:${{ github.sha }}
           format: spdx-json
           output-file: target/supply-chain/${{ matrix.image }}.spdx.json
           upload-artifact: false
@@ -69,7 +75,7 @@ jobs:
       - name: Generate retained Trivy vulnerability report
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: codinglair/taf-${{ matrix.image }}:${{ github.sha }}
+          image-ref: ${{ matrix.repository }}:${{ github.sha }}
           scanners: vuln
           format: json
           output: target/supply-chain/${{ matrix.image }}-trivy.json
@@ -105,9 +111,14 @@ jobs:
           done
           echo "Download the supply-chain-${{ matrix.image }}-${{ github.run_attempt }} artifact for the complete JSON report."
           exit 1
-      - name: Smoke and enforce runtime restrictions
+      - name: Smoke existing runtime image
+        if: ${{ matrix.image != 'mcp' }}
         shell: bash
-        run: bash containers/smoke.sh "${{ matrix.image }}" "codinglair/taf-${{ matrix.image }}:${{ github.sha }}"
+        run: bash containers/smoke.sh "${{ matrix.image }}" "${{ matrix.repository }}:${{ github.sha }}"
+      - name: Smoke both MCP profiles and signal handling
+        if: ${{ matrix.image == 'mcp' }}
+        shell: bash
+        run: bash containers/mcp/smoke.sh "${{ matrix.repository }}:${{ github.sha }}"
       - name: Locate supply-chain evidence
         if: ${{ always() }}
         shell: bash
