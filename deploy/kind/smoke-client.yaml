@@ -86,6 +86,17 @@ spec:
                 done
               }
 
+              echo 'Smoke stage [unauthenticated MCP]: request started'
+              if ! unauthenticated_status="$(curl --silent --show-error -o /dev/null -w '%{http_code}' \
+                -H 'Content-Type: application/json' \
+                -H 'Accept: application/json, text/event-stream' \
+                --data '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"kind-smoke","version":"1.0"}}}' \
+                http://taf-control-plane:8080/mcp)"; then
+                fail 20 'Unauthenticated MCP transport failed'
+              fi
+              [ "$unauthenticated_status" = 401 ] || fail 20 "Unauthenticated MCP returned HTTP ${unauthenticated_status}; response body withheld"
+              echo 'Smoke stage [unauthenticated MCP]: request rejected with HTTP 401; response body withheld'
+
               echo 'Smoke stage [OIDC/authentication]: token acquisition started'
               if ! token_status="$(curl --silent --show-error -o "$work/token.json" -w '%{http_code}' \
                 --data-urlencode "client_id=taf-kind-smoke" \

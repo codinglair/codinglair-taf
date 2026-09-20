@@ -32,6 +32,7 @@ new_uid="$(kubectl --context "$CONTEXT" -n taf-system get pod -l app.kubernetes.
 test "$old_uid" != "$new_uid"
 grep -Fq 'Commencing graceful shutdown' "$TMP_DIR/shutdown.log"
 grep -Fq 'Graceful shutdown complete' "$TMP_DIR/shutdown.log"
+echo 'Observed application markers: Commencing graceful shutdown; Graceful shutdown complete'
 run_authenticated_smoke
 echo 'Authenticated MCP, graceful shutdown, pod replacement, and service recovery passed'
 

@@ -1,0 +1,117 @@
+name: VER-120-002 Blueprint Image Kubernetes Qualification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'taf-mcp-server/**'
+      - 'containers/mcp/**'
+      - 'deploy/kind/mcp-reference/**'
+      - 'deploy/kind/bootstrap-mcp.sh'
+      - 'deploy/kind/smoke-mcp.sh'
+      - 'build-support/ci/Ver120002QualificationContractTest.java'
+      - 'build-support/scripts/scan-ver-120-002-evidence.sh'
+      - '.github/workflows/ver-120-002-qualification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ver-120-002-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      MAVEN_ARGS: -B -ntp
+      TAF_KIND_SKIP_IMAGE_BUILD: 'true'
+      TAF_KIND_CLUSTER: codinglair-taf-mcp
+      VER_SECRET_CANARY: ver-120-002-secret-canary-7dcb7f
+      VER_RECEIPT_CANARY: ver-120-002-receipt-canary-91ae2c
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: docker/setup-buildx-action@v4
+      - name: Install verified Kind binary
+        run: |
+          install_dir="${RUNNER_TEMP}/kind-bin"
+          mkdir -p "$install_dir"
+          curl --fail --location --silent --show-error -o "$install_dir/kind" https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+          curl --fail --location --silent --show-error -o /tmp/kind.sha256 https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64.sha256sum
+          sed "s#kind-linux-amd64#$install_dir/kind#" /tmp/kind.sha256 | sha256sum --check
+          chmod 0555 "$install_dir/kind"
+          echo "$install_dir" >> "$GITHUB_PATH"
+      - name: Verify qualification contract
+        run: |
+          mkdir -p target/ver-120-002/contract
+          javac -d target/ver-120-002/contract build-support/ci/Ver120002QualificationContractTest.java
+          java -cp target/ver-120-002/contract Ver120002QualificationContractTest | tee target/ver-120-002/contract.txt
+      - name: Generate deterministic projects and negative cases
+        run: |
+          # Install the reviewed checkout's complete artifact graph first; generated projects are
+          # then invoked separately and are not reactor modules.
+          ./mvnw $MAVEN_ARGS install -DskipTests
+          ./mvnw $MAVEN_ARGS -pl taf-mcp-server/taf-mcp-tools test \
+            -Dtest=BlueprintCompositionEngineTest,CapabilityContributionCatalogTest \
+            -Dscf.fixture.root="$PWD/target/ver-120-002/fixtures-a"
+          ./mvnw $MAVEN_ARGS -pl taf-mcp-server/taf-mcp-tools test \
+            -Dtest=BlueprintCompositionEngineTest,CapabilityContributionCatalogTest \
+            -Dscf.fixture.root="$PWD/target/ver-120-002/fixtures-b"
+          (cd target/ver-120-002/fixtures-a && find . -type f -print0 | sort -z | xargs -0 sha256sum) > target/ver-120-002/fixture-hashes-a.txt
+          (cd target/ver-120-002/fixtures-b && find . -type f -print0 | sort -z | xargs -0 sha256sum) > target/ver-120-002/fixture-hashes-b.txt
+          diff -u target/ver-120-002/fixture-hashes-a.txt target/ver-120-002/fixture-hashes-b.txt
+      - name: Compile generated projects outside the reactor
+        run: |
+          : > target/ver-120-002/generated-projects.txt
+          for fixture in target/ver-120-002/fixtures-a/{web,api,database,messaging,mobile,web-api-database}; do
+            ./mvnw $MAVEN_ARGS -f "$fixture/pom.xml" test | tee "$fixture/build.log"
+            printf '%s PASS\n' "$(basename "$fixture")" >> target/ver-120-002/generated-projects.txt
+          done
+      - name: Run MCP transport and HTTP security qualification
+        run: |
+          ./mvnw $MAVEN_ARGS -pl taf-mcp-server/taf-mcp-transport-http -am verify -Psecurity-it \
+            | tee target/ver-120-002/mcp-security.log
+      - name: Build and qualify both image profiles
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          VERSION="$(sed -n 's:.*<revision>\([^<]*\)</revision>.*:\1:p' pom.xml | head -n 1)"
+          echo "TAF_IMAGE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          image="codinglair/codinglair-taf-mcp:$VERSION"
+          docker buildx build --pull --no-cache --load --file containers/mcp/Dockerfile \
+            --build-arg VERSION="$VERSION" --build-arg REVISION="$REVISION" \
+            --build-arg CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" --tag "$image" .
+          bash containers/mcp/smoke.sh "$image" | tee target/ver-120-002/image-smoke.txt
+          docker image inspect "$image" > target/ver-120-002/image-inspect.json
+          docker history --no-trunc "$image" > target/ver-120-002/image-history.txt
+      - name: Deploy and qualify fresh Kubernetes profile
+        run: |
+          bash deploy/kind/bootstrap-mcp.sh
+          bash deploy/kind/smoke-mcp.sh | tee target/ver-120-002/kubernetes-smoke.txt
+          grep -Fq 'MCP discovery and execution smoke passed' target/ver-120-002/kubernetes-smoke.txt
+          grep -Fq 'Commencing graceful shutdown' target/ver-120-002/kubernetes-smoke.txt
+          grep -Fq 'Graceful shutdown complete' target/ver-120-002/kubernetes-smoke.txt
+          grep -Fq 'request rejected with HTTP 401' target/ver-120-002/kubernetes-smoke.txt
+          kubectl --context kind-codinglair-taf-mcp -n taf-system get deployment,service,networkpolicy,pod -o wide > target/ver-120-002/rollout.txt
+          kubectl --context kind-codinglair-taf-mcp -n taf-system get configmap,service,deployment,networkpolicy -o yaml > target/ver-120-002/applied-manifests.yaml
+      - name: Scan every retained textual evidence surface
+        run: |
+          bash build-support/scripts/scan-ver-120-002-evidence.sh target/ver-120-002 \
+            "$VER_SECRET_CANARY" "$VER_RECEIPT_CANARY"
+      - name: Retain sanitized qualification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ver-120-002-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ver-120-002/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Teardown disposable cluster
+        if: ${{ always() }}
+        run: bash deploy/kind/teardown.sh
