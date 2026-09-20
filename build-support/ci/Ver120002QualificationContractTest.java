@@ -24,6 +24,8 @@ public final class Ver120002QualificationContractTest {
         "secret", "token", "supplied canaries", "leak-scan.txt");
     require(read("deploy/kind/smoke-client.yaml"), "unauthenticated MCP",
         "unauthenticated_status", "= 401", "response body withheld");
+    require(read("deploy/kind/smoke-mcp.sh"), "smoke.log",
+        "request rejected with HTTP 401; response body withheld");
     reject(workflow, ":latest");
     reject(workflow, "kubectl attach");
     reject(workflow, "kubectl exec");
