@@ -29,6 +29,7 @@ final class GitleaksContractTest {
     require(config, "reject-prior-api34\\.properties");
     require(config, "783a40134baf4f3012d4464fbe1571b1612a0dbd2e7a44d14bd8328923443833");
     require(config, "credential-reference=secret://env/ORDERS_API_TOKEN, outcome=FAILED");
+    require(config, "ver-120-002-secret-canary-7dcb7f");
     prohibit(workflow + script + config, "gitleaks/gitleaks-action");
     prohibit(workflow + script, "secrets.");
     prohibit(workflow + script, "privileged");

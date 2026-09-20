@@ -17,7 +17,11 @@ run_authenticated_smoke() {
     kubectl --context "$CONTEXT" -n taf-system logs job/taf-mcp-smoke --tail=200 >&2 || true
     return 1
   fi
-  kubectl --context "$CONTEXT" -n taf-system logs job/taf-mcp-smoke | grep -Fq 'MCP discovery and execution smoke passed'
+  kubectl --context "$CONTEXT" -n taf-system logs job/taf-mcp-smoke >"$TMP_DIR/smoke.log"
+  grep -Fq 'MCP discovery and execution smoke passed' "$TMP_DIR/smoke.log"
+  grep -Fq 'request rejected with HTTP 401; response body withheld' "$TMP_DIR/smoke.log"
+  echo 'MCP discovery and execution smoke passed'
+  echo 'Unauthenticated MCP request rejected with HTTP 401; response body withheld'
 }
 
 run_authenticated_smoke
@@ -32,6 +36,7 @@ new_uid="$(kubectl --context "$CONTEXT" -n taf-system get pod -l app.kubernetes.
 test "$old_uid" != "$new_uid"
 grep -Fq 'Commencing graceful shutdown' "$TMP_DIR/shutdown.log"
 grep -Fq 'Graceful shutdown complete' "$TMP_DIR/shutdown.log"
+echo 'Observed application markers: Commencing graceful shutdown; Graceful shutdown complete'
 run_authenticated_smoke
 echo 'Authenticated MCP, graceful shutdown, pod replacement, and service recovery passed'
 
