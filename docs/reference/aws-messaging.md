@@ -16,7 +16,7 @@ Import the Codinglair TAF BOM and add the module without a version:
     <dependency>
       <groupId>com.codinglair.taf</groupId>
       <artifactId>codinglair-taf-bom</artifactId>
-      <version>1.1.0</version>
+      <version>1.2.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -226,13 +226,13 @@ The clean-room consumer is outside the Maven reactor and uses only staged public
 clean checkout with Java 25 and Docker running:
 
 ```powershell
-.\mvnw.cmd clean deploy -Drevision=1.1.0 -Prelease-staging
-.\mvnw.cmd -N -Drevision=1.1.0 -Pconsumer-smoke verify
+.\mvnw.cmd clean deploy -Prelease-staging
+.\mvnw.cmd -N -Pconsumer-smoke verify
 ```
 
 ```sh
-./mvnw clean deploy -Drevision=1.1.0 -Prelease-staging
-./mvnw -N -Drevision=1.1.0 -Pconsumer-smoke verify
+./mvnw clean deploy -Prelease-staging
+./mvnw -N -Pconsumer-smoke verify
 ```
 
 The second command uses Maven Invoker, an isolated repository, dynamically mapped LocalStack, and
@@ -261,8 +261,8 @@ for staging details.
 
 ## Compatibility profile
 
-Release 1.1.0 targets Java 25, Spring Boot 4.x, AWS SDK for Java 2.42.15, Testcontainers 2.0.5,
-and LocalStack 4.14.0. CI uses the digest recorded in the
+The AWS capability introduced in 1.1.0 remains supported in release 1.2.0 with Java 25, Spring
+Boot 4.x, AWS SDK for Java 2.42.15, Testcontainers 2.0.5, and LocalStack 4.14.0. CI uses the digest recorded in the
 [dependency compatibility decision](../architecture/decisions/AWS-110-001-dependency-compatibility.md).
 
 Qualified on LocalStack: EventBridge publish and rule-to-SQS routing; SQS send, bounded receive,

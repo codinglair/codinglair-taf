@@ -4,7 +4,45 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 
 ## Unreleased
 
-## [<!-- taf-version -->`1.1.0`] - 2026-09-13
+## [<!-- taf-version -->`1.2.0`] - 2026-09-20
+
+### Added
+
+- Capability-oriented Web, API, Database, Messaging, Mobile, Kafka, RabbitMQ, JMS, and AWS
+  starters, all aligned by the existing consumer BOM.
+- Deterministic Maven project generation for supported multi-capability selections, including
+  generated-project preflight and collision-safe publication.
+- One official MCP Server image with client-spawned STDIO and secured Streamable HTTP profiles,
+  plus the supported Kind reference deployment.
+- External staged-artifact conformance for every starter, the maximal starter/provider graph,
+  generated projects, retained direct-module consumers, image profiles, and Kubernetes restart.
+
+### Changed
+
+- Starters are now the recommended consumer entry point; supported individual Runtime modules
+  remain available for advanced consumers and no existing public coordinate was removed.
+- Release verification now requires clean external consumers and generated projects that do not
+  inherit Codinglair build configuration or rely on reactor-only resolution.
+- Consumer and operator documentation now covers Maven and Gradle dependency syntax, starter
+  activation, MCP image profiles, immutable image selection, and Kubernetes deployment.
+
+### Security
+
+- Starter secret-provider selection fails closed, and the local provider requires explicit
+  activation rather than acting as a production fallback.
+- The MCP image runs non-root with a read-only-root-compatible layout and retains digest-bound
+  SBOM, provenance, signature, and vulnerability evidence during authorized publication.
+
+### Known limitations
+
+- Release 1.2.0 generates Maven projects only. Gradle Groovy and Kotlin examples cover dependency
+  consumption syntax, not blueprint generation or Maven-plugin equivalence.
+- The supported Kubernetes profile is single-replica and process-local; pod replacement proves
+  service recovery, not persistence of jobs, approvals, audit history, or results.
+- Android/UiAutomator2 is the supported generated Mobile baseline. iOS/XCUITest generation is not
+  implemented in this release.
+
+## `1.1.0` - 2026-09-13
 
 ### Added
 

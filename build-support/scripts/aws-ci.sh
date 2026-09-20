@@ -19,8 +19,8 @@ case "$mode" in
       -am verify -Pmcp-gate,security
     ;;
   consumer-smoke)
-    "${maven[@]}" clean deploy -Drevision=1.1.0 -Prelease-staging -DskipTests
-    "${maven[@]}" -N -Drevision=1.1.0 -Pconsumer-smoke verify
+    "${maven[@]}" clean deploy -Prelease-staging -DskipTests
+    "${maven[@]}" -N -Pconsumer-smoke verify
     ;;
   full-reactor)
     "${maven[@]}" clean verify \

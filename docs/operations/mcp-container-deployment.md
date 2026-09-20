@@ -1,4 +1,4 @@
-# MCP container deployment for Codinglair TAF <!-- taf-version -->`1.1.0`
+# MCP container deployment for Codinglair TAF <!-- taf-version -->`1.2.0`
 
 The official image is `codinglair/codinglair-taf-mcp`. Use immutable tag `1.2.0` for CI and
 supported deployments:
