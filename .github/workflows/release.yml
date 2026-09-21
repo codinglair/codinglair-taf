@@ -67,6 +67,7 @@ jobs:
           test -s target/central-publishing/central-bundle.zip
           unzip -Z1 target/central-publishing/central-bundle.zip > target/release-contract/central-bundle-files.txt
           test -s target/release-contract/central-bundle-files.txt
+          ! grep -q '^com/codinglair/taf/demo/' target/release-contract/central-bundle-files.txt
           while IFS= read -r file; do
             case "$file" in
               *.pom|*.jar|*.json) grep -Fxq "${file}.asc" target/release-contract/central-bundle-files.txt ;;
