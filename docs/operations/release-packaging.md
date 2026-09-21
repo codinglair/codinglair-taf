@@ -89,7 +89,8 @@ prevents an upload:
 ```
 
 Inspect the ZIP and verify that every POM, primary artifact, sources JAR, Javadoc JAR, and JSON SBOM
-has a corresponding `.asc` signature. This dry run is the required profile/bundle check; remove the
+has a corresponding `.asc` signature. The bundle must not contain the non-public
+`com/codinglair/taf/demo/` namespace. This dry run is the required profile/bundle check; remove the
 override only for an authorized Central deployment.
 
 ## Dependency license policy
