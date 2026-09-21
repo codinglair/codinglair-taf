@@ -21,6 +21,7 @@ final class VerificationMatrixContractTest {
     require(release, "Verify clean public-repository checkout");
     require(release, "-Dcentral.skipPublishing=true");
     require(release, "Verify Central dry-run bundle");
+    require(release, "! grep -q '^com/codinglair/taf/demo/'");
     require(matrix, "workflow_call:");
     require(matrix, "install --with-deps chromium firefox webkit");
     require(matrix, "-Dtest=PlaywrightBrowserSmokeTest");

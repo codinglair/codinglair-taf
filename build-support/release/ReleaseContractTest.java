@@ -3,6 +3,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.zip.ZipFile;
 
 /** Dependency-free structural and staged-artifact checks for DEVOPS-005. */
 public final class ReleaseContractTest {
@@ -26,16 +27,22 @@ public final class ReleaseContractTest {
     Path repository = Path.of(args[0]).toAbsolutePath().normalize();
     require(Files.isDirectory(repository), "staging repository does not exist: " + repository);
     String releaseVersion = releaseVersion();
-    List<String> files;
+    List<Path> stagedFiles;
     try (var paths = Files.walk(repository)) {
-      files = paths.filter(Files::isRegularFile).map(path -> path.getFileName().toString()).toList();
+      stagedFiles = paths.filter(Files::isRegularFile).toList();
     }
+    List<String> files = stagedFiles.stream().map(path -> path.getFileName().toString()).toList();
     require(
         files.stream().noneMatch(name -> name.contains("quality-intelligence")),
         "proprietary Quality Intelligence artifact was staged");
     require(
         files.stream().noneMatch(name -> name.contains("SNAPSHOT")),
         "snapshot artifact was staged");
+    require(
+        stagedFiles.stream()
+            .map(repository::relativize)
+            .noneMatch(path -> path.startsWith(Path.of("com", "codinglair", "taf", "demo"))),
+        "non-public demo artifact was staged");
     for (String artifact : REQUIRED_ARTIFACTS) {
       require(files.contains(artifact + "-" + releaseVersion + ".pom"), artifact + " release POM missing");
       if (!artifact.endsWith("-bom")) {
@@ -44,6 +51,11 @@ public final class ReleaseContractTest {
         require(files.contains(artifact + "-" + releaseVersion + "-javadoc.jar"), artifact + " javadoc missing");
         require(files.contains(artifact + "-" + releaseVersion + "-cyclonedx.json"), artifact + " SBOM missing");
       }
+    }
+    for (Path javadocJar : stagedFiles.stream()
+        .filter(path -> path.getFileName().toString().endsWith("-javadoc.jar"))
+        .toList()) {
+      requireNoEmbeddedFonts(javadocJar);
     }
   }
 
@@ -54,6 +66,14 @@ public final class ReleaseContractTest {
     String version = matcher.group(1);
     require(!version.endsWith("-SNAPSHOT"), "root POM revision is not a release version: " + version);
     return version;
+  }
+
+  private static void requireNoEmbeddedFonts(Path javadocJar) throws IOException {
+    try (var archive = new ZipFile(javadocJar.toFile())) {
+      require(
+          archive.stream().noneMatch(entry -> entry.getName().startsWith("resource-files/fonts/")),
+          "embedded Javadoc fonts found in " + javadocJar);
+    }
   }
 
   private static void require(boolean condition, String message) {
