@@ -93,14 +93,16 @@ bundle-id, prebuilt-path and base-url. Paths refer to the Apple server. External
 allocation/readiness and collision checks belong to MOB-130-004; no signing
 material is accepted. Command timeout defaults to 2m; readiness/context/cleanup
 timeouts default to 30s; all must be positive and at most 10m. Command timeout is
-sent as Appium newCommandTimeout; the other durations bind for subsequent owners.
+sent as Appium newCommandTimeout; context-timeout bounds WebView polling.
+Readiness/cleanup transport deadlines remain subsequent assignment responsibilities.
 
 Lifecycle policy binds REUSE/RELAUNCH/REINSTALL (default RELAUNCH); REINSTALL
 requires PACKAGED. Application cleanup flags default true/false for terminate/
 uninstall. Evidence defaults are screenshot/source/logs true, video false, visual
 authorization false. Alert accept/dismiss default false and are mutually exclusive.
-Apple operations and application cleanup policy execution belong to MOB-130-003;
-readiness/isolation to MOB-130-004; conditional evidence to MOB-130-005. This
-increment opens/closes sessions and exposes the native driver, without claiming
-those later operations or real-device qualification. See the
+Apple operations, explicit reset policy, owned cleanup, context-bound elements,
+hybrid selection and Safari navigation are documented in the
+[operation and verification table](../../docs/reference/apple-appium-operations.md).
+Readiness/isolation remain MOB-130-004; conditional evidence remains MOB-130-005.
+Real-device qualification is not claimed. See the
 [contract and qualification plan](../../docs/engineering/apple-130-contract-and-qualification-plan.md).

@@ -19,6 +19,8 @@ public final class ApplePlatformStrategy {
     options.setCapability("appium:automationName", "XCUITest");
     options.setDeviceName(settings.getDeviceName());
     options.setNewCommandTimeout(settings.getCommandTimeout());
+    // Reset is an explicit controller policy, never an implicit server-side device/app reset.
+    options.setNoReset(true);
     if (settings.getDeviceId() != null) options.setUdid(settings.getDeviceId());
     if (settings.getPlatformVersion() != null)
       options.setPlatformVersion(settings.getPlatformVersion());
