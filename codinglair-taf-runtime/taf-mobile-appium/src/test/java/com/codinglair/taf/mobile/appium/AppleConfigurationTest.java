@@ -64,6 +64,7 @@ class AppleConfigurationTest {
       assertThat(settings.family()).isEqualTo(family);
       assertThat(options.asMap().get("platformName")).isEqualTo("iOS");
       assertThat(options.getCapability("appium:automationName")).isEqualTo("XCUITest");
+      assertThat(options.getCapability("appium:noReset")).isEqualTo(true);
       assertThat(options.getCapability("browserName"))
           .isEqualTo(mode == MobileExecutionMode.SAFARI ? "Safari" : null);
     }

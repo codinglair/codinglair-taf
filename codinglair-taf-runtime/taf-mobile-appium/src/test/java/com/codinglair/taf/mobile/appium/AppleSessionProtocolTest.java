@@ -72,7 +72,8 @@ class AppleSessionProtocolTest {
                 """
             {"value":{"error":"session not created","message":"CANARY sensitive provider response","stacktrace":"CANARY"}}
             """;
-          } else if (exchange.getRequestMethod().equals("POST")) {
+          } else if (exchange.getRequestMethod().equals("POST")
+              && exchange.getRequestURI().getPath().endsWith("/session")) {
             payload =
                 new Json()
                     .toJson(
@@ -83,7 +84,8 @@ class AppleSessionProtocolTest {
                                 "fixture-" + identifiers.incrementAndGet(),
                                 "capabilities",
                                 Map.of("platformName", "iOS"))));
-          } else payload = "{\"value\":null}";
+          } else if (exchange.getRequestMethod().equals("POST")) payload = "{\"value\":true}";
+          else payload = "{\"value\":null}";
           byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
           exchange.sendResponseHeaders(status, bytes.length);
@@ -104,6 +106,7 @@ class AppleSessionProtocolTest {
     var settings = AppleConfigurationTest.valid();
     settings.setServerUrl(
         URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/custom/wd/hub"));
+    settings.setTerminateAppOnClose(false);
     return settings;
   }
 
@@ -113,7 +116,10 @@ class AppleSessionProtocolTest {
   void create(MobileExecutionMode mode) {
     var settings = settings();
     settings.setExecutionMode(mode);
-    if (mode == MobileExecutionMode.SAFARI) settings.setBundleId(null);
+    if (mode == MobileExecutionMode.SAFARI) {
+      settings.setBundleId(null);
+      settings.setTerminateAppOnClose(null);
+    }
     var controller = new DefaultAppleController("fixture", settings, null);
     assertThat(paths).isEmpty();
     try {
@@ -211,7 +217,9 @@ class AppleSessionProtocolTest {
               }
               assertThat(paths)
                   .containsExactly(
-                      "POST /custom/wd/hub/session", "DELETE /custom/wd/hub/session/fixture-1");
+                      "POST /custom/wd/hub/session",
+                      "POST /custom/wd/hub/session/fixture-1/execute/sync",
+                      "DELETE /custom/wd/hub/session/fixture-1");
             });
   }
 

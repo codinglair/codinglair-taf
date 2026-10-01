@@ -1,8 +1,13 @@
 package com.codinglair.taf.mobile.appium.service;
 
+import com.codinglair.taf.mobile.ApplicationMode;
 import com.codinglair.taf.mobile.MobileDeviceFamily;
+import com.codinglair.taf.mobile.MobileDeviceKind;
+import com.codinglair.taf.mobile.MobileExecutionMode;
+import com.codinglair.taf.mobile.MobileOrientation;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
 import com.codinglair.taf.mobile.appium.exception.AppleControllerException;
+import com.codinglair.taf.mobile.appium.platform.AppleLocator;
 import com.codinglair.taf.mobile.appium.platform.ApplePlatformStrategy;
 import com.codinglair.taf.runtime.core.controller.ArtifactReason;
 import com.codinglair.taf.runtime.core.controller.ControllerContext;
@@ -10,10 +15,24 @@ import com.codinglair.taf.runtime.core.controller.ControllerIdentity;
 import com.codinglair.taf.runtime.core.controller.ControllerState;
 import com.codinglair.taf.runtime.core.controller.HealthResult;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
+import com.codinglair.taf.runtime.core.reporting.annotation.ControllerAction;
+import io.appium.java_client.appmanagement.ApplicationState;
 import io.appium.java_client.ios.IOSDriver;
+import java.net.URI;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
+import org.openqa.selenium.ScreenOrientation;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Pause;
+import org.openqa.selenium.interactions.PointerInput;
+import org.openqa.selenium.interactions.Sequence;
 
 /** One lazy driver per controller. Serialized lifecycle prevents close/initialize races. */
 public final class DefaultAppleController implements AppleController {
@@ -21,6 +40,8 @@ public final class DefaultAppleController implements AppleController {
   private final AppleControllerSettings settings;
   private ControllerState state = ControllerState.NEW;
   private IOSDriver driver;
+  private long generation;
+  private boolean installedByController;
 
   public DefaultAppleController(
       String name, AppleControllerSettings base, AppleControllerSettings instance) {
@@ -97,12 +118,386 @@ public final class DefaultAppleController implements AppleController {
     state = ControllerState.CLOSED;
     IOSDriver owned = driver;
     driver = null;
+    generation++;
     if (owned != null) {
+      boolean failed = false;
+      try {
+        if (settings.getExecutionMode() != MobileExecutionMode.SAFARI
+            && settings.getTerminateAppOnClose()
+            && settings.getBundleId() != null) owned.terminateApp(settings.getBundleId());
+      } catch (RuntimeException _) {
+        failed = true;
+      }
+      try {
+        if (installedByController && settings.getUninstallPackagedAppOnClose())
+          owned.removeApp(bundle());
+      } catch (RuntimeException _) {
+        failed = true;
+      }
       try {
         owned.quit();
-      } catch (RuntimeException failure) {
-        throw new AppleControllerException("close");
+      } catch (RuntimeException _) {
+        failed = true;
+      }
+      if (failed) throw new AppleControllerException("close");
+    }
+  }
+
+  private <T> T operation(String name, Supplier<T> action) {
+    nativeDriver();
+    if (Thread.currentThread().isInterrupted())
+      throw new IllegalStateException("Apple operation cancelled");
+    try {
+      return action.get();
+    } catch (StaleElementReferenceException _) {
+      throw new StaleElementReferenceException(
+          "Apple element is stale; resolve its locator again; action was not replayed");
+    } catch (RuntimeException _) {
+      throw new AppleControllerException(name);
+    }
+  }
+
+  private void action(String name, Runnable action) {
+    operation(
+        name,
+        () -> {
+          action.run();
+          return null;
+        });
+  }
+
+  private String bundle() {
+    if (settings.getExecutionMode() == MobileExecutionMode.SAFARI)
+      throw new UnsupportedOperationException(
+          "Application lifecycle is unavailable in Safari mode");
+    if (settings.getBundleId() == null || settings.getBundleId().isBlank())
+      throw new IllegalStateException("This operation requires a configured bundle-id");
+    return settings.getBundleId();
+  }
+
+  private static void bounded(Duration duration) {
+    if (duration == null
+        || duration.compareTo(Duration.ofMillis(1)) < 0
+        || duration.compareTo(Duration.ofMinutes(10)) > 0)
+      throw new IllegalArgumentException(
+          "Duration must be between one millisecond and ten minutes");
+  }
+
+  private WebElement element(AppleElement handle) {
+    nativeDriver();
+    Objects.requireNonNull(handle);
+    if (handle.owner != this || handle.generation != generation)
+      throw new StaleElementReferenceException(
+          "Apple element belongs to another session or context; resolve again");
+    return handle.element;
+  }
+
+  @Override
+  public synchronized AppleElement find(AppleLocator locator) {
+    Objects.requireNonNull(locator);
+    String context = operation("get-context", () -> driver.getContext());
+    boolean web = !"NATIVE_APP".equals(context);
+    if ((locator.kind() == AppleLocator.Kind.CSS && !web)
+        || (web
+            && locator.kind() != AppleLocator.Kind.CSS
+            && locator.kind() != AppleLocator.Kind.XPATH))
+      throw new IllegalArgumentException(
+          "Locator strategy is incompatible with the active context");
+    return new AppleElement(
+        this, generation, operation("find", () -> driver.findElement(locator.by())));
+  }
+
+  @Override
+  @ControllerAction("Tap Apple element")
+  public synchronized void tap(AppleElement handle) {
+    WebElement target = element(handle);
+    action("tap", target::click);
+  }
+
+  @Override
+  @ControllerAction("Type into Apple element")
+  public synchronized void type(AppleElement handle, String text) {
+    WebElement target = element(handle);
+    Objects.requireNonNull(text);
+    action("type", () -> target.sendKeys(text));
+  }
+
+  @Override
+  public synchronized String text(AppleElement handle) {
+    WebElement target = element(handle);
+    return operation("text", target::getText);
+  }
+
+  @Override
+  @ControllerAction("Swipe on Apple device")
+  public synchronized void swipe(int sx, int sy, int ex, int ey, Duration duration) {
+    bounded(duration);
+    if (sx < 0 || sy < 0 || ex < 0 || ey < 0)
+      throw new IllegalArgumentException("Coordinates must be nonnegative");
+    var finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+    var sequence = new Sequence(finger, 0);
+    sequence.addAction(
+        finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), sx, sy));
+    sequence.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+    sequence.addAction(finger.createPointerMove(duration, PointerInput.Origin.viewport(), ex, ey));
+    sequence.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+    action("swipe", () -> driver.perform(List.of(sequence)));
+  }
+
+  @Override
+  @ControllerAction("Long press Apple element")
+  public synchronized void longPress(AppleElement handle, Duration duration) {
+    bounded(duration);
+    WebElement target = element(handle);
+    var finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+    var sequence = new Sequence(finger, 0);
+    sequence.addAction(
+        finger.createPointerMove(Duration.ZERO, PointerInput.Origin.fromElement(target), 0, 0));
+    sequence.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+    sequence.addAction(new Pause(finger, duration));
+    sequence.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+    action("long-press", () -> driver.perform(List.of(sequence)));
+  }
+
+  @Override
+  @ControllerAction("Set Apple orientation")
+  public synchronized void setOrientation(MobileOrientation orientation) {
+    Objects.requireNonNull(orientation);
+    action(
+        "orientation",
+        () ->
+            driver.rotate(
+                orientation == MobileOrientation.PORTRAIT
+                    ? ScreenOrientation.PORTRAIT
+                    : ScreenOrientation.LANDSCAPE));
+  }
+
+  private void installConfigured() {
+    if (settings.getExecutionMode() == MobileExecutionMode.SAFARI
+        || settings.getApplicationMode() != ApplicationMode.PACKAGED)
+      throw new UnsupportedOperationException("Installation requires packaged native/hybrid mode");
+    bundle(); // Identity is needed for ownership-limited cleanup.
+    generation++;
+    action("install", () -> driver.installApp(settings.getAppReference().value()));
+    installedByController = true;
+  }
+
+  @Override
+  @ControllerAction("Install Apple application")
+  public synchronized void install() {
+    installConfigured();
+  }
+
+  @Override
+  @ControllerAction("Uninstall Apple application")
+  public synchronized void uninstall() {
+    String id = bundle();
+    generation++;
+    action("uninstall", () -> driver.removeApp(id));
+    installedByController = false;
+  }
+
+  @Override
+  @ControllerAction("Launch Apple application")
+  public synchronized void launch() {
+    String id = bundle();
+    generation++;
+    action("launch", () -> driver.executeScript("mobile: launchApp", Map.of("bundleId", id)));
+  }
+
+  @Override
+  @ControllerAction("Activate Apple application")
+  public synchronized void activate() {
+    String id = bundle();
+    generation++;
+    action("activate", () -> driver.activateApp(id));
+  }
+
+  @Override
+  public synchronized ApplicationState queryAppState() {
+    String id = bundle();
+    return operation("query-app-state", () -> driver.queryAppState(id));
+  }
+
+  @Override
+  @ControllerAction("Terminate Apple application")
+  public synchronized void terminate() {
+    String id = bundle();
+    generation++;
+    action("terminate", () -> driver.terminateApp(id));
+  }
+
+  @Override
+  @ControllerAction("Reset Apple application using declared policy")
+  public synchronized void reset() {
+    String id = bundle();
+    nativeDriver();
+    switch (settings.getLifecyclePolicy()) {
+      case REUSE -> {}
+      case RELAUNCH -> {
+        generation++;
+        action("reset-terminate", () -> driver.terminateApp(id));
+        action("reset-activate", () -> driver.activateApp(id));
+      }
+      case REINSTALL -> {
+        generation++;
+        action("reset-remove", () -> driver.removeApp(id));
+        installedByController = false;
+        installConfigured();
+        action("reset-activate", () -> driver.activateApp(id));
       }
     }
+  }
+
+  @Override
+  @ControllerAction("Background Apple application")
+  public synchronized void background(Duration duration) {
+    bounded(duration);
+    bundle();
+    generation++;
+    action(
+        "background",
+        () ->
+            driver.executeScript(
+                "mobile: backgroundApp", Map.of("seconds", duration.toNanos() / 1_000_000_000.0)));
+  }
+
+  private static String uri(String value) {
+    try {
+      URI parsed = URI.create(value);
+      if (!parsed.isAbsolute() || parsed.getUserInfo() != null)
+        throw new IllegalArgumentException();
+      return value;
+    } catch (RuntimeException _) {
+      throw new IllegalArgumentException("An absolute URI without credentials is required");
+    }
+  }
+
+  @Override
+  @ControllerAction("Open Apple deep link")
+  public synchronized void openDeepLink(String value) {
+    String url = uri(value);
+    String id = bundle();
+    generation++;
+    action(
+        "deep-link",
+        () -> driver.executeScript("mobile: deepLink", Map.of("url", url, "bundleId", id)));
+  }
+
+  private void permission(String permission, String value) {
+    if (settings.getDeviceKind() != MobileDeviceKind.SIMULATOR)
+      throw new UnsupportedOperationException(
+          "Permission configuration requires a simulator; use system dialogs on physical devices");
+    if (permission == null || !permission.matches("[a-z][a-z-]{0,63}"))
+      throw new IllegalArgumentException("A simulator permission name is required");
+    String id = bundle();
+    generation++;
+    action(
+        "permission",
+        () ->
+            driver.executeScript(
+                "mobile: setPermission",
+                Map.of("bundleId", id, "access", Map.of(permission, value))));
+  }
+
+  @Override
+  @ControllerAction("Grant Apple simulator permission")
+  public synchronized void grantPermission(String permission) {
+    permission(permission, "yes");
+  }
+
+  @Override
+  @ControllerAction("Revoke Apple simulator permission")
+  public synchronized void revokePermission(String permission) {
+    permission(permission, "no");
+  }
+
+  @Override
+  @ControllerAction("Accept Apple system dialog")
+  public synchronized void acceptDialog() {
+    action("accept-dialog", () -> driver.switchTo().alert().accept());
+  }
+
+  @Override
+  @ControllerAction("Dismiss Apple system dialog")
+  public synchronized void dismissDialog() {
+    action("dismiss-dialog", () -> driver.switchTo().alert().dismiss());
+  }
+
+  @Override
+  @ControllerAction("Open Apple notification UI")
+  public synchronized void openNotifications() {
+    String context = operation("get-context", () -> driver.getContext());
+    if (!"NATIVE_APP".equals(context))
+      throw new IllegalStateException("Notification UI requires native context");
+    generation++;
+    action(
+        "notifications",
+        () -> {
+          var size = driver.manage().window().getSize();
+          var finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+          var sequence = new Sequence(finger, 0);
+          sequence.addAction(
+              finger.createPointerMove(
+                  Duration.ZERO, PointerInput.Origin.viewport(), size.width / 2, 0));
+          sequence.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+          sequence.addAction(
+              finger.createPointerMove(
+                  Duration.ofMillis(500),
+                  PointerInput.Origin.viewport(),
+                  size.width / 2,
+                  size.height * 3 / 4));
+          sequence.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+          driver.perform(List.of(sequence));
+        });
+  }
+
+  @Override
+  public synchronized Set<String> contexts() {
+    return Set.copyOf(operation("contexts", () -> driver.getContextHandles()));
+  }
+
+  @Override
+  @ControllerAction("Select explicit Apple WebView")
+  public synchronized void selectWebView(String selected) {
+    if (settings.getExecutionMode() != MobileExecutionMode.HYBRID)
+      throw new UnsupportedOperationException("WebView discovery requires HYBRID mode");
+    if (selected == null || !selected.startsWith("WEBVIEW") || selected.length() > 256)
+      throw new IllegalArgumentException("An explicit WebView context identifier is required");
+    long deadline = System.nanoTime() + settings.getContextTimeout().toNanos();
+    do {
+      if (contexts().contains(selected)) {
+        generation++;
+        action("select-webview", () -> driver.context(selected));
+        return;
+      }
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0) break;
+      try {
+        TimeUnit.NANOSECONDS.sleep(Math.min(remaining, Duration.ofMillis(50).toNanos()));
+      } catch (InterruptedException _) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Apple context discovery cancelled");
+      }
+    } while (System.nanoTime() < deadline);
+    throw new IllegalStateException(
+        "Expected Apple WebView unavailable within context-timeout; verify WKWebView inspectability, Safari Web Inspector and device/host authorization");
+  }
+
+  @Override
+  @ControllerAction("Return to Apple native context")
+  public synchronized void returnToNative() {
+    generation++;
+    action("native-context", () -> driver.context("NATIVE_APP"));
+  }
+
+  @Override
+  @ControllerAction("Navigate mobile Safari or Apple WebView")
+  public synchronized void navigate(String value) {
+    String url = uri(value);
+    if ("NATIVE_APP".equals(operation("get-context", () -> driver.getContext())))
+      throw new IllegalStateException("Navigation requires Safari or a selected WebView");
+    generation++;
+    action("navigate", () -> driver.get(url));
   }
 }
