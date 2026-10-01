@@ -1,56 +1,43 @@
-# Architecture Decision Records
+# Codinglair TAF 1.3.0 ADR Package
 
-This directory contains accepted architecture decisions for the Codinglair TAF product family.
+Source: SAD 1.13, based on SAD 1.12 and BRD 1.4. Prepared September 30, 2026.
 
-## ADR lifecycle
+ADR-031–035 are new proposed decisions. ADR-013 is inherited with partial-supersession disposition. ADR-001–030 reproduce the decision content available in the supplied SAD; this package does not claim recovery of richer historical standalone ADR files or invent their metadata.
 
-- **Proposed:** Under review and not yet authoritative
-- **Accepted:** Governs implementation
-- **Deprecated:** Retained for history but no longer recommended
-- **Superseded:** Replaced by a later ADR
-- **Rejected:** Considered but not adopted
-
-Accepted ADRs are immutable except for corrections that do not change the decision. A material change requires a new ADR that supersedes the previous record.
-
-## Index
-
-| ADR | Decision | Status |
+| Record | Revision disposition | File |
 |---|---|---|
-| [ADR-001](ADR-001_separate-runtime-mcp-server-and-quality-intelligence-products.md) | Separate Runtime, MCP Server, and Quality Intelligence products | Accepted |
-| [ADR-002](ADR-002_use-spring-boot-composition-with-a-lightweight-framework-core.md) | Use Spring Boot composition with a lightweight framework core | Accepted |
-| [ADR-003](ADR-003_approve-the-testcontroller-breaking-redesign.md) | Approve the TestController breaking redesign | Accepted |
-| [ADR-004](ADR-004_use-a-typed-named-controller-registry-within-testsession.md) | Use a typed named controller registry within TestSession | Accepted |
-| [ADR-005](ADR-005_keep-reporting-vendor-neutral-and-isolate-allure-and-aspectj.md) | Keep reporting vendor-neutral and isolate Allure and AspectJ | Accepted |
-| [ADR-006](ADR-006_keep-testng-and-cucumber-runner-integrations-independent.md) | Keep TestNG and Cucumber test models separate while using TestNG XML orchestration | Accepted |
-| [ADR-007](ADR-007_separate-environment-provisioning-from-controllers-and-support-testcontainers.md) | Separate environment provisioning from controllers and support Testcontainers | Accepted |
-| [ADR-008](ADR-008_use-mongodb-as-the-recommended-test-definition-store-behind-an-spi.md) | Use MongoDB as the recommended test-definition store behind an SPI | Accepted |
-| [ADR-009](ADR-009_expose-coarse-grained-mcp-workflows-with-asynchronous-jobs.md) | Expose coarse-grained MCP workflows with asynchronous jobs | Accepted |
-| [ADR-010](ADR-010_write-generated-code-as-proposed-working-tree-changes-without-autonomous-commits.md) | Write generated code as proposed working-tree changes without autonomous commits | Accepted |
-| [ADR-011](ADR-011_keep-secrets-outside-model-and-mcp-context.md) | Keep secrets outside model and MCP context | Accepted |
-| [ADR-012](ADR-012_start-the-control-plane-as-a-modular-monolith-with-isolated-execution-workers.md) | Start the control plane as a modular monolith with isolated execution workers | Accepted |
-| [ADR-013](ADR-013_implement-android-appium-first-and-preserve-an-ios-provider-boundary.md) | Implement Android Appium first and preserve an iOS provider boundary | Accepted |
-| [ADR-014](ADR-014_separate-framework-self-tests-from-consumer-test-execution-and-tier-ci-verification.md) | Separate framework self-tests from consumer test execution and tier CI verification | Accepted |
-| [ADR-015](ADR-015_provide-an-incremental-functional-kind-reference-deployment.md) | Provide an incremental functional Kind reference deployment | Accepted |
-| [ADR-016](ADR-016_defer-detailed-quality-intelligence-assignments-until-runtime-and-mcp-stabilize.md) | Defer detailed Quality Intelligence assignments until Runtime and MCP stabilize | Accepted |
-| [ADR-017](ADR-017_java-25-platform-baseline.md) | Java 25 platform baseline existing project ADR | Accepted |
-| [ADR-018](ADR-018_package-optional-controllers-as-capability-specific-modules.md) | Package optional controllers as capability-specific modules | Accepted |
-| [ADR-019](ADR-019_standardize-consumer-project-blueprints-and-test-design-patterns.md) | Standardize consumer project blueprints and test design patterns | Accepted |
-| [ADR-020](ADR-020_enforce-conformance-for-agent-generated-and-migrated-test-assets.md) | Enforce conformance for agent-generated and migrated test assets | Accepted |
-| [ADR-021](ADR-021_normalize-plaintext-secrets-at-an-explicit-test-data-authoring-boundary.md) | Normalize plaintext secrets at an explicit test-data authoring boundary | Accepted |
-| [ADR-022](ADR-022_separate-taf-context-and-sut-data-planes-and-govern-versioned-database-lifecycles.md) | Separate TAF context and SUT data planes and govern versioned database lifecycles | Accepted |
-| [ADR-023](ADR-023_use-separate-eventbridge-and-sqs-controllers-in-one-aws-capability-module.md) | Use Separate EventBridge and SQS Controllers in One AWS Capability Module) | Accepted |
-| [ADR-024](ADR-024_provision-localstack-resources-through-the-environment-provider-and-enforce-ownership.md) | Provision LocalStack Resources Through the Environment Provider and Enforce Ownership| Accepted |
-| [ADR-025](ADR-025_require-non-destructive-sqs-isolation-and-verify-eventbridge-routing-through-sqs.md) | Require Non Destructive SQS Isolation and Verify EventBridge Routing Through SQS| Accepted |
-| [ADR-026](ADR-026_publish-capability-oriented-starters-with-provider-specific-messaging-starters.md) | Publish Capability-Oriented Starters with Provider-Specific Messaging Starters| Accepted |
-| [ADR-027](ADR-027_compose-projects-from-a-common-blueprint-and-capability-contributions.md) | Require Compose Projects from a Common Blueprint and Capability Contributions| Accepted |
-| [ADR-028](ADR-028_include-secrets-api-and-an-explicitly-activated-local-provider-in-starters.md) | Include Secrets API and an Explicitly Activated Local Provider in Starters| Accepted |
-| [ADR-029](ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md) | Require Non Distribute One MCP Image with STDIO and Streamable HTTP Profiles| Accepted |
-| [ADR-030](ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md) | Require Non Gate Releases with External Starter and Blueprint Conformance| Accepted |
-
-## Authoring rules
-
-1. Use the next sequential number.
-2. Describe the forces and constraints, not only the chosen technology.
-3. Record rejected alternatives and meaningful consequences.
-4. Link superseded and superseding decisions in both records.
-5. Update architecture tests, compatibility matrices, and implementation assignments when a decision becomes accepted.
+| ADR-001 | Inherited | [ADR-001_separate-runtime-mcp-server-and-quality-intelligence-products.md](ADR-001_separate-runtime-mcp-server-and-quality-intelligence-products.md) |
+| ADR-002 | Inherited | [ADR-002_use-spring-boot-composition-with-a-lightweight-framework-core.md](ADR-002_use-spring-boot-composition-with-a-lightweight-framework-core.md) |
+| ADR-003 | Inherited | [ADR-003_approve-the-testcontroller-breaking-redesign.md](ADR-003_approve-the-testcontroller-breaking-redesign.md) |
+| ADR-004 | Inherited | [ADR-004_use-a-typed-named-controller-registry-within-testsession.md](ADR-004_use-a-typed-named-controller-registry-within-testsession.md) |
+| ADR-005 | Inherited | [ADR-005_keep-reporting-vendor-neutral-and-isolate-allure-and-aspectj.md](ADR-005_keep-reporting-vendor-neutral-and-isolate-allure-and-aspectj.md) |
+| ADR-006 | Inherited | [ADR-006_keep-testng-and-cucumber-runner-integrations-independent.md](ADR-006_keep-testng-and-cucumber-runner-integrations-independent.md) |
+| ADR-007 | Inherited | [ADR-007_separate-environment-provisioning-from-controllers-and-support-testcontainers.md](ADR-007_separate-environment-provisioning-from-controllers-and-support-testcontainers.md) |
+| ADR-008 | Inherited | [ADR-008_use-mongodb-as-the-recommended-test-definition-store-behind-an-spi.md](ADR-008_use-mongodb-as-the-recommended-test-definition-store-behind-an-spi.md) |
+| ADR-009 | Inherited | [ADR-009_expose-coarse-grained-mcp-workflows-with-asynchronous-jobs.md](ADR-009_expose-coarse-grained-mcp-workflows-with-asynchronous-jobs.md) |
+| ADR-010 | Inherited | [ADR-010_write-generated-code-as-proposed-working-tree-changes-without-autonomous-commits.md](ADR-010_write-generated-code-as-proposed-working-tree-changes-without-autonomous-commits.md) |
+| ADR-011 | Inherited | [ADR-011_keep-secrets-outside-model-and-mcp-context.md](ADR-011_keep-secrets-outside-model-and-mcp-context.md) |
+| ADR-012 | Inherited | [ADR-012_start-the-control-plane-as-a-modular-monolith-with-isolated-execution-workers.md](ADR-012_start-the-control-plane-as-a-modular-monolith-with-isolated-execution-workers.md) |
+| ADR-013 | Inherited — partially superseded for Apple scope | [ADR-013_implement-android-appium-first-and-preserve-an-ios-provider-boundary.md](ADR-013_implement-android-appium-first-and-preserve-an-ios-provider-boundary.md) |
+| ADR-014 | Inherited | [ADR-014_separate-framework-self-tests-from-consumer-test-execution-and-tier-ci-verification.md](ADR-014_separate-framework-self-tests-from-consumer-test-execution-and-tier-ci-verification.md) |
+| ADR-015 | Inherited | [ADR-015_provide-an-incremental-functional-kind-reference-deployment.md](ADR-015_provide-an-incremental-functional-kind-reference-deployment.md) |
+| ADR-016 | Inherited | [ADR-016_defer-detailed-quality-intelligence-assignments-until-runtime-and-mcp-stabilize.md](ADR-016_defer-detailed-quality-intelligence-assignments-until-runtime-and-mcp-stabilize.md) |
+| ADR-017 | Inherited | [ADR-017_java-25-platform-baseline.md](ADR-017_java-25-platform-baseline.md) |
+| ADR-018 | Inherited | [ADR-018_package-optional-controllers-as-capability-specific-modules.md](ADR-018_package-optional-controllers-as-capability-specific-modules.md) |
+| ADR-019 | Inherited | [ADR-019_standardize-consumer-project-blueprints-and-test-design-patterns.md](ADR-019_standardize-consumer-project-blueprints-and-test-design-patterns.md) |
+| ADR-020 | Inherited | [ADR-020_enforce-conformance-for-agent-generated-and-migrated-test-assets.md](ADR-020_enforce-conformance-for-agent-generated-and-migrated-test-assets.md) |
+| ADR-021 | Inherited | [ADR-021_normalize-plaintext-secrets-at-an-explicit-test-data-authoring-boundary.md](ADR-021_normalize-plaintext-secrets-at-an-explicit-test-data-authoring-boundary.md) |
+| ADR-022 | Inherited | [ADR-022_separate-taf-context-and-sut-data-planes-and-govern-versioned-database-lifecycles.md](ADR-022_separate-taf-context-and-sut-data-planes-and-govern-versioned-database-lifecycles.md) |
+| ADR-023 | Inherited | [ADR-023_use-separate-eventbridge-and-sqs-controllers-in-one-aws-capability-module.md](ADR-023_use-separate-eventbridge-and-sqs-controllers-in-one-aws-capability-module.md) |
+| ADR-024 | Inherited | [ADR-024_provision-localstack-resources-through-the-environment-provider-and-enforce-ownership.md](ADR-024_provision-localstack-resources-through-the-environment-provider-and-enforce-ownership.md) |
+| ADR-025 | Inherited | [ADR-025_require-non-destructive-sqs-isolation-and-verify-eventbridge-routing-through-sqs.md](ADR-025_require-non-destructive-sqs-isolation-and-verify-eventbridge-routing-through-sqs.md) |
+| ADR-026 | Inherited | [ADR-026_publish-capability-oriented-starters-with-provider-specific-messaging-starters.md](ADR-026_publish-capability-oriented-starters-with-provider-specific-messaging-starters.md) |
+| ADR-027 | Inherited | [ADR-027_compose-projects-from-a-common-blueprint-and-capability-contributions.md](ADR-027_compose-projects-from-a-common-blueprint-and-capability-contributions.md) |
+| ADR-028 | Inherited | [ADR-028_include-secrets-api-and-an-explicitly-activated-local-provider-in-starters.md](ADR-028_include-secrets-api-and-an-explicitly-activated-local-provider-in-starters.md) |
+| ADR-029 | Inherited | [ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md](ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md) |
+| ADR-030 | Inherited | [ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md](ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md) |
+| ADR-031 | New — proposed | [ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md](ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md) |
+| ADR-032 | New — proposed | [ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md](ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md) |
+| ADR-033 | New — proposed | [ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md](ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md) |
+| ADR-034 | New — proposed | [ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md](ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md) |
+| ADR-035 | New — proposed | [ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md](ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md) |

@@ -1,17 +1,12 @@
 # ADR-021: Normalize Plaintext Secrets at an Explicit Test-Data Authoring Boundary
 
-**Status:** Accepted  
-**Date:** 2026-08-10  
-**Decision Owners:** Codinglair TAF Architecture  
-**Related Documents:** SAD v1.9; ADR-011; PWD-001 Secret Handling
+**Source:** Inherited decision text from SAD 1.12 as carried into SAD 1.13. Historical status/date/owners are not supplied here.
 
-## Context
+**Context** Test automation engineers commonly author CSV, JSON, YAML, SQL, and database fixtures directly. A runtime-only policy that rejects plaintext secret values is safe but creates unnecessary manual encryption work; a universal auto-encryption rule is impossible because direct file and database writes can bypass TAF. In addition, making ordinary repository reads silently mutate Git-managed files or shared test-definition stores would violate read expectations, complicate transactions and auditability, and create unsafe concurrent execution behavior.
 
-Test automation engineers commonly author CSV, JSON, YAML, SQL, and database fixtures directly. A runtime-only policy that rejects plaintext secret values is safe but creates unnecessary manual encryption work; a universal auto-encryption rule is impossible because direct file and database writes can bypass TAF. Making ordinary repository reads silently mutate Git-managed files or shared test-definition stores would violate read expectations, complicate transactions and auditability, and create unsafe concurrent execution behavior.
+ADR-011 already governs secret reference resolution and the prohibition on resolved values entering models, MCP, prompts, logs, reports, or artifacts. This decision governs the separate authoring and ingestion path.
 
-ADR-011 governs secret reference resolution and the prohibition on resolved values entering models, MCP, prompts, logs, reports, or artifacts. This ADR governs the distinct authoring and ingestion path.
-
-## Decision
+**Decision**
 
 - Classify secret-bearing fields explicitly through definition schema metadata or `@SecretField(kind = SecretKind...)`; do not infer classification from field names.
 - Maintain a canonical representation in which every `SECRET` field contains an approved `SecretReference`, never plaintext. Persistent names should make the contract clear, for example `passwordReference` or `password_reference`.
@@ -22,7 +17,7 @@ ADR-011 governs secret reference resolution and the prohibition on resolved valu
 - Keep `SecretProvider`/`SecretManager` as read/execution contracts. A separate `SecretProvisioner` owns creation/protection and returns the canonical reference.
 - Permit metadata-only audit messages stating that a classified secret field was protected; never include plaintext, ciphertext, encryption keys, or resolved values.
 
-## Consequences
+**Consequences**
 
 - Direct SQL and file authoring remain possible, while TAF refuses to knowingly execute persisted plaintext declared as a secret.
 - Local Jasypt and environment providers can support the first vertical slice; enterprise vault/cloud provisioning can be added behind the same provisioning boundary later.
