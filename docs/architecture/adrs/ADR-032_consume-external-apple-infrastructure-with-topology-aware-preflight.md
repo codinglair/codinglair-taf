@@ -1,6 +1,6 @@
 # ADR-032: Consume External Apple Infrastructure with Topology-Aware Preflight
 
-**Status:** Proposed architecture decision for TAF 1.3.0; approval not asserted.  
+**Status:** Accepted by the Product Owner for TAF 1.3.0 on 2026-10-01; implementation and architectural review remain required.
 **Date:** September 30, 2026  
 **Decision owner role:** Solution Architecture; implementation and qualification by Engineering/QA.  
 **Related requirements:** FR-MOB-014–016, FR-MOB-021, FR-MOB-025, FR-MOB-012.  
