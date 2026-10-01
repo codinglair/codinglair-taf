@@ -1,6 +1,6 @@
 # ADR-033: Preserve Platform Semantics and Isolate Apple Sessions
 
-**Status:** Proposed architecture decision for TAF 1.3.0; approval not asserted.  
+**Status:** Accepted by the Product Owner for TAF 1.3.0 on 2026-10-01; implementation and architectural review remain required.
 **Date:** September 30, 2026  
 **Decision owner role:** Solution Architecture; implementation and qualification by Engineering/QA.  
 **Related requirements:** FR-MOB-013, FR-MOB-017–018, FR-MOB-022, FR-MOB-026.  

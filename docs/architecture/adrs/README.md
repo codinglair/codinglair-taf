@@ -2,7 +2,7 @@
 
 Source: SAD 1.13, based on SAD 1.12 and BRD 1.4. Prepared September 30, 2026.
 
-ADR-031–035 are new proposed decisions. ADR-013 is inherited with partial-supersession disposition. ADR-001–030 reproduce the decision content available in the supplied SAD; this package does not claim recovery of richer historical standalone ADR files or invent their metadata.
+ADR-031–035 were proposed on September 30 and are recorded in this working tree as accepted by the Product Owner on October 1, 2026; implementation and architectural review remain required. ADR-013 is inherited with partial-supersession disposition. ADR-001–030 reproduce the decision content available in the supplied SAD; this package does not claim recovery of richer historical standalone ADR files or invent their metadata.
 
 | Record | Revision disposition | File |
 |---|---|---|
@@ -36,8 +36,8 @@ ADR-031–035 are new proposed decisions. ADR-013 is inherited with partial-supe
 | ADR-028 | Inherited | [ADR-028_include-secrets-api-and-an-explicitly-activated-local-provider-in-starters.md](ADR-028_include-secrets-api-and-an-explicitly-activated-local-provider-in-starters.md) |
 | ADR-029 | Inherited | [ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md](ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md) |
 | ADR-030 | Inherited | [ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md](ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md) |
-| ADR-031 | New — proposed | [ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md](ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md) |
-| ADR-032 | New — proposed | [ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md](ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md) |
-| ADR-033 | New — proposed | [ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md](ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md) |
-| ADR-034 | New — proposed | [ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md](ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md) |
-| ADR-035 | New — proposed | [ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md](ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md) |
+| ADR-031 | Accepted by Product Owner 2026-10-01 | [ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md](ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md) |
+| ADR-032 | Accepted by Product Owner 2026-10-01 | [ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md](ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md) |
+| ADR-033 | Accepted by Product Owner 2026-10-01 | [ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md](ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md) |
+| ADR-034 | Accepted by Product Owner 2026-10-01 | [ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md](ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md) |
+| ADR-035 | Accepted by Product Owner 2026-10-01 | [ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md](ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md) |
