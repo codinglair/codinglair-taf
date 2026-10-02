@@ -1,5 +1,6 @@
 package com.codinglair.taf.mobile.appium.configuration;
 
+import com.codinglair.taf.runtime.secret.SecretReference;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -26,16 +27,21 @@ final class JsonOptions {
         (key, value) -> {
           if (!(key instanceof String name) || name.isBlank() || name.length() > 256)
             throw invalid();
-          String normalized = name.toLowerCase(Locale.ROOT).replace("-", "").replace("_", "");
+          String normalized = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
           if (normalized.contains("sessionoverride"))
             throw new IllegalArgumentException(
                 "Apple provider options cannot override shared sessions");
-          if (normalized.contains("password")
-              || normalized.contains("token")
-              || normalized.contains("secret")
-              || normalized.contains("credential")
-              || normalized.contains("accesskey")
-              || normalized.contains("authorization"))
+          if ((normalized.contains("password")
+                  || normalized.contains("token")
+                  || normalized.contains("secret")
+                  || normalized.contains("credential")
+                  || normalized.contains("accesskey")
+                  || normalized.contains("authorization")
+                  || normalized.contains("apikey")
+                  || normalized.contains("username")
+                  || normalized.contains("passphrase")
+                  || Set.of("user", "pass", "pwd", "key", "auth").contains(normalized))
+              && !reference(value))
             throw new IllegalArgumentException(
                 "Apple provider options cannot contain authentication values; use the authorized secret-reference boundary");
           result.put(name, value(value, depth + 1, nodes));
@@ -66,7 +72,13 @@ final class JsonOptions {
         if (!Float.isFinite(number)) throw invalid();
         yield number;
       }
-      case Map<?, ?> map -> object(map, depth, nodes);
+      case Map<?, ?> map -> {
+        if (reference(map)) {
+          SecretReference.parse((String) map.get("secretReference"));
+          yield Map.of("secretReference", map.get("secretReference"));
+        }
+        yield object(map, depth, nodes);
+      }
       case List<?> list -> {
         var result = new ArrayList<Object>();
         list.forEach(item -> result.add(value(item, depth + 1, nodes)));
@@ -76,11 +88,20 @@ final class JsonOptions {
     };
   }
 
+  private static boolean reference(Object value) {
+    return value instanceof Map<?, ?> map
+        && map.size() == 1
+        && map.get("secretReference") instanceof String;
+  }
+
   static Map<String, Object> merge(Map<String, Object> base, Map<String, Object> overlay) {
     var result = new LinkedHashMap<>(base);
     overlay.forEach(
         (key, value) -> {
-          if (result.get(key) instanceof Map<?, ?> left && value instanceof Map<?, ?> right) {
+          if (result.get(key) instanceof Map<?, ?> left
+              && value instanceof Map<?, ?> right
+              && !reference(left)
+              && !reference(right)) {
             result.put(key, merge(copyObject(left), copyObject(right)));
           } else {
             if (result.containsKey(key) && !Objects.equals(result.get(key), value))
@@ -105,6 +126,12 @@ final class JsonOptions {
             "devicename",
             "udid",
             "platformversion",
+            "serverurl",
+            "endpoint",
+            "deviceid",
+            "sessionoverride",
+            "noreset",
+            "fullreset",
             "app",
             "bundleid",
             "newcommandtimeout",
@@ -123,6 +150,10 @@ final class JsonOptions {
     options.forEach(
         (key, value) -> {
           if (!key.matches("[A-Za-z][A-Za-z0-9_.-]*:[A-Za-z][A-Za-z0-9_.-]*")
+              || reserved.contains(
+                  key.substring(key.indexOf(':') + 1)
+                      .toLowerCase(Locale.ROOT)
+                      .replaceAll("[^a-z]", ""))
               || key.toLowerCase(Locale.ROOT).startsWith("appium:"))
             throw new IllegalArgumentException(
                 "Apple provider capabilities must have a provider namespace and cannot own Appium fields");
@@ -136,7 +167,8 @@ final class JsonOptions {
           map.forEach(
               (key, item) -> {
                 String name = key.toString().toLowerCase(Locale.ROOT);
-                if (name.startsWith("appium:") || reserved.contains(name))
+                String field = name.substring(name.lastIndexOf(':') + 1).replaceAll("[^a-z]", "");
+                if (name.startsWith("appium:") || reserved.contains(field))
                   throw new IllegalArgumentException(
                       "Apple provider options cannot duplicate typed capability ownership");
                 inspect(item, reserved);

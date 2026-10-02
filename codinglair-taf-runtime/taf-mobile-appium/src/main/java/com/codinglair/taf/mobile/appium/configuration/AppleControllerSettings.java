@@ -259,7 +259,9 @@ public class AppleControllerSettings {
         || uri.getHost() == null
         || uri.getUserInfo() != null
         || uri.getFragment() != null
-        || uri.getRawQuery() != null)
+        || uri.getRawQuery() != null
+        || !uri.normalize().equals(uri)
+        || uri.getRawPath().matches("(?i).*%(?:2e|2f|5c|25|0[0-9a-f]|1[0-9a-f]).*"))
       throw invalid("endpoint must be HTTP(S) without credentials, query or fragment");
   }
 

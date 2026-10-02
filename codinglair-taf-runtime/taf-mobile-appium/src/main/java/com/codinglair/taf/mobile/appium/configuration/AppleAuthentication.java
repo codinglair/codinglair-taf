@@ -1,7 +1,11 @@
 package com.codinglair.taf.mobile.appium.configuration;
 
+import com.codinglair.taf.runtime.secret.SecretReference;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** Opaque references only. Resolution belongs to the separately authorized transport boundary. */
 public class AppleAuthentication {
@@ -41,6 +45,7 @@ public class AppleAuthentication {
                             "(?:credential://[a-z0-9][a-z0-9._/-]{0,255}|secret://(?:env/[A-Z_][A-Z0-9_]{0,127}|jasypt/[A-Za-z0-9+/=_-]{16,4000}))")))
       throw new IllegalArgumentException("Apple authentication requires opaque secret references");
     secretReferences = Map.copyOf(value);
+    secretReferences.values().forEach(SecretReference::parse);
   }
 
   static AppleAuthentication merge(AppleAuthentication base, AppleAuthentication overlay) {
@@ -60,8 +65,51 @@ public class AppleAuthentication {
       throw new IllegalArgumentException(
           "Apple authentication mechanism requires secret references");
     if (getMechanism() == Mechanism.BASIC
-        && !(secretReferences.containsKey("username") && secretReferences.containsKey("password")))
+        && !secretReferences.keySet().equals(Set.of("username", "password")))
       throw new IllegalArgumentException(
           "Apple BASIC authentication requires username and password references");
+    if (getMechanism() == Mechanism.HEADER
+        && secretReferences.keySet().stream()
+            .anyMatch(
+                key ->
+                    !key.matches("[A-Za-z][A-Za-z0-9-]{0,63}")
+                        || Set.of(
+                                "host",
+                                "content-length",
+                                "transfer-encoding",
+                                "connection",
+                                "upgrade")
+                            .contains(key.toLowerCase(Locale.ROOT))))
+      throw new IllegalArgumentException("Apple authentication header name is invalid");
+    if (getMechanism() == Mechanism.PROVIDER_CAPABILITY) {
+      var paths = new HashSet<String>();
+      secretReferences
+          .keySet()
+          .forEach(
+              path -> {
+                if (!path.matches(
+                    "/[A-Za-z][A-Za-z0-9_.-]*:[A-Za-z][A-Za-z0-9_.-]*(?:/[A-Za-z][A-Za-z0-9_.-]*)*"))
+                  throw new IllegalArgumentException(
+                      "Apple credential capability requires a provider JSON path");
+                String[] segments = path.substring(1).split("/");
+                var candidate = new LinkedHashMap<String, Object>();
+                Map<String, Object> current = candidate;
+                for (int i = 0; i < segments.length - 1; i++) {
+                  var next = new LinkedHashMap<String, Object>();
+                  current.put(segments[i], next);
+                  current = next;
+                }
+                current.put(
+                    segments[segments.length - 1],
+                    Map.of("secretReference", secretReferences.get(path)));
+                JsonOptions.validateCapabilities(candidate);
+                if (paths.stream()
+                    .anyMatch(
+                        existing ->
+                            existing.startsWith(path + "/") || path.startsWith(existing + "/")))
+                  throw new IllegalArgumentException("Apple credential capability paths overlap");
+                paths.add(path);
+              });
+    }
   }
 }

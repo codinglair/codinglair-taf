@@ -54,6 +54,14 @@ public class RedactionPipeline implements RedactionService {
     }
 
     String redacted = content;
+    // URI credentials and signed query strings must be removed before logs/report persistence.
+    redacted = redacted.replaceAll("(?i)(https?://)[^\\s/<>\\\"']*@", "$1[REDACTED]@");
+    redacted =
+        redacted.replaceAll("(?i)(https?://[^\\s?<>\\\"']+)\\?[^\\s<>\\\"']*", "$1?[REDACTED]");
+    redacted =
+        redacted.replaceAll(
+            "(?i)(\\\"[^\\\"\\r\\n]*(?:password|passphrase|token|access[_. -]?key|api[_. -]?key|secret|credential|authorization|username)[^\\\"\\r\\n]*\\\"\\s*:\\s*)\\\"(?:\\\\.|[^\\\"\\\\])*\\\"",
+            "$1\\\"[REDACTED]\\\"");
 
     // Redact known secret patterns
     for (Map.Entry<String, String> entry : secretPatterns.entrySet()) {

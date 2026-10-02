@@ -10,6 +10,8 @@ import com.codinglair.taf.mcp.jobs.JobService;
 import com.codinglair.taf.mcp.jobs.JobState;
 import com.codinglair.taf.mcp.jobs.LocalJobRepository;
 import com.codinglair.taf.mcp.security.ResponseRedactor;
+import com.codinglair.taf.runtime.core.security.ResourceAccess;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +31,46 @@ import org.junit.jupiter.api.io.TempDir;
 @DisplayName("Isolated local execution worker")
 class LocalExecutionWorkerTest {
   private static final Pattern CHILD_PID = Pattern.compile("(?m)^CHILD=(\\d+)\\s*$");
+
+  @Test
+  @DisplayName(
+      "resource-protected workflows deny before workspace copying and allow explicit grants")
+  void resourceBoundary() throws Exception {
+    var resource =
+        new ResourceAccess(
+            ResourceAccess.Kind.ENDPOINT, "https://appium.example/custom", "connect");
+    var command =
+        new WorkerCommand(
+            "success",
+            List.of(
+                javaExecutable(),
+                "-cp",
+                System.getProperty("java.class.path"),
+                WorkerProcessFixture.class.getName(),
+                "success"));
+    var worker =
+        new LocalExecutionWorker(
+            Map.of("success", command),
+            limits(4096),
+            executionRoot,
+            new LocalArtifactStore(artifactRoot),
+            new ResponseRedactor(Set.of("worker-canary-43f1")),
+            Clock.systemUTC(),
+            Map.of("success", Set.of(resource)));
+    var request = request("success", Duration.ofSeconds(5), List.of());
+    var denied =
+        assertThrows(
+            WorkerExecutionException.class, () -> worker.execute(request, CancellationToken.NEVER));
+    assertThat(denied.code()).isEqualTo("RESOURCE_DENIED");
+    assertThat(executionRoot).isEmptyDirectory();
+    assertThat(
+            worker
+                .execute(
+                    request, CancellationToken.NEVER, ResourceAuthorizer.trusted(Set.of(resource)))
+                .status())
+        .isEqualTo(WorkerStatus.SUCCEEDED);
+    assertThat(executionRoot).isEmptyDirectory();
+  }
 
   @TempDir Path temporary;
   private Path source;

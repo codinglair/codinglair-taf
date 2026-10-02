@@ -13,6 +13,11 @@
     <description>Transport-neutral authorization, approvals, audit, and redaction</description>
     <dependencies>
         <dependency>
+            <groupId>com.codinglair.taf</groupId>
+            <artifactId>codinglair-taf-runtime-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>

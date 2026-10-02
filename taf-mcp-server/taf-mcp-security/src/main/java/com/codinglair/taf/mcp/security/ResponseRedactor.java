@@ -1,5 +1,6 @@
 package com.codinglair.taf.mcp.security;
 
+import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,7 +12,17 @@ import java.util.Set;
 public final class ResponseRedactor {
   public static final String REDACTED = "[REDACTED]";
   private static final Set<String> SENSITIVE_KEY_PARTS =
-      Set.of("password", "passphrase", "secret", "token", "apikey", "credential", "privatekey");
+      Set.of(
+          "password",
+          "passphrase",
+          "secret",
+          "token",
+          "apikey",
+          "credential",
+          "privatekey",
+          "authorization",
+          "accesskey",
+          "username");
 
   private final List<String> canaries;
 
@@ -61,7 +72,7 @@ public final class ResponseRedactor {
     for (var canary : canaries) {
       sanitized = sanitized.replace(canary, REDACTED);
     }
-    return sanitized;
+    return new RedactionPipeline().redact(sanitized);
   }
 
   private static boolean sensitive(String key) {

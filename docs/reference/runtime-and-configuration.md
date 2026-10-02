@@ -34,7 +34,7 @@ references remain opaque until an authorized execution boundary.
 | `taf.messaging.jms` | JMS controllers |
 | `taf.aws` | named AWS profiles with SQS and EventBridge controller instances |
 | `taf.mobile.android` | Android/Appium controllers |
-| `taf.mobile.apple` | Disabled by default; typed Apple/XCUITest session configuration in the same mobile starter. See the [Appium module configuration](../../codinglair-taf-runtime/taf-mobile-appium/README.md). |
+| `taf.mobile.apple` | Disabled by default; typed Apple/XCUITest configuration in the mobile starter. See [module configuration](../../codinglair-taf-runtime/taf-mobile-appium/README.md) and [transport/resource security](apple-transport-security.md). |
 | `taf.environment` | provider lifecycle and policy |
 | `taf.consumer` | capability declarations and preflight |
 | `taf.secrets` | local resolver policy |

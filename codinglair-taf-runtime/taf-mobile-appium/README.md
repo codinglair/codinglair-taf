@@ -81,9 +81,9 @@ values cannot be supplied in these maps.
 
 The exact server URI path is preserved. Endpoint/app URLs cannot contain userinfo,
 query strings or fragments. Authentication binds NONE, HEADER, BASIC or
-PROVIDER_CAPABILITY plus opaque `authentication.secret-references`. Non-NONE
-session creation fails closed until SEC-130-001 supplies authorized transport;
-references are never resolved by this assignment. BASIC requires username/password
+PROVIDER_CAPABILITY plus opaque `authentication.secret-references`. Authenticated
+transport uses the existing SecretManager only after resource checks; absent a
+manager it fails closed. BASIC requires username/password
 references. Existing references use `secret://env/NAME`, `secret://jasypt/...` or
 `credential://profile-alias` syntax.
 
@@ -120,8 +120,11 @@ missing prerequisites remain unknown. LOCAL_HOST additionally consumes the four
 host prerequisites; REMOTE_HOST/PROVIDER never require Xcode on the Java worker.
 A positive endpoint declaration or `/status` response cannot prove readiness.
 Successful authorized TestSession initialization provides final session confirmation.
-Optional video availability is separate from readiness. Authentication remains
-fail-closed pending SEC-130-001; HTTPS uses the configured JVM trust boundary.
+Optional video availability is separate from readiness. Authentication availability
+is confirmed only during authorized initialization; HTTPS uses the JVM trust boundary.
+See [Apple transport security](../../docs/reference/apple-transport-security.md)
+for nested references, trusted standalone resources, governed policies, redirects,
+failure handling, content suppression and compatibility.
 
 An optional `allocation-resource` names an already authorized session-specific
 `EnvironmentAccess.Resource` with type `apple-session-allocation`. Its provider
