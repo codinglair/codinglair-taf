@@ -27,6 +27,9 @@ final class JsonOptions {
           if (!(key instanceof String name) || name.isBlank() || name.length() > 256)
             throw invalid();
           String normalized = name.toLowerCase(Locale.ROOT).replace("-", "").replace("_", "");
+          if (normalized.contains("sessionoverride"))
+            throw new IllegalArgumentException(
+                "Apple provider options cannot override shared sessions");
           if (normalized.contains("password")
               || normalized.contains("token")
               || normalized.contains("secret")

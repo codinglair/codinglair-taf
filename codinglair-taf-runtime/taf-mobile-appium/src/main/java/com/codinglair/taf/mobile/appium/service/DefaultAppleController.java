@@ -18,17 +18,21 @@ import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import com.codinglair.taf.runtime.core.reporting.annotation.ControllerAction;
 import io.appium.java_client.appmanagement.ApplicationState;
 import io.appium.java_client.ios.IOSDriver;
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.openqa.selenium.ScreenOrientation;
+import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
@@ -42,12 +46,29 @@ public final class DefaultAppleController implements AppleController {
   private IOSDriver driver;
   private long generation;
   private boolean installedByController;
+  private final AppleResourceReservations reservations;
+  private AutoCloseable reservation;
+  private boolean uncertain;
+  private String providerOwnedSession;
+  private ControllerContext context;
 
   public DefaultAppleController(
       String name, AppleControllerSettings base, AppleControllerSettings instance) {
+    this(name, base, instance, new AppleResourceReservations());
+  }
+
+  /**
+   * Share the coordinator across factories that consume the same externally allocated resources.
+   */
+  public DefaultAppleController(
+      String name,
+      AppleControllerSettings base,
+      AppleControllerSettings instance,
+      AppleResourceReservations reservations) {
     identity = new ControllerIdentity(AppleController.class, name);
     // Passive construction: validation and network access occur only at initialization.
     settings = snapshot(base, instance);
+    this.reservations = Objects.requireNonNull(reservations);
   }
 
   private static AppleControllerSettings snapshot(
@@ -75,13 +96,81 @@ public final class DefaultAppleController implements AppleController {
     Objects.requireNonNull(context);
     if (state != ControllerState.NEW)
       throw new IllegalStateException("Apple controller cannot initialize from " + state);
+    this.context = context;
     state = ControllerState.INITIALIZING;
     try {
+      if (Thread.currentThread().isInterrupted())
+        throw new IllegalStateException("Apple initialization cancelled");
+      providerOwnedSession = AppleAllocation.apply(settings, context.environments());
+      settings.validate();
+      var readiness = AppleReadiness.inspect(settings);
+      if (readiness.status() == HealthResult.Status.UNAVAILABLE)
+        throw new IllegalStateException("Apple prerequisites unavailable");
+      reservation = reservations.acquire(settings);
       driver = new ApplePlatformStrategy().create(settings);
+      providerOwnedSession = driver.getSessionId().toString();
+      if (Thread.currentThread().isInterrupted())
+        throw new IllegalStateException("Apple initialization cancelled");
       state = ControllerState.READY;
     } catch (RuntimeException failure) {
       state = ControllerState.FAILED;
-      throw new AppleControllerException("initialize");
+      uncertain =
+          driver == null
+              && reservation != null
+              && (!(failure instanceof SessionNotCreatedException) || transportUncertain(failure));
+      var primary =
+          new AppleControllerException(
+              uncertain
+                  ? "initialize: remote session outcome uncertain; reconcile only identifiable owned sessions"
+                  : "initialize");
+      if (driver != null) {
+        try {
+          driver.quit();
+        } catch (RuntimeException _) {
+          uncertain = true;
+          primary.addSuppressed(new AppleControllerException("partial initialization cleanup"));
+        } finally {
+          driver = null;
+        }
+      }
+      if (uncertain && providerOwnedSession != null) {
+        try {
+          AppleAllocation.cleanup(settings, providerOwnedSession);
+          // A pending create can complete after a successful DELETE/404. Keep quarantine until
+          // the provider/operator authoritatively reconciles the allocation.
+        } catch (InterruptedException _) {
+          Thread.currentThread().interrupt();
+          primary.addSuppressed(new AppleControllerException("owned session cleanup cancelled"));
+        } catch (Exception _) {
+          primary.addSuppressed(new AppleControllerException("owned session cleanup"));
+        }
+      }
+      if (!uncertain) releaseReservation(primary);
+      throw primary;
+    }
+  }
+
+  private static boolean transportUncertain(Throwable failure) {
+    for (Throwable current = failure; current != null; current = current.getCause()) {
+      if (current instanceof IOException
+          || current instanceof TimeoutException
+          || current instanceof CancellationException) return true;
+      if (current instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+        return true;
+      }
+    }
+    return Thread.currentThread().isInterrupted();
+  }
+
+  private void releaseReservation(RuntimeException primary) {
+    if (reservation == null) return;
+    try {
+      reservation.close();
+    } catch (Exception _) {
+      primary.addSuppressed(new AppleControllerException("allocation release"));
+    } finally {
+      reservation = null;
     }
   }
 
@@ -102,25 +191,47 @@ public final class DefaultAppleController implements AppleController {
               Map.of("family", family().name()));
       case FAILED, CLOSED ->
           new HealthResult(
-              HealthResult.Status.UNAVAILABLE, "Apple session state is " + state, Map.of());
-      default -> HealthResult.unknown("Apple session state is " + state);
+              HealthResult.Status.UNAVAILABLE,
+              "Apple session state is " + state,
+              uncertain
+                  ? Map.of(
+                      "ownership",
+                      "Remote session outcome uncertain; provider/operator must reconcile only owned sessions before allocation reuse")
+                  : Map.of());
+      default -> AppleReadiness.inspect(settings);
     };
   }
 
   @Override
-  public Stream<TestArtifact> collectArtifacts(ArtifactReason reason) {
-    return Stream.empty(); // Conditional Apple evidence is owned by MOB-130-005.
+  public synchronized Stream<TestArtifact> collectArtifacts(ArtifactReason reason) {
+    if (reason != ArtifactReason.DIAGNOSTIC || state != ControllerState.READY)
+      return Stream.empty();
+    // Lifecycle metadata only. Visual/source/log/recording evidence remains MOB-130-005.
+    return Stream.of(
+        TestArtifact.of(
+            "apple-session-lifecycle",
+            "diagnostic",
+            "Apple session READY; family=" + family().name(),
+            "text/plain"));
   }
 
   @Override
   public synchronized void close() {
     if (state == ControllerState.CLOSED) return;
+    boolean evidenceFailed = false;
+    if (driver != null && context != null) {
+      try (var artifacts = collectArtifacts(ArtifactReason.DIAGNOSTIC)) {
+        artifacts.forEach(context.artifacts()::addArtifact);
+      } catch (RuntimeException _) {
+        evidenceFailed = true;
+      }
+    }
     state = ControllerState.CLOSED;
     IOSDriver owned = driver;
     driver = null;
     generation++;
     if (owned != null) {
-      boolean failed = false;
+      boolean failed = evidenceFailed;
       try {
         if (settings.getExecutionMode() != MobileExecutionMode.SAFARI
             && settings.getTerminateAppOnClose()
@@ -138,8 +249,16 @@ public final class DefaultAppleController implements AppleController {
         owned.quit();
       } catch (RuntimeException _) {
         failed = true;
+        uncertain = true;
       }
-      if (failed) throw new AppleControllerException("close");
+      var cleanup = new AppleControllerException("close");
+      if (!uncertain) releaseReservation(cleanup);
+      if (failed || cleanup.getSuppressed().length > 0) throw cleanup;
+    }
+    if (!uncertain && owned == null) {
+      var cleanup = new AppleControllerException("allocation release");
+      releaseReservation(cleanup);
+      if (cleanup.getSuppressed().length > 0) throw cleanup;
     }
   }
 

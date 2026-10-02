@@ -2,6 +2,8 @@ package com.codinglair.taf.mobile.appium.configuration;
 
 import com.codinglair.taf.mobile.appium.service.AppleController;
 import com.codinglair.taf.mobile.appium.service.AppleControllerFactory;
+import com.codinglair.taf.mobile.appium.service.AppleReadiness;
+import com.codinglair.taf.mobile.appium.service.AppleResourceReservations;
 import com.codinglair.taf.mobile.appium.service.DefaultAppleController;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionConfigurer;
@@ -33,8 +35,10 @@ public class AppleAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   AppleControllerFactory appleControllerFactory(AppleProperties properties) {
+    var reservations = new AppleResourceReservations();
     return name ->
-        new DefaultAppleController(name, properties, properties.getControllers().get(name));
+        new DefaultAppleController(
+            name, properties, properties.getControllers().get(name), reservations);
   }
 
   @Bean
@@ -56,8 +60,16 @@ public class AppleAutoConfiguration {
             .flatMap(
                 name -> {
                   try {
-                    properties.settings(name);
-                    return Stream.<PreflightDiagnostic>empty();
+                    return AppleReadiness.inspect(properties.settings(name))
+                        .diagnostics()
+                        .entrySet()
+                        .stream()
+                        .map(
+                            entry ->
+                                new PreflightDiagnostic(
+                                    "mobile-apple." + name + "." + entry.getKey(),
+                                    "Apple prerequisite requires confirmation",
+                                    entry.getValue()));
                   } catch (IllegalArgumentException failure) {
                     return Stream.of(
                         new PreflightDiagnostic(

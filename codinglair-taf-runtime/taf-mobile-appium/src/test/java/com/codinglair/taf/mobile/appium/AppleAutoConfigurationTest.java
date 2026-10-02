@@ -129,6 +129,9 @@ class AppleAutoConfigurationTest {
             "taf.mobile.apple.app-reference.value=/server/Fixture.ipa",
             "taf.mobile.apple.app-reference.build-kind=physical",
             "taf.mobile.apple.wda.local-port=8101",
+            "taf.mobile.apple.prerequisites.endpoint=true",
+            "taf.mobile.apple.prerequisites.xcode=false",
+            "taf.mobile.apple.allocation-resource=provider-allocation",
             "taf.mobile.apple.controllers.tablet.wda.mjpeg-port=9101")
         .run(
             c -> {
@@ -137,6 +140,10 @@ class AppleAutoConfigurationTest {
               assertThat(settings.getAppReference().value()).isEqualTo("/server/Fixture.ipa");
               assertThat(settings.getWda().getLocalPort()).isEqualTo(8101);
               assertThat(settings.getWda().getMjpegPort()).isEqualTo(9101);
+              assertThat(settings.getAllocationResource()).isEqualTo("provider-allocation");
+              assertThat(settings.getPrerequisites())
+                  .containsEntry("endpoint", true)
+                  .containsEntry("xcode", false);
             });
   }
 
