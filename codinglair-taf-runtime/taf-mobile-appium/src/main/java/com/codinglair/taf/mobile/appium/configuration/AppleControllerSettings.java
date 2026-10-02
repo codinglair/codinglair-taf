@@ -7,9 +7,11 @@ import com.codinglair.taf.mobile.MobileExecutionMode;
 import com.codinglair.taf.mobile.MobileTopology;
 import java.net.URI;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** Nullable binding values preserve explicit overrides. Resolve before using a session. */
 public class AppleControllerSettings {
@@ -58,6 +60,38 @@ public class AppleControllerSettings {
   private Map<String, Object> providerSelection = Map.of();
   private AppleAuthentication authentication = new AppleAuthentication();
   private AppleWdaSettings wda = new AppleWdaSettings();
+  private Map<String, Boolean> prerequisites = Map.of();
+  private String allocationResource;
+
+  /** Name of an already authorized, provider-owned EnvironmentAccess resource. */
+  public String getAllocationResource() {
+    return allocationResource;
+  }
+
+  public void setAllocationResource(String value) {
+    allocationResource = value;
+  }
+
+  /** Sanitized operator/provider declarations, never raw doctor output or signing material. */
+  public Map<String, Boolean> getPrerequisites() {
+    return prerequisites;
+  }
+
+  public void setPrerequisites(Map<String, Boolean> value) {
+    var allowed =
+        Set.of(
+            "endpoint",
+            "compatibility",
+            "target",
+            "application",
+            "wda",
+            "doctor",
+            "xcode",
+            "device",
+            "signing");
+    if (!allowed.containsAll(value.keySet())) throw invalid("unknown prerequisite dimension");
+    prerequisites = Map.copyOf(value);
+  }
 
   /**
    * Merge only overrides already authorized by the calling execution boundary. Does not grant
@@ -83,6 +117,7 @@ public class AppleControllerSettings {
     for (var layer : new AppleControllerSettings[] {base, instance, authorizedOverrides}) {
       if (layer == null) continue;
       if (layer.platform != null) result.platform = layer.platform;
+      if (layer.allocationResource != null) result.allocationResource = layer.allocationResource;
       if (layer.deviceFamily != null) result.deviceFamily = layer.deviceFamily;
       if (layer.executionMode != null) result.executionMode = layer.executionMode;
       if (layer.deviceKind != null) result.deviceKind = layer.deviceKind;
@@ -127,6 +162,9 @@ public class AppleControllerSettings {
       result.authentication =
           AppleAuthentication.merge(result.authentication, layer.authentication);
       result.wda = AppleWdaSettings.merge(result.wda, layer.wda);
+      var metadata = new LinkedHashMap<>(result.prerequisites);
+      metadata.putAll(layer.prerequisites);
+      result.prerequisites = Map.copyOf(metadata);
     }
     return result;
   }
@@ -156,6 +194,7 @@ public class AppleControllerSettings {
       throw invalid("device-name and device-kind are required");
     if (getDeviceKind() == MobileDeviceKind.PHYSICAL
         && blank(getDeviceId())
+        && allocationResource == null
         && providerSelection.isEmpty())
       throw invalid("physical target requires device-id or provider-selection");
     if (!providerSelection.isEmpty() && getTopology() != MobileTopology.PROVIDER)

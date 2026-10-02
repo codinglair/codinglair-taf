@@ -6,6 +6,9 @@ import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.options.XCUITestOptions;
 import java.net.MalformedURLException;
+import java.time.Duration;
+import java.util.stream.Stream;
+import org.openqa.selenium.remote.http.ClientConfig;
 
 /** XCUITest construction only; the caller owns the resulting session and its cleanup. */
 public final class ApplePlatformStrategy {
@@ -40,7 +43,18 @@ public final class ApplePlatformStrategy {
   public IOSDriver create(AppleControllerSettings settings) {
     var options = options(settings);
     try {
-      return new IOSDriver(settings.getServerUrl().toURL(), options);
+      return new IOSDriver(
+          ClientConfig.defaultConfig()
+              .baseUrl(settings.getServerUrl().toURL())
+              .connectionTimeout(settings.getReadinessTimeout())
+              .readTimeout(
+                  Stream.of(
+                          settings.getReadinessTimeout(),
+                          settings.getCleanupTimeout(),
+                          settings.getCommandTimeout())
+                      .min(Duration::compareTo)
+                      .orElseThrow()),
+          options);
     } catch (MalformedURLException failure) {
       throw new IllegalArgumentException("Apple endpoint is invalid", failure);
     }

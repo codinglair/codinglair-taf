@@ -90,11 +90,12 @@ references. Existing references use `secret://env/NAME`, `secret://jasypt/...` o
 WDA fields include local-port, mjpeg-port (distinct 1–65535), derived-data-path,
 build-mode (BUILD/PREBUILT/PREINSTALLED/RUNNING), signing-team-id, signing-identity,
 bundle-id, prebuilt-path and base-url. Paths refer to the Apple server. External
-allocation/readiness and collision checks belong to MOB-130-004; no signing
+allocation/readiness and collision checks are described below; no signing
 material is accepted. Command timeout defaults to 2m; readiness/context/cleanup
 timeouts default to 30s; all must be positive and at most 10m. Command timeout is
 sent as Appium newCommandTimeout; context-timeout bounds WebView polling.
-Readiness/cleanup transport deadlines remain subsequent assignment responsibilities.
+HTTP connection and read deadlines are bounded by the configured readiness,
+cleanup and command durations (the read deadline uses their minimum).
 
 Lifecycle policy binds REUSE/RELAUNCH/REINSTALL (default RELAUNCH); REINSTALL
 requires PACKAGED. Application cleanup flags default true/false for terminate/
@@ -103,6 +104,59 @@ authorization false. Alert accept/dismiss default false and are mutually exclusi
 Apple operations, explicit reset policy, owned cleanup, context-bound elements,
 hybrid selection and Safari navigation are documented in the
 [operation and verification table](../../docs/reference/apple-appium-operations.md).
-Readiness/isolation remain MOB-130-004; conditional evidence remains MOB-130-005.
+Conditional visual/source/log/recording evidence remains MOB-130-005.
 Real-device qualification is not claimed. See the
 [contract and qualification plan](../../docs/engineering/apple-130-contract-and-qualification-plan.md).
+
+### Topology readiness and allocation ownership
+
+`AppleReadiness.inspect(settings)` returns the existing `HealthResult` contract.
+Passive discovery/preflight never opens a connection, allocates a device or runs
+host commands. `prerequisites` accepts only boolean operator/provider declarations
+for `endpoint`, `compatibility`, `target`, `application`, `wda`, `doctor`, `xcode`,
+`device`, and `signing`. Supply current sanitized results rather than doctor output,
+signing material or credentials. False yields actionable unavailable diagnostics;
+missing prerequisites remain unknown. LOCAL_HOST additionally consumes the four
+host prerequisites; REMOTE_HOST/PROVIDER never require Xcode on the Java worker.
+A positive endpoint declaration or `/status` response cannot prove readiness.
+Successful authorized TestSession initialization provides final session confirmation.
+Optional video availability is separate from readiness. Authentication remains
+fail-closed pending SEC-130-001; HTTPS uses the configured JVM trust boundary.
+
+An optional `allocation-resource` names an already authorized session-specific
+`EnvironmentAccess.Resource` with type `apple-session-allocation`. Its provider
+must reserve the target and service resources before exposing it. Properties are
+`exclusive=true`, required `device-id`, optional `wda-port`, `mjpeg-port`, and
+`derived-data-path`. These override the detached controller snapshot only. The
+provider/TestSession retains allocation cleanup ownership; the controller neither
+provisions infrastructure nor claims/reclaims a provider's pool. Explicit IDs and
+WDA settings without a resource must likewise come from external reservations or
+expressly delegated owned ranges; this module does not allocate arbitrary ports.
+
+The default Spring factory shares an `AppleResourceReservations` coordinator across
+its controllers and TestSessions. It rejects observable duplicate target IDs,
+WDA/MJPEG host ports, derived-data paths and running WDA URLs before connection.
+Standalone users share a coordinator through the additive four-argument controller
+constructor. The existing three-argument constructor remains supported with its
+own coordinator. Device names/opaque provider selections, host aliases, independent
+factories/JVMs and workers cannot establish global exclusivity: coordinate through
+the host/provider. Do not enable Appium session-override on shared hosts.
+
+Cancellation preserves interruption. Session creation runs once, without automatic
+retry/replacement. Transport failure during creation reports an uncertain remote
+outcome. An optional provider `owned-session-id` (letters, digits, `_`, `-`, maximum
+128 characters) permits a bounded DELETE of exactly that owned session using the
+authorized endpoint. No enumeration/global deletion is performed. A pending create
+may finish after DELETE/404, so uncertain reservations remain quarantined even
+after that best-effort cleanup. The provider/operator must reconcile the allocation
+before reusing it; do not recreate the coordinator to bypass quarantine. Failed quit
+also retains the reservation. Definite rejected initialization releases it.
+Quarantine lasts for the coordinator's lifetime. After authoritative external
+reconciliation, a fresh factory/coordinator may resume use of the allocation.
+
+Close gathers sanitized lifecycle metadata through the session's ArtifactCollector
+before application cleanup and driver quit. No visual payload is gathered here.
+Cleanup is idempotent, attempts quit after app cleanup failure, and releases only
+definite completed reservations. Shared runner lifecycle attaches cleanup failures
+to the primary test failure. Each HTTP exchange is bounded; application cleanup
+may require several exchanges within these individual limits.
