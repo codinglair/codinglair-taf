@@ -7,6 +7,7 @@ import com.codinglair.taf.mobile.MobileExecutionMode;
 import com.codinglair.taf.mobile.MobileOrientation;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
 import com.codinglair.taf.mobile.appium.exception.AppleControllerException;
+import com.codinglair.taf.mobile.appium.exception.AppleTransportFailure;
 import com.codinglair.taf.mobile.appium.platform.AppleLocator;
 import com.codinglair.taf.mobile.appium.platform.ApplePlatformStrategy;
 import com.codinglair.taf.runtime.core.controller.ArtifactReason;
@@ -47,6 +48,7 @@ public final class DefaultAppleController implements AppleController {
   private long generation;
   private boolean installedByController;
   private final AppleResourceReservations reservations;
+  private final AppleTransportSecurity security;
   private AutoCloseable reservation;
   private boolean uncertain;
   private String providerOwnedSession;
@@ -65,10 +67,24 @@ public final class DefaultAppleController implements AppleController {
       AppleControllerSettings base,
       AppleControllerSettings instance,
       AppleResourceReservations reservations) {
+    this(name, base, instance, reservations, null);
+  }
+
+  /**
+   * Governed callers supply a caller-bound policy; trusted standalone callers use exact
+   * configuration.
+   */
+  public DefaultAppleController(
+      String name,
+      AppleControllerSettings base,
+      AppleControllerSettings instance,
+      AppleResourceReservations reservations,
+      AppleTransportSecurity security) {
     identity = new ControllerIdentity(AppleController.class, name);
     // Passive construction: validation and network access occur only at initialization.
     settings = snapshot(base, instance);
     this.reservations = Objects.requireNonNull(reservations);
+    this.security = security == null ? AppleTransportSecurity.trusted(settings, null) : security;
   }
 
   private static AppleControllerSettings snapshot(
@@ -103,21 +119,19 @@ public final class DefaultAppleController implements AppleController {
         throw new IllegalStateException("Apple initialization cancelled");
       providerOwnedSession = AppleAllocation.apply(settings, context.environments());
       settings.validate();
+      security.requireSettings(settings);
       var readiness = AppleReadiness.inspect(settings);
       if (readiness.status() == HealthResult.Status.UNAVAILABLE)
         throw new IllegalStateException("Apple prerequisites unavailable");
       reservation = reservations.acquire(settings);
-      driver = new ApplePlatformStrategy().create(settings);
+      driver = new ApplePlatformStrategy().create(settings, security, context.sessionId());
       providerOwnedSession = driver.getSessionId().toString();
       if (Thread.currentThread().isInterrupted())
         throw new IllegalStateException("Apple initialization cancelled");
       state = ControllerState.READY;
     } catch (RuntimeException failure) {
       state = ControllerState.FAILED;
-      uncertain =
-          driver == null
-              && reservation != null
-              && (!(failure instanceof SessionNotCreatedException) || transportUncertain(failure));
+      uncertain = driver == null && reservation != null && remoteUncertain(failure);
       var primary =
           new AppleControllerException(
               uncertain
@@ -135,7 +149,7 @@ public final class DefaultAppleController implements AppleController {
       }
       if (uncertain && providerOwnedSession != null) {
         try {
-          AppleAllocation.cleanup(settings, providerOwnedSession);
+          AppleAllocation.cleanup(settings, providerOwnedSession, security, context.sessionId());
           // A pending create can complete after a successful DELETE/404. Keep quarantine until
           // the provider/operator authoritatively reconciles the allocation.
         } catch (InterruptedException _) {
@@ -161,6 +175,13 @@ public final class DefaultAppleController implements AppleController {
       }
     }
     return Thread.currentThread().isInterrupted();
+  }
+
+  private static boolean remoteUncertain(Throwable failure) {
+    for (Throwable current = failure; current != null; current = current.getCause())
+      if (current instanceof AppleTransportFailure transport)
+        return transport.connectionAttempted();
+    return !(failure instanceof SessionNotCreatedException) || transportUncertain(failure);
   }
 
   private void releaseReservation(RuntimeException primary) {

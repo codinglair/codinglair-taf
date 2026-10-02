@@ -1,5 +1,6 @@
 package com.codinglair.taf.mcp.security;
 
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -115,5 +116,36 @@ public final class McpEnforcementService {
   /** Applies the enforcement boundary's configured redaction policy to response content. */
   public Object redact(Object value) {
     return redactor.redact(value);
+  }
+
+  /**
+   * Bind the same caller and approval to worker transport use, not to job-supplied configuration.
+   */
+  public ResourceAuthorizer resourceAuthorizer(EnforcementRequest request) {
+    return resource -> {
+      var decision = policyEngine.decideResource(request.authorization(), resource);
+      boolean allowed =
+          decision.allowed()
+              && (!decision.approvalRequired()
+                  || (request.approvalId() != null
+                      && approvals.permits(
+                          request.approvalId(),
+                          request.authorization(),
+                          request.operationDigest())));
+      audit.append(
+          request.correlationId(),
+          "resource.authorization.decided",
+          request.authorization().identity().userId(),
+          Map.of(
+              "kind",
+              resource.kind().name(),
+              "action",
+              resource.action(),
+              "allowed",
+              allowed,
+              "rules",
+              decision.ruleIds()));
+      return allowed;
+    };
   }
 }

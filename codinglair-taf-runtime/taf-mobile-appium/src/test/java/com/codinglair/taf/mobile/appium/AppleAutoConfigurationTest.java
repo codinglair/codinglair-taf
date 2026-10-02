@@ -1,14 +1,20 @@
 package com.codinglair.taf.mobile.appium;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.codinglair.taf.mobile.appium.configuration.AppleAutoConfiguration;
 import com.codinglair.taf.mobile.appium.configuration.AppleProperties;
 import com.codinglair.taf.mobile.appium.service.AppleController;
 import com.codinglair.taf.mobile.appium.service.AppleControllerFactory;
+import com.codinglair.taf.mobile.appium.service.AppleTransportSecurity;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflight;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
+import com.codinglair.taf.runtime.secret.ResolvedSecret;
+import com.codinglair.taf.runtime.secret.SecretManager;
+import com.codinglair.taf.runtime.secret.SecretRequestContext;
 import io.appium.java_client.ios.IOSDriver;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +26,63 @@ import org.springframework.core.env.MapPropertySource;
 
 @DisplayName("Passive Apple Spring Boot composition")
 class AppleAutoConfigurationTest {
+  @Test
+  @DisplayName("honors supplied resource denial for Apple and Android before network or secrets")
+  void explicitDenial() {
+    runner
+        .withPropertyValues(
+            "taf.mobile.apple.enabled=true",
+            "taf.mobile.android.enabled=true",
+            "taf.mobile.apple.platform=ios",
+            "taf.mobile.apple.device-kind=simulator",
+            "taf.mobile.apple.server-url=http://127.0.0.1:1",
+            "taf.mobile.apple.device-name=fixture",
+            "taf.mobile.apple.bundle-id=com.example.fixture",
+            "taf.mobile.apple.authentication.mechanism=header",
+            "taf.mobile.apple.authentication.secret-references.Authorization=secret://env/APPLE_KEY",
+            "taf.mobile.android.server-url=http://127.0.0.1:1",
+            "taf.mobile.android.device-name=fixture",
+            "taf.mobile.android.app-package=com.example.fixture")
+        .withBean(ResourceAuthorizer.class, () -> _ -> false)
+        .withBean(
+            SecretManager.class,
+            () ->
+                new SecretManager() {
+                  public ResolvedSecret resolve(String reference, SecretRequestContext context) {
+                    throw new AssertionError("Denied resource must precede secrets");
+                  }
+
+                  public void verifyReady(String reference) {
+                    throw new AssertionError("Startup must stay passive");
+                  }
+                })
+        .run(
+            c -> {
+              assertThat(c).hasNotFailed();
+              var apple = c.getBean(AppleControllerFactory.class).create("default");
+              assertThrows(RuntimeException.class, () -> apple.initialize(TestContexts.context()));
+              apple.close();
+              var android = c.getBean(AndroidControllerFactory.class).create("default");
+              assertThrows(
+                  RuntimeException.class, () -> android.initialize(TestContexts.context()));
+              android.close();
+            });
+  }
+
+  @Test
+  @DisplayName("uses a caller supplied transport service without resolving it during startup")
+  void securityOverride() {
+    var security = new AppleTransportSecurity(_ -> false, null, "test");
+    runner
+        .withPropertyValues("taf.mobile.apple.enabled=true")
+        .withBean(AppleTransportSecurity.class, () -> security)
+        .run(
+            c -> {
+              assertThat(c).hasNotFailed();
+              assertThat(c).hasSingleBean(AppleControllerFactory.class);
+            });
+  }
+
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
           .withConfiguration(

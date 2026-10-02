@@ -1,6 +1,8 @@
 package com.codinglair.taf.mcp.worker;
 
 import com.codinglair.taf.mcp.security.ResponseRedactor;
+import com.codinglair.taf.runtime.core.security.ResourceAccess;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -12,9 +14,11 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +30,7 @@ public final class LocalExecutionWorker {
   private final ArtifactStore artifacts;
   private final ResponseRedactor redactor;
   private final Clock clock;
+  private final Map<String, Set<ResourceAccess>> workflowResources;
 
   public LocalExecutionWorker(
       Map<String, WorkerCommand> commands,
@@ -34,12 +39,29 @@ public final class LocalExecutionWorker {
       ArtifactStore artifacts,
       ResponseRedactor redactor,
       Clock clock) {
+    this(commands, limits, executionRoot, artifacts, redactor, clock, Map.of());
+  }
+
+  /** Administrator-owned resource declarations, never inferred from untrusted job input. */
+  public LocalExecutionWorker(
+      Map<String, WorkerCommand> commands,
+      WorkerLimits limits,
+      Path executionRoot,
+      ArtifactStore artifacts,
+      ResponseRedactor redactor,
+      Clock clock,
+      Map<String, Set<ResourceAccess>> workflowResources) {
     this.commands = Map.copyOf(commands);
     this.limits = Objects.requireNonNull(limits, "limits");
     this.workspaces = new WorkspacePreparer(executionRoot, limits);
     this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
     this.redactor = Objects.requireNonNull(redactor, "redactor");
     this.clock = Objects.requireNonNull(clock, "clock");
+    var resources = new HashMap<String, Set<ResourceAccess>>();
+    workflowResources.forEach((name, values) -> resources.put(name, Set.copyOf(values)));
+    if (!commands.keySet().containsAll(resources.keySet()))
+      throw new IllegalArgumentException("Unknown resource-protected workflow");
+    this.workflowResources = Map.copyOf(resources);
     if (!this.commands.keySet().stream()
         .allMatch(name -> name.equals(this.commands.get(name).workflow()))) {
       throw new IllegalArgumentException("Command allowlist keys must match workflow names");
@@ -47,11 +69,21 @@ public final class LocalExecutionWorker {
   }
 
   public WorkerResult execute(WorkerRequest request, CancellationToken cancellation) {
+    return execute(request, cancellation, _ -> false);
+  }
+
+  /** Supply the caller-bound MCP enforcement adapter; absence of resource grants is a denial. */
+  public WorkerResult execute(
+      WorkerRequest request, CancellationToken cancellation, ResourceAuthorizer authorizer) {
     Objects.requireNonNull(request, "request");
     Objects.requireNonNull(cancellation, "cancellation");
     var command = commands.get(request.workflow());
     if (command == null) {
       throw new WorkerExecutionException("WORKFLOW_DENIED", "Workflow is not allowlisted");
+    }
+    for (var resource : workflowResources.getOrDefault(request.workflow(), Set.of())) {
+      if (!authorizer.permits(resource))
+        throw new WorkerExecutionException("RESOURCE_DENIED", "Workflow resource access denied");
     }
     if (request.timeout().isZero()
         || request.timeout().isNegative()

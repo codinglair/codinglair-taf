@@ -4,14 +4,18 @@ import com.codinglair.taf.mobile.appium.service.AppleController;
 import com.codinglair.taf.mobile.appium.service.AppleControllerFactory;
 import com.codinglair.taf.mobile.appium.service.AppleReadiness;
 import com.codinglair.taf.mobile.appium.service.AppleResourceReservations;
+import com.codinglair.taf.mobile.appium.service.AppleTransportSecurity;
 import com.codinglair.taf.mobile.appium.service.DefaultAppleController;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionConfigurer;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflightContributor;
 import com.codinglair.taf.runtime.core.preflight.PreflightDiagnostic;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
+import com.codinglair.taf.runtime.secret.SecretManager;
 import io.appium.java_client.ios.IOSDriver;
 import java.util.List;
 import java.util.stream.Stream;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -34,11 +38,27 @@ public class AppleAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  AppleControllerFactory appleControllerFactory(AppleProperties properties) {
+  AppleControllerFactory appleControllerFactory(
+      AppleProperties properties,
+      ObjectProvider<AppleTransportSecurity> security,
+      ObjectProvider<SecretManager> secrets,
+      ObjectProvider<ResourceAuthorizer> authorizers) {
     var reservations = new AppleResourceReservations();
     return name ->
         new DefaultAppleController(
-            name, properties, properties.getControllers().get(name), reservations);
+            name,
+            properties,
+            properties.getControllers().get(name),
+            reservations,
+            security.getIfAvailable(
+                () ->
+                    authorizers.getIfAvailable() != null
+                        ? new AppleTransportSecurity(
+                            authorizers.getObject(), secrets.getIfAvailable(), "governed")
+                        : AppleTransportSecurity.trusted(
+                            AppleControllerSettings.merge(
+                                properties, properties.getControllers().get(name), null),
+                            secrets.getIfAvailable())));
   }
 
   @Bean

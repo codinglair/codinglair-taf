@@ -1,11 +1,8 @@
 package com.codinglair.taf.mobile.appium.service;
 
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
+import com.codinglair.taf.mobile.appium.platform.ApplePlatformStrategy;
 import com.codinglair.taf.runtime.core.controller.EnvironmentAccess;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 
 /** Consumes a preallocated resource. Its provider/TestSession owns allocation release. */
 final class AppleAllocation {
@@ -37,20 +34,15 @@ final class AppleAllocation {
 
   /** Only a provider-identified owned session, never a session enumeration or global deletion. */
   static void cleanup(AppleControllerSettings settings, String session) throws Exception {
-    if (!session.matches("[A-Za-z0-9_-]{1,128}"))
-      throw new IllegalArgumentException("Owned session identifier cannot be used in cleanup path");
-    String base = settings.getServerUrl().toASCIIString().replaceAll("/+$", "");
-    try (var client =
-        HttpClient.newBuilder().connectTimeout(settings.getCleanupTimeout()).build()) {
-      var response =
-          client.send(
-              HttpRequest.newBuilder(URI.create(base + "/session/" + session))
-                  .timeout(settings.getCleanupTimeout())
-                  .DELETE()
-                  .build(),
-              HttpResponse.BodyHandlers.discarding());
-      if (response.statusCode() != 200 && response.statusCode() != 404)
-        throw new IllegalStateException("Owned Apple session cleanup failed");
-    }
+    cleanup(settings, session, AppleTransportSecurity.trusted(settings, null), "standalone");
+  }
+
+  static void cleanup(
+      AppleControllerSettings settings,
+      String session,
+      AppleTransportSecurity security,
+      String sessionId)
+      throws Exception {
+    new ApplePlatformStrategy().cleanupOwned(settings, session, security, sessionId);
   }
 }

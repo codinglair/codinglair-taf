@@ -23,15 +23,15 @@ public final class AppleReadiness {
       diagnostics.put(
           "configuration", "Correct Apple platform, target, app, endpoint and WDA options");
     }
-    if (settings.getAuthentication().getMechanism() != Mechanism.NONE)
-      diagnostics.put(
-          "authentication",
-          "Resolve secret references through authorized SEC-130-001 transport integration");
     var required =
         new ArrayList<>(List.of("endpoint", "compatibility", "target", "application", "wda"));
     if (settings.getTopology() == MobileTopology.LOCAL_HOST)
       required.addAll(List.of("doctor", "xcode", "device", "signing"));
     boolean unavailable = !diagnostics.isEmpty();
+    if (settings.getAuthentication().getMechanism() != Mechanism.NONE)
+      diagnostics.put(
+          "authentication",
+          "Secret availability and resource permission require authorized initialization");
     for (String dimension : required) {
       Boolean value = settings.getPrerequisites().get(dimension);
       if (value == null)

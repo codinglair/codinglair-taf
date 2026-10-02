@@ -194,7 +194,8 @@ class AppleConfigurationTest {
     }
 
     @Test
-    @DisplayName("accepts explicit generic Apple family and fails closed for secret transport")
+    @DisplayName(
+        "accepts reference-only options but fails closed without an execution secret manager")
     void genericAndAuthentication() {
       var settings = valid();
       settings.setPlatform("apple");
@@ -211,8 +212,9 @@ class AppleConfigurationTest {
                   "password",
                   "credential://provider-password"));
       settings.validate();
-      assertThrows(
-          IllegalArgumentException.class, () -> new ApplePlatformStrategy().options(settings));
+      assertThat(new ApplePlatformStrategy().options(settings).asMap().toString())
+          .doesNotContain("secret://", "credential://");
+      assertThrows(RuntimeException.class, () -> new ApplePlatformStrategy().create(settings));
     }
 
     @Test
