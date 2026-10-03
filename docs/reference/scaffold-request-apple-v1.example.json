@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "blueprintVersion": "1.0",
+  "groupId": "com.example",
+  "artifactId": "apple-consumer",
+  "basePackage": "com.example.apple",
+  "tafVersion": "1.2.0",
+  "capabilities": ["MOBILE"],
+  "mobile": {
+    "platform": "IPADOS",
+    "automationName": "XCUITEST",
+    "family": "IPAD",
+    "mode": "NATIVE",
+    "applicationMode": "PACKAGED",
+    "deviceKind": "PHYSICAL",
+    "topology": "REMOTE_HOST"
+  },
+  "runner": "TESTNG",
+  "reporting": "ALLURE",
+  "testDefinitions": "FILE_CSV"
+}

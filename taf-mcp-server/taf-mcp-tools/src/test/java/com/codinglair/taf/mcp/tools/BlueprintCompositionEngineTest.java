@@ -164,7 +164,7 @@ class BlueprintCompositionEngineTest {
     }
 
     @Test
-    @DisplayName("reports unsupported iOS before mutation")
+    @DisplayName("reports an unsupported platform before mutation")
     void rejectsIos() {
       var request =
           new Request(
@@ -174,7 +174,7 @@ class BlueprintCompositionEngineTest {
               "1.2.0",
               List.of("MOBILE"),
               null,
-              "ios",
+              "unsupported",
               null,
               null,
               null,
@@ -187,7 +187,7 @@ class BlueprintCompositionEngineTest {
       assertThat(plan.writes()).isEmpty();
       assertThat(plan.diagnostics())
           .extracting(BlueprintCompositionEngine.Diagnostic::code)
-          .contains("SCF_UNSUPPORTED_IOS");
+          .contains("SCF_UNSUPPORTED_SELECTION");
       assertThat(destination).doesNotExist();
     }
 

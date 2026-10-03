@@ -8,7 +8,7 @@ public final class BlueprintRequestArguments {
   private BlueprintRequestArguments() {}
 
   public static BlueprintCompositionEngine.Request blueprint(Map<String, Object> arguments) {
-    return BlueprintScaffoldRequest.blueprint(
+    return new BlueprintCompositionEngine.Request(
         string(arguments, "groupId", true),
         string(arguments, "artifactId", true),
         string(arguments, "basePackage", true),
@@ -19,7 +19,12 @@ public final class BlueprintRequestArguments {
         string(arguments, "mobileAutomationName", false),
         string(arguments, "runner", false),
         string(arguments, "reporting", false),
-        string(arguments, "testDefinitions", false));
+        string(arguments, "testDefinitions", false),
+        string(arguments, "mobileFamily", false),
+        string(arguments, "mobileMode", false),
+        string(arguments, "mobileDeviceKind", false),
+        string(arguments, "mobileTopology", false),
+        string(arguments, "mobileApplicationMode", false));
   }
 
   public static String string(Map<String, Object> arguments, String name, boolean required) {

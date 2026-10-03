@@ -167,12 +167,55 @@ public final class BlueprintCompositionEngine {
     var platformToken = token(request.mobilePlatform());
     var automationToken = token(request.mobileAutomationName());
     MobilePlatform platform = enumValue(MobilePlatform.class, platformToken);
+    String family = token(request.mobileFamily());
+    String mode = token(request.mobileMode());
+    String deviceKind = token(request.mobileDeviceKind());
+    String topology = token(request.mobileTopology());
+    String applicationMode = token(request.mobileApplicationMode());
     if (capabilities.contains(Capability.MOBILE)) {
-      platform = normalizeMobilePlatform(platformToken, platform, diagnostics);
-      if (automationToken != null && !"UIAUTOMATOR2".equals(automationToken)) {
+      platform = normalizeMobilePlatform(platformToken, platform, family, diagnostics);
+      String expectedAutomation = platform == MobilePlatform.ANDROID ? "UIAUTOMATOR2" : "XCUITEST";
+      if (automationToken != null && !expectedAutomation.equals(automationToken)) {
         unsupported(diagnostics, "mobile automation name");
       }
-    } else if (platformToken != null || automationToken != null) {
+      automationToken = expectedAutomation;
+      if (platform != MobilePlatform.ANDROID) {
+        String expectedFamily = platform == MobilePlatform.IPADOS ? "IPAD" : "IPHONE";
+        family = family == null ? expectedFamily : family;
+        if (!expectedFamily.equals(family))
+          unsupported(diagnostics, "mobile family/platform conflict");
+        mode = defaultToken(mode, "NATIVE", List.of("NATIVE", "HYBRID", "SAFARI"), diagnostics);
+        deviceKind =
+            defaultToken(deviceKind, "SIMULATOR", List.of("SIMULATOR", "PHYSICAL"), diagnostics);
+        topology =
+            defaultToken(
+                topology,
+                "REMOTE_HOST",
+                List.of("LOCAL_HOST", "REMOTE_HOST", "PROVIDER"),
+                diagnostics);
+        if ("SAFARI".equals(mode)) {
+          if (applicationMode != null) unsupported(diagnostics, "application mode with Safari");
+        } else
+          applicationMode =
+              defaultToken(
+                  applicationMode,
+                  "PREINSTALLED",
+                  List.of("PREINSTALLED", "PACKAGED"),
+                  diagnostics);
+      } else if (family != null
+          || mode != null
+          || deviceKind != null
+          || topology != null
+          || applicationMode != null) {
+        unsupported(diagnostics, "Apple options with Android");
+      }
+    } else if (platformToken != null
+        || automationToken != null
+        || family != null
+        || mode != null
+        || deviceKind != null
+        || topology != null
+        || applicationMode != null) {
       unsupported(diagnostics, "mobile options without MOBILE");
     }
     Runner runner = defaulted(Runner.class, request.runner(), Runner.TESTNG, diagnostics);
@@ -194,13 +237,16 @@ public final class BlueprintCompositionEngine {
         tafVersion,
         List.copyOf(capabilities),
         Optional.ofNullable(messaging),
-        capabilities.contains(Capability.MOBILE)
-            ? Optional.of(MobilePlatform.ANDROID)
-            : Optional.empty(),
-        capabilities.contains(Capability.MOBILE) ? Optional.of("UIAUTOMATOR2") : Optional.empty(),
+        capabilities.contains(Capability.MOBILE) ? Optional.of(platform) : Optional.empty(),
+        capabilities.contains(Capability.MOBILE) ? Optional.of(automationToken) : Optional.empty(),
         runner,
         reporting,
-        definitions);
+        definitions,
+        family,
+        mode,
+        deviceKind,
+        topology,
+        applicationMode);
   }
 
   private static List<Contribution> select(
@@ -208,6 +254,21 @@ public final class BlueprintCompositionEngine {
     var selected =
         available.stream()
             .filter(c -> c.selector().matches(request))
+            .map(
+                c ->
+                    c.selector().capability() == Capability.MOBILE
+                            && request.mobilePlatform().orElse(MobilePlatform.ANDROID)
+                                != MobilePlatform.ANDROID
+                        ? new Contribution(
+                            c.id(),
+                            c.blueprintVersion(),
+                            c.kind(),
+                            c.selector(),
+                            c.order(),
+                            c.manifestIds(),
+                            MobileBlueprintAssets.assets(request),
+                            c.configurationClaims())
+                        : c)
             .sorted(Comparator.comparingInt(Contribution::order).thenComparing(Contribution::id))
             .toList();
     if (selected.stream().filter(c -> c.kind() == Kind.COMMON).count() != 1) {
@@ -380,10 +441,13 @@ public final class BlueprintCompositionEngine {
                 <dependency>
                   <groupId>%s</groupId>
                   <artifactId>%s</artifactId>
-                  <type>pom</type>
+                  <type>%s</type>
                 </dependency>
                 """
-                    .formatted(dependency.groupId(), dependency.artifactId())
+                    .formatted(
+                        dependency.groupId(),
+                        dependency.artifactId(),
+                        dependency.artifactId().contains("starter") ? "pom" : "jar")
                     .indent(4)
                     .stripTrailing())
         .reduce((left, right) -> left + "\n" + right)
@@ -468,26 +532,31 @@ public final class BlueprintCompositionEngine {
   }
 
   private static MobilePlatform normalizeMobilePlatform(
-      String token, MobilePlatform platform, List<Diagnostic> diagnostics) {
+      String token, MobilePlatform platform, String family, List<Diagnostic> diagnostics) {
     return switch (platform) {
       case ANDROID -> MobilePlatform.ANDROID;
-      case IOS -> {
-        diagnostics.add(
-            error(
-                "SCF_UNSUPPORTED_IOS",
-                Phase.SELECTION,
-                null,
-                null,
-                null,
-                "iOS is not implemented in blueprint 1.0",
-                "Select Android/UiAutomator2."));
-        yield MobilePlatform.IOS;
-      }
+      case IOS, IPADOS -> platform;
+      case APPLE ->
+          switch (family) {
+            case "IPHONE" -> MobilePlatform.IOS;
+            case "IPAD" -> MobilePlatform.IPADOS;
+            case null, default -> {
+              unsupported(diagnostics, "Apple selection requires IPHONE or IPAD family");
+              yield MobilePlatform.IOS;
+            }
+          };
       case null -> {
         if (token != null) unsupported(diagnostics, "mobile platform");
         yield MobilePlatform.ANDROID;
       }
     };
+  }
+
+  private static String defaultToken(
+      String value, String fallback, List<String> supported, List<Diagnostic> diagnostics) {
+    String result = value == null ? fallback : value;
+    if (!supported.contains(result)) unsupported(diagnostics, "Apple mobile selection");
+    return result;
   }
 
   private static List<Capability> parseCapabilities(
@@ -624,7 +693,9 @@ public final class BlueprintCompositionEngine {
 
   public enum MobilePlatform {
     ANDROID,
-    IOS
+    IOS,
+    IPADOS,
+    APPLE
   }
 
   public enum Runner {
@@ -689,7 +760,78 @@ public final class BlueprintCompositionEngine {
       String mobileAutomationName,
       String runner,
       String reporting,
-      String testDefinitions) {
+      String testDefinitions,
+      String mobileFamily,
+      String mobileMode,
+      String mobileDeviceKind,
+      String mobileTopology,
+      String mobileApplicationMode) {
+    public Request(
+        String groupId,
+        String artifactId,
+        String basePackage,
+        String tafVersion,
+        List<String> capabilities,
+        String messagingProvider,
+        String mobilePlatform,
+        String mobileAutomationName,
+        String runner,
+        String reporting,
+        String testDefinitions,
+        String mobileFamily,
+        String mobileMode,
+        String mobileDeviceKind,
+        String mobileTopology) {
+      this(
+          groupId,
+          artifactId,
+          basePackage,
+          tafVersion,
+          capabilities,
+          messagingProvider,
+          mobilePlatform,
+          mobileAutomationName,
+          runner,
+          reporting,
+          testDefinitions,
+          mobileFamily,
+          mobileMode,
+          mobileDeviceKind,
+          mobileTopology,
+          null);
+    }
+
+    public Request(
+        String groupId,
+        String artifactId,
+        String basePackage,
+        String tafVersion,
+        List<String> capabilities,
+        String messagingProvider,
+        String mobilePlatform,
+        String mobileAutomationName,
+        String runner,
+        String reporting,
+        String testDefinitions) {
+      this(
+          groupId,
+          artifactId,
+          basePackage,
+          tafVersion,
+          capabilities,
+          messagingProvider,
+          mobilePlatform,
+          mobileAutomationName,
+          runner,
+          reporting,
+          testDefinitions,
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
+
     public Request {
       capabilities = capabilities == null ? null : List.copyOf(capabilities);
     }
@@ -708,7 +850,47 @@ public final class BlueprintCompositionEngine {
       Optional<String> mobileAutomationName,
       Runner runner,
       Reporting reporting,
-      TestDefinitions testDefinitions) {
+      TestDefinitions testDefinitions,
+      String mobileFamily,
+      String mobileMode,
+      String mobileDeviceKind,
+      String mobileTopology,
+      String mobileApplicationMode) {
+    public NormalizedRequest(
+        String schemaVersion,
+        String blueprintVersion,
+        String groupId,
+        String artifactId,
+        String basePackage,
+        String tafVersion,
+        List<Capability> capabilities,
+        Optional<MessagingProvider> messagingProvider,
+        Optional<MobilePlatform> mobilePlatform,
+        Optional<String> mobileAutomationName,
+        Runner runner,
+        Reporting reporting,
+        TestDefinitions testDefinitions) {
+      this(
+          schemaVersion,
+          blueprintVersion,
+          groupId,
+          artifactId,
+          basePackage,
+          tafVersion,
+          capabilities,
+          messagingProvider,
+          mobilePlatform,
+          mobileAutomationName,
+          runner,
+          reporting,
+          testDefinitions,
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
+
     public NormalizedRequest {
       capabilities = List.copyOf(capabilities);
       messagingProvider = Objects.requireNonNull(messagingProvider);

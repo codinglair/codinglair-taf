@@ -46,6 +46,15 @@ final class WorkflowContractTest {
     require(yaml, "uses: ./.github/workflows/secret-scanning.yml");
     require(yaml, "uses: ./.github/workflows/aws-capability.yml");
     require(yaml, "aws: ${{ steps.classify.outputs.aws }}");
+    require(yaml, "standalone_builds: ${{ steps.classify.outputs.standalone_builds }}");
+    String affectedVerification =
+        job(yaml, "  affected-verification:", "  cross-module-smoke:");
+    requireInOrder(
+        affectedVerification,
+        "standalone_builds='${{ needs.change-impact.outputs.standalone_builds }}'",
+        "goal=install",
+        "./mvnw $MAVEN_ARGS -pl \"$modules\" -am \"$goal\"",
+        "./mvnw $MAVEN_ARGS -f \"$build/pom.xml\" verify");
     require(yaml, "name: Documentation version");
     require(yaml, "java build-support/scripts/SyncDocVersion.java --check");
     require(yaml, "- documentation-version");
