@@ -53,6 +53,7 @@ public class AppleControllerSettings {
   private Boolean pageSourceOnFailure;
   private Boolean deviceLogs;
   private Boolean video;
+  private Boolean requireEvidence;
   private Boolean allowVisualArtifacts;
   private Boolean autoAcceptAlerts;
   private Boolean autoDismissAlerts;
@@ -152,6 +153,7 @@ public class AppleControllerSettings {
       if (layer.pageSourceOnFailure != null) result.pageSourceOnFailure = layer.pageSourceOnFailure;
       if (layer.deviceLogs != null) result.deviceLogs = layer.deviceLogs;
       if (layer.video != null) result.video = layer.video;
+      if (layer.requireEvidence != null) result.requireEvidence = layer.requireEvidence;
       if (layer.allowVisualArtifacts != null)
         result.allowVisualArtifacts = layer.allowVisualArtifacts;
       if (layer.autoAcceptAlerts != null) result.autoAcceptAlerts = layer.autoAcceptAlerts;
@@ -495,6 +497,15 @@ public class AppleControllerSettings {
 
   public Boolean getVideo() {
     return video == null ? false : video;
+  }
+
+  /** Explicit strict policy: requested evidence must be available, independently of readiness. */
+  public Boolean getRequireEvidence() {
+    return requireEvidence == null ? false : requireEvidence;
+  }
+
+  public void setRequireEvidence(Boolean value) {
+    requireEvidence = value;
   }
 
   public void setVideo(Boolean value) {

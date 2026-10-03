@@ -157,8 +157,12 @@ also retains the reservation. Definite rejected initialization releases it.
 Quarantine lasts for the coordinator's lifetime. After authoritative external
 reconciliation, a fresh factory/coordinator may resume use of the allocation.
 
-Close gathers sanitized lifecycle metadata through the session's ArtifactCollector
-before application cleanup and driver quit. No visual payload is gathered here.
+Close gathers sanitized context/version metadata, conditional device/system logs
+and final recording through the session's ArtifactCollector before application
+cleanup and driver quit. Failure/explicit collection also requests configured
+screenshots and page source under the existing security policy. See
+[Apple evidence and reporting](../../docs/reference/apple-evidence-and-reporting.md)
+for outcomes, bounds, provider trust and optional `require-evidence` strictness.
 Cleanup is idempotent, attempts quit after app cleanup failure, and releases only
 definite completed reservations. Shared runner lifecycle attaches cleanup failures
 to the primary test failure. Each HTTP exchange is bounded; application cleanup

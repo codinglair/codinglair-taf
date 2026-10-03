@@ -155,7 +155,11 @@ class AppleSessionProtocolTest {
     }
     controller.close();
     assertThat(paths)
-        .containsExactly("POST /custom/wd/hub/session", "DELETE /custom/wd/hub/session/fixture-1");
+        .containsExactly(
+            "POST /custom/wd/hub/session",
+            "GET /custom/wd/hub/session/fixture-1/context",
+            "GET /custom/wd/hub/session/fixture-1/se/log/types",
+            "DELETE /custom/wd/hub/session/fixture-1");
     assertThat(controller.state()).isEqualTo(ControllerState.CLOSED);
     assertThrows(IllegalStateException.class, controller::nativeDriver);
   }
@@ -219,7 +223,10 @@ class AppleSessionProtocolTest {
           assertThat(controller.state()).isEqualTo(ControllerState.CLOSED);
           assertThat(paths)
               .containsExactly(
-                  "POST /custom/wd/hub/session", "DELETE /custom/wd/hub/session/fixture-1");
+                  "POST /custom/wd/hub/session",
+                  "GET /custom/wd/hub/session/fixture-1/context",
+                  "GET /custom/wd/hub/session/fixture-1/se/log/types",
+                  "DELETE /custom/wd/hub/session/fixture-1");
         });
   }
 
@@ -249,6 +256,8 @@ class AppleSessionProtocolTest {
               assertThat(paths)
                   .containsExactly(
                       "POST /custom/wd/hub/session",
+                      "GET /custom/wd/hub/session/fixture-1/context",
+                      "GET /custom/wd/hub/session/fixture-1/se/log/types",
                       "POST /custom/wd/hub/session/fixture-1/execute/sync",
                       "DELETE /custom/wd/hub/session/fixture-1");
             });
@@ -321,7 +330,9 @@ class AppleSessionProtocolTest {
       var foreignContext = TestContexts.context();
       assertThrows(IllegalStateException.class, () -> first.initialize(foreignContext));
       firstSession.close();
-      assertThat(firstSession.getArtifactCollector().getArtifacts()).hasSize(1);
+      assertThat(firstSession.getArtifactCollector().getArtifacts())
+          .anyMatch(artifact -> artifact.content().contains("artifact=metadata; outcome="))
+          .anyMatch(artifact -> artifact.content().contains("artifact=device-log; outcome="));
       assertThat(secondSession.getArtifactCollector().getArtifacts()).isEmpty();
       assertThat(foreignContext.artifacts().getArtifacts()).isEmpty();
       assertThat(second.state()).isEqualTo(ControllerState.READY);
@@ -567,7 +578,9 @@ class AppleSessionProtocolTest {
     assertThat(primary).hasMessage("primary test failure");
     assertThat(primary.getSuppressed()).hasSize(1);
     assertThat(evidenceBeforeDelete).isTrue();
-    assertThat(session.getArtifactCollector().getArtifacts()).hasSize(1);
+    assertThat(session.getArtifactCollector().getArtifacts())
+        .anyMatch(artifact -> artifact.content().contains("artifact=metadata; outcome="))
+        .anyMatch(artifact -> artifact.content().contains("artifact=device-log; outcome="));
     assertThat(lifecycle.activeOwnerships()).isEmpty();
     session.close();
     assertThat(paths.stream().filter(p -> p.startsWith("DELETE"))).hasSize(1);

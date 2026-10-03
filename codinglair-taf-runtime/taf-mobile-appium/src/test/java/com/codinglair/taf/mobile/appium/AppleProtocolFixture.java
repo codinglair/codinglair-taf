@@ -23,6 +23,9 @@ abstract class AppleProtocolFixture {
   boolean stale;
   int contextReads;
   int readyAfter;
+  String evidenceOutcome = "available";
+  String evidenceValue;
+  String sourceValue;
   DefaultAppleController controller;
 
   @BeforeEach
@@ -38,7 +41,28 @@ abstract class AppleProtocolFixture {
           requests.add(exchange.getRequestMethod() + " " + path + " " + decoded);
           Object value = null;
           int status = 200;
-          if (reject || (stale && path.endsWith("/click"))) {
+          boolean evidenceRequest =
+              path.endsWith("/screenshot")
+                  || path.endsWith("/source")
+                  || path.endsWith("/log")
+                  || path.endsWith("/log/types")
+                  || path.endsWith("/start_recording_screen")
+                  || path.endsWith("/stop_recording_screen");
+          if (evidenceRequest
+              && (evidenceOutcome.equals("unsupported")
+                  || evidenceOutcome.equals("collection-failed"))) {
+            status = 500;
+            value =
+                Map.of(
+                    "error",
+                    evidenceOutcome.equals("unsupported")
+                        ? "unsupported operation"
+                        : "unknown error",
+                    "message",
+                    "CANARY",
+                    "stacktrace",
+                    "CANARY");
+          } else if (reject || (stale && path.endsWith("/click"))) {
             status = stale ? 404 : 500;
             value =
                 Map.of(
@@ -50,6 +74,28 @@ abstract class AppleProtocolFixture {
                     "CANARY");
           } else if (path.equals("/session")) {
             value = Map.of("sessionId", "fixture", "capabilities", Map.of("platformName", "iOS"));
+          } else if (path.endsWith("/screenshot") || path.endsWith("/stop_recording_screen")) {
+            value =
+                evidenceValue != null
+                    ? evidenceValue
+                    : evidenceOutcome.equals("unavailable") ? "" : "aW1hZ2U=";
+          } else if (path.endsWith("/source")) {
+            value =
+                sourceValue != null
+                    ? sourceValue
+                    : evidenceValue != null
+                        ? evidenceValue
+                        : evidenceOutcome.equals("unavailable")
+                            ? ""
+                            : "<page password=\"CANARY\"/>";
+          } else if (path.endsWith("/log/types")) {
+            value = List.of("syslog", "server");
+          } else if (path.endsWith("/log")) {
+            value =
+                evidenceOutcome.equals("unavailable")
+                    ? List.of()
+                    : List.of(
+                        Map.of("timestamp", 1, "level", "INFO", "message", "password=CANARY"));
           } else if (path.endsWith("/contexts")) {
             contextReads++;
             value =

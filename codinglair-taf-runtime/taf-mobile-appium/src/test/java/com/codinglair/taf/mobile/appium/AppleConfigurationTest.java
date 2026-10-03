@@ -173,6 +173,22 @@ class AppleConfigurationTest {
   @DisplayName("Layer merging and JSON ownership")
   class Merging {
     @Test
+    @DisplayName("strict evidence is opt-in and explicit named false overrides the base")
+    void evidencePolicy() {
+      var base = valid();
+      assertThat(base.getRequireEvidence()).isFalse();
+      base.setRequireEvidence(true);
+      assertThat(AppleControllerSettings.resolve(base, null, null).getRequireEvidence()).isTrue();
+      var named = new AppleControllerSettings();
+      named.setRequireEvidence(false);
+      assertThat(AppleControllerSettings.resolve(base, named, null).getRequireEvidence()).isFalse();
+      var authorized = new AppleControllerSettings();
+      authorized.setRequireEvidence(true);
+      assertThat(AppleControllerSettings.resolve(base, named, authorized).getRequireEvidence())
+          .isTrue();
+    }
+
+    @Test
     @DisplayName("merges partial application references and provider target capabilities")
     void nestedConfiguration() {
       var base = valid();

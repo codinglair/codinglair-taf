@@ -5,6 +5,7 @@ import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
 import com.codinglair.taf.mobile.appium.exception.AppleTransportFailure;
 import com.codinglair.taf.mobile.appium.service.AppleTransportSecurity;
 import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
+import com.codinglair.taf.runtime.core.security.ArtifactDownloadTransport;
 import com.codinglair.taf.runtime.core.security.BoundedHttpBody;
 import com.codinglair.taf.runtime.core.security.HttpTransportLogging;
 import com.codinglair.taf.runtime.core.security.ResourceAccess;
@@ -151,6 +152,34 @@ final class AppleHttpClient implements org.openqa.selenium.remote.http.HttpClien
         if (remaining <= 0) throw new IOException();
         byte[] bytes = BoundedHttpBody.read(input, 4 * 1024 * 1024, Duration.ofNanos(remaining));
         Object decoded = new Json().toType(new String(bytes, StandardCharsets.UTF_8), Object.class);
+        // Retrieve signed provider links inside the trusted boundary, before URL redaction.
+        // The link never reaches the driver, collector, reporter or exception diagnostics.
+        if (response.statusCode() < 400
+            && path.endsWith("/stop_recording_screen")
+            && settings.getAllowVisualArtifacts()
+            && values.isEmpty()
+            && decoded instanceof Map<?, ?> envelope
+            && envelope.get("value") instanceof String link
+            && (link.startsWith("https://") || link.startsWith("http://"))) {
+          var downloader =
+              new ArtifactDownloadTransport(
+                  access -> {
+                    try {
+                      security.require(access.kind(), access.resource(), access.action());
+                      return true;
+                    } catch (SecurityException _) {
+                      return false;
+                    }
+                  },
+                  settings.getCleanupTimeout(),
+                  2 * 1024 * 1024,
+                  3);
+          decoded =
+              Map.of(
+                  "value",
+                  Base64.getEncoder()
+                      .encodeToString(downloader.download(URI.create(link), Map.of())));
+        }
         var safe = object(scrub(decoded, values));
         if (response.statusCode() >= 400) {
           var error =
