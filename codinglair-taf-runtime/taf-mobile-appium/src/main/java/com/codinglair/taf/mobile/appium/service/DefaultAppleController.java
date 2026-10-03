@@ -6,6 +6,7 @@ import com.codinglair.taf.mobile.MobileDeviceKind;
 import com.codinglair.taf.mobile.MobileExecutionMode;
 import com.codinglair.taf.mobile.MobileOrientation;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
+import com.codinglair.taf.mobile.appium.evidence.AppleEvidence;
 import com.codinglair.taf.mobile.appium.exception.AppleControllerException;
 import com.codinglair.taf.mobile.appium.exception.AppleTransportFailure;
 import com.codinglair.taf.mobile.appium.platform.AppleLocator;
@@ -53,6 +54,7 @@ public final class DefaultAppleController implements AppleController {
   private boolean uncertain;
   private String providerOwnedSession;
   private ControllerContext context;
+  private AppleEvidence evidence;
 
   public DefaultAppleController(
       String name, AppleControllerSettings base, AppleControllerSettings instance) {
@@ -129,6 +131,8 @@ public final class DefaultAppleController implements AppleController {
       if (Thread.currentThread().isInterrupted())
         throw new IllegalStateException("Apple initialization cancelled");
       state = ControllerState.READY;
+      evidence = new AppleEvidence(settings, context);
+      evidence.start(driver);
     } catch (RuntimeException failure) {
       state = ControllerState.FAILED;
       uncertain = driver == null && reservation != null && remoteUncertain(failure);
@@ -225,15 +229,22 @@ public final class DefaultAppleController implements AppleController {
 
   @Override
   public synchronized Stream<TestArtifact> collectArtifacts(ArtifactReason reason) {
-    if (reason != ArtifactReason.DIAGNOSTIC || state != ControllerState.READY)
-      return Stream.empty();
-    // Lifecycle metadata only. Visual/source/log/recording evidence remains MOB-130-005.
-    return Stream.of(
-        TestArtifact.of(
-            "apple-session-lifecycle",
-            "diagnostic",
-            "Apple session READY; family=" + family().name(),
-            "text/plain"));
+    Objects.requireNonNull(reason);
+    if (state != ControllerState.READY) return Stream.empty();
+    var artifacts = evidence.collect(driver, reason);
+    artifacts.forEach(context.artifacts()::addArtifact);
+    if (settings.getRequireEvidence()
+        && (artifacts.isEmpty()
+            || artifacts.stream()
+                .anyMatch(
+                    artifact ->
+                        artifact.type().equals("diagnostic")
+                            && artifact.name().endsWith("-availability")
+                            && artifact.content().contains("outcome=")
+                            && !artifact.content().endsWith("outcome=available"))))
+      throw new AppleControllerException(
+          "required evidence unavailable; inspect artifact availability");
+    return artifacts.stream();
   }
 
   @Override
@@ -242,7 +253,7 @@ public final class DefaultAppleController implements AppleController {
     boolean evidenceFailed = false;
     if (driver != null && context != null) {
       try (var artifacts = collectArtifacts(ArtifactReason.DIAGNOSTIC)) {
-        artifacts.forEach(context.artifacts()::addArtifact);
+        // Collection publishes once; close the returned stream before application teardown.
       } catch (RuntimeException _) {
         evidenceFailed = true;
       }

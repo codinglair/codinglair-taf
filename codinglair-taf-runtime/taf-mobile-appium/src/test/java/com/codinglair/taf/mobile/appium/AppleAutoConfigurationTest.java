@@ -27,6 +27,28 @@ import org.springframework.core.env.MapPropertySource;
 @DisplayName("Passive Apple Spring Boot composition")
 class AppleAutoConfigurationTest {
   @Test
+  @DisplayName("binds strict evidence on named controllers without affecting passive readiness")
+  void evidencePolicyBinding() {
+    runner
+        .withPropertyValues(
+            "taf.mobile.apple.enabled=true",
+            "taf.mobile.apple.platform=ios",
+            "taf.mobile.apple.device-kind=simulator",
+            "taf.mobile.apple.device-name=fixture",
+            "taf.mobile.apple.server-url=http://127.0.0.1:1",
+            "taf.mobile.apple.bundle-id=com.example.fixture",
+            "taf.mobile.apple.require-evidence=true",
+            "taf.mobile.apple.controllers.optional.require-evidence=false")
+        .run(
+            c -> {
+              assertThat(c).hasNotFailed();
+              var properties = c.getBean(AppleProperties.class);
+              assertThat(properties.getRequireEvidence()).isTrue();
+              assertThat(properties.settings("optional").getRequireEvidence()).isFalse();
+            });
+  }
+
+  @Test
   @DisplayName("honors supplied resource denial for Apple and Android before network or secrets")
   void explicitDenial() {
     runner

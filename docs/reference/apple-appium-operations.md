@@ -62,6 +62,10 @@ command surface, Allure coupling or evidence collector is introduced here.
 
 ## Shared business tasks
 
+Conditional screenshots, source, syslog and recordings use the existing collector
+and reporting SPI. See [Apple evidence and reporting](apple-evidence-and-reporting.md)
+for capture reasons, availability outcomes, security and teardown ordering.
+
 [SharedCheckoutTaskTest](../../codinglair-taf-runtime/taf-mobile-appium/src/test/java/com/codinglair/taf/mobile/appium/SharedCheckoutTaskTest.java)
 is a compiled representative composition. `SubmitOrder` depends on the business
 `CheckoutScreen` contract; composition selects Apple/Android native screens by
