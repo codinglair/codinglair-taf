@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -46,9 +47,11 @@ import org.testng.ITestResult;
 import org.testng.TestNG;
 import org.testng.annotations.BeforeMethod;
 
+@DisplayName("TestNG base-test lifecycle and preflight")
 class TafBaseTestTest {
 
   @Test
+  @DisplayName("Runner preflight does not expose the environment module")
   void runnerPreflightBoundaryDoesNotExposeEnvironmentModule() {
     assertThatThrownBy(
             () ->
@@ -74,6 +77,7 @@ class TafBaseTestTest {
   }
 
   @Test
+  @DisplayName("Spring lifecycle provides invocation state and closes its session")
   void springManagedLifecycleProvidesInvocationMetadataContextControllersAndServices() {
     TestNG testng = run(MetadataConsumer.class);
 
@@ -98,6 +102,7 @@ class TafBaseTestTest {
   }
 
   @Test
+  @DisplayName("A consumer setup failure still cleans its session")
   void inheritedAfterMethodCleansSessionWhenConsumerBeforeMethodFails() {
     TestNG testng = run(SetupFailureConsumer.class);
 
@@ -107,6 +112,7 @@ class TafBaseTestTest {
   }
 
   @Test
+  @DisplayName("Class metadata supplies the default test-case identifier")
   void classTestCaseIdIsUsedWhenMethodHasNoOverride() {
     ClassMetadataConsumer.resolved = null;
 
@@ -117,6 +123,7 @@ class TafBaseTestTest {
   }
 
   @Test
+  @DisplayName("Missing metadata fails actionably without leaking a session")
   void missingTestCaseIdProducesActionableFailureWithoutLeakingSession() {
     MissingMetadataConsumer.message = null;
 
@@ -127,6 +134,7 @@ class TafBaseTestTest {
   }
 
   @Test
+  @DisplayName("Observer-only tests do not create sessions")
   void observerListenerDoesNotCreateSessionForClassWithoutTafBaseTest() {
     TestNG testng = run(ListenerOnlyConsumer.class);
 
@@ -136,6 +144,7 @@ class TafBaseTestTest {
   }
 
   @Test
+  @DisplayName("Consolidated preflight remains the primary setup failure and cleanup runs once")
   void aggregatedPreflightBlocksTestActivityAndStillCleansTheSingleSession() {
     TestNG testng = run(PreflightFailureConsumer.class);
 
@@ -143,9 +152,13 @@ class TafBaseTestTest {
     assertThat(PreflightFailureConsumer.bodyRan).isFalse();
     assertThat(PreflightFailureConfiguration.created).hasValue(1);
     assertThat(PreflightFailureConfiguration.cleaned).hasValue(1);
+    assertThat(failures(testng))
+        .contains("Consumer preflight failed", "configuration.web.url", "dependency.browser")
+        .doesNotContain("NullPointerException", "Invocation is not owned");
   }
 
   @Test
+  @DisplayName("Typed conveniences resolve paired definitions through the provider SPI")
   void typedConveniencesResolvePairedCsvDefinitionThroughProviderSpi() {
     CsvDefinitionConsumer.input = null;
     CsvDefinitionConsumer.expected = null;

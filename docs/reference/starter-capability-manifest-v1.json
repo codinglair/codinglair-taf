@@ -83,12 +83,56 @@
         "taf-mobile-appium"
       ],
       "requiredConfiguration": [
-        "taf.mobile.android.enabled=true",
-        "taf.mobile.android.instances.<name>"
+        "taf.mobile.android.enabled=true or taf.mobile.apple.enabled=true",
+        "taf.mobile.android.controllers.<name> or taf.mobile.apple.controllers.<name>"
       ],
       "optionalIntegrations": [
-        "consumer-managed Appium server, Android device, emulator, and application"
+        "consumer-managed Appium server, Android device, emulator, and application",
+        "Apple XCUITest: IOS/IPHONE or IPADOS/IPAD; NATIVE/HYBRID/SAFARI; SIMULATOR/PHYSICAL; LOCAL_HOST/REMOTE_HOST/PROVIDER"
       ],
+      "mobileSelections": {
+        "default": {
+          "platform": "ANDROID",
+          "automationName": "UIAUTOMATOR2"
+        },
+        "apple": {
+          "platforms": [
+            "IOS",
+            "IPADOS"
+          ],
+          "aliases": {
+            "APPLE": "explicit IPHONE or IPAD family required"
+          },
+          "families": [
+            "IPHONE",
+            "IPAD"
+          ],
+          "automationName": "XCUITEST",
+          "modes": [
+            "NATIVE",
+            "HYBRID",
+            "SAFARI"
+          ],
+          "applicationModes": [
+            "PREINSTALLED",
+            "PACKAGED"
+          ],
+          "deviceKinds": [
+            "SIMULATOR",
+            "PHYSICAL"
+          ],
+          "topologies": [
+            "LOCAL_HOST",
+            "REMOTE_HOST",
+            "PROVIDER"
+          ],
+          "defaults": {
+            "mode": "NATIVE",
+            "deviceKind": "SIMULATOR",
+            "topology": "REMOTE_HOST"
+          }
+        }
+      },
       "supportedExclusions": []
     }
   ],

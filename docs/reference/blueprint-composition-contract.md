@@ -21,8 +21,16 @@ uses these steps in order:
    it is not selected. Other capability provider choices are not supported in version 1.0.
 4. When `MOBILE` is selected and platform is omitted, materialize
    `mobile={platform:ANDROID,automationName:UIAUTOMATOR2}`. If Android is explicit and automation
-   name is omitted, materialize `UIAUTOMATOR2`. Reject explicit `IOS` as `SCF_UNSUPPORTED_IOS`;
-   the schema admits the token so validation can return that actionable domain error.
+   name is omitted, materialize `UIAUTOMATOR2`. Explicit `IOS` or `IPADOS` selects `XCUITEST`,
+   with `IPHONE` or `IPAD` family respectively. The `APPLE` alias requires explicit `IPHONE`/`IPAD`
+   and canonicalizes to `IOS`/`IPADOS`. Apple defaults are `NATIVE`, `SIMULATOR`, and `REMOTE_HOST`;
+   accepted alternatives are `HYBRID`/`SAFARI`, `PHYSICAL`, and `LOCAL_HOST`/`PROVIDER`.
+   Reject family/platform or automation conflicts and Apple-only options with Android before writes.
+   The Java/transport argument names are `mobilePlatform`, `mobileAutomationName`, `mobileFamily`,
+   `mobileMode`, `mobileDeviceKind`, `mobileTopology`, `mobileApplicationMode`; schema fields live under `mobile`.
+   Native/hybrid default to `PREINSTALLED`; `PACKAGED` emits a typed server-side reference with
+   matching build kind. Safari rejects application-mode selections and emits no application keys.
+   Existing Request and NormalizedRequest constructors remain available for Android callers.
 5. Default omitted runner, reporting, and test-definition selections to `TESTNG`, `ALLURE`, and
    `FILE_CSV`. Emit every default in the normalized request. Sort all object keys lexicographically
    when serializing the normalized form.
@@ -79,7 +87,7 @@ Fields are bounded, sanitized, contain no secret values, and diagnostics sort by
 | `SCF_INVALID_REQUEST` | Schema/name/version failure | Correct the named field and resubmit. |
 | `SCF_INCOMPLETE_SELECTION` | Messaging has no provider | Select one of AWS, JMS, KAFKA, or RABBITMQ. |
 | `SCF_UNSUPPORTED_SELECTION` | Unknown capability/provider/runner/reporting combination | Choose a combination in the release capability matrix. |
-| `SCF_UNSUPPORTED_IOS` | Mobile platform is explicitly iOS | Select Android/UiAutomator2; iOS is not implemented in 1.2.0. |
+| `SCF_UNSUPPORTED_IOS` | Historical 1.2.0 diagnostic, retained for older clients | Apple selection is supported by the additive 1.3.0 blueprint increment. |
 | `SCF_MANIFEST_REFERENCE` | Contribution refers to an absent/ambiguous starter ID | Repair the blueprint/manifest version pair; do not synthesize dependencies. |
 | `SCF_PATH_INVALID` | Absolute, traversing, empty, unresolved, or escaping path | Supply a safe relative target and valid package/name inputs. |
 | `SCF_PATH_COLLISION` | Multiple creates, create/merge conflict, case alias, or existing target | Change ownership or choose an empty destination. |
@@ -87,7 +95,7 @@ Fields are bounded, sanitized, contain no secret values, and diagnostics sort by
 | `SCF_UNRESOLVED_TOKEN` | Rendered content retains a blueprint placeholder | Provide the missing normalized value or repair the contribution. |
 
 Examples: `MESSAGING` without `providers.messaging` fails before mutation with
-`SCF_INCOMPLETE_SELECTION`; `{MOBILE, platform:IOS}` fails with `SCF_UNSUPPORTED_IOS`; common and
+`SCF_INCOMPLETE_SELECTION`; `{MOBILE, platform:IOS, family:IPAD}` fails with `SCF_UNSUPPORTED_SELECTION`; common and
 Web both creating `src/test/resources/application.yaml` fails with `SCF_PATH_COLLISION`; Web
 setting `/taf/web/playwright/enabled=true` while another contribution sets it to `false` fails with
 `SCF_CONFIG_COLLISION`. All four return zero writes.

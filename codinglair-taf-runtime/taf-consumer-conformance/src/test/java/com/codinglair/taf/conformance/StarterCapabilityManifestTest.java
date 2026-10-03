@@ -35,6 +35,28 @@ class StarterCapabilityManifestTest {
   @DisplayName("Authoritative mappings")
   class AuthoritativeMappings {
     @Test
+    @DisplayName("Mobile keeps Android defaults and declares Apple selections on the same starter")
+    void mobileSelections() throws IOException {
+      JsonNode mobile =
+          StreamSupport.stream(manifest().path("capabilities").spliterator(), false)
+              .filter(capability -> capability.path("id").asText().equals("MOBILE"))
+              .findFirst()
+              .orElseThrow();
+      assertThat(mobile.path("starter").asText()).isEqualTo("codinglair-taf-starter-mobile");
+      assertThat(mobile.path("mobileSelections").path("default").path("platform").asText())
+          .isEqualTo("ANDROID");
+      JsonNode apple = mobile.path("mobileSelections").path("apple");
+      assertThat(textValues(apple.path("families"))).containsExactlyInAnyOrder("IPHONE", "IPAD");
+      assertThat(textValues(apple.path("modes")))
+          .containsExactlyInAnyOrder("NATIVE", "HYBRID", "SAFARI");
+      assertThat(textValues(apple.path("deviceKinds")))
+          .containsExactlyInAnyOrder("SIMULATOR", "PHYSICAL");
+      assertThat(textValues(apple.path("topologies")))
+          .containsExactlyInAnyOrder("LOCAL_HOST", "REMOTE_HOST", "PROVIDER");
+      assertThat(apple.path("automationName").asText()).isEqualTo("XCUITEST");
+    }
+
+    @Test
     @DisplayName("maps every capability and provider to one unique starter")
     void mapsEveryCapabilityAndProviderToOneUniqueStarter() throws IOException {
       JsonNode manifest = manifest();
