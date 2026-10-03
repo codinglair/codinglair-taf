@@ -46,7 +46,18 @@ public class StructuredResultWriter {
     json.append("  \"testId\": \"").append(jsonValue(testId)).append("\",\n");
     json.append("  \"testName\": \"").append(jsonValue(testName)).append("\",\n");
     json.append("  \"steps\": [\n");
+    appendSteps(json, steps);
+    json.append("  ],\n");
+    json.append("  \"artifacts\": [\n");
+    appendArtifacts(json, artifacts);
+    json.append("  ],\n");
+    json.append("  \"failureAnalysis\": ").append(failureJson(analysis)).append("\n");
+    json.append("}");
 
+    return json.toString();
+  }
+
+  private void appendSteps(StringBuilder json, List<TestStep> steps) {
     for (int i = 0; i < steps.size(); i++) {
       TestStep step = steps.get(i);
       json.append("    {\n");
@@ -64,10 +75,9 @@ public class StructuredResultWriter {
       }
       json.append("\n");
     }
+  }
 
-    json.append("  ],\n");
-    json.append("  \"artifacts\": [\n");
-
+  private void appendArtifacts(StringBuilder json, List<TestArtifact> artifacts) {
     for (int i = 0; i < artifacts.size(); i++) {
       TestArtifact artifact = artifacts.get(i);
       json.append("    {\n");
@@ -83,12 +93,6 @@ public class StructuredResultWriter {
       }
       json.append("\n");
     }
-
-    json.append("  ],\n");
-    json.append("  \"failureAnalysis\": ").append(failureJson(analysis)).append("\n");
-    json.append("}");
-
-    return json.toString();
   }
 
   /**
@@ -121,17 +125,7 @@ public class StructuredResultWriter {
     xml.append("  <properties>\n");
     property(xml, "taf.session.id", sessionId);
     property(xml, "taf.test.id", testId);
-    if (analysis != null) {
-      property(xml, "taf.failure.classification", analysis.classification().type().name());
-      property(xml, "taf.failure.source", analysis.classification().source().name());
-      property(xml, "taf.failure.reason", analysis.classification().reason());
-      property(xml, "taf.failure.stability", analysis.stability().name());
-      property(xml, "taf.failure.history", analysis.historyStatus().name());
-      if (analysis.signature() != null) {
-        property(xml, "taf.failure.signature", analysis.signature().value());
-        property(xml, "taf.failure.signature.algorithm", analysis.signature().algorithm());
-      }
-    }
+    appendFailureProperties(xml, analysis);
     xml.append("  </properties>\n");
     xml.append("  <testcase classname=\"")
         .append(escapeXml(className))
@@ -151,6 +145,19 @@ public class StructuredResultWriter {
     xml.append("</testsuite>");
 
     return xml.toString();
+  }
+
+  private void appendFailureProperties(StringBuilder xml, FailureAnalysis analysis) {
+    if (analysis == null) return;
+    property(xml, "taf.failure.classification", analysis.classification().type().name());
+    property(xml, "taf.failure.source", analysis.classification().source().name());
+    property(xml, "taf.failure.reason", analysis.classification().reason());
+    property(xml, "taf.failure.stability", analysis.stability().name());
+    property(xml, "taf.failure.history", analysis.historyStatus().name());
+    if (analysis.signature() != null) {
+      property(xml, "taf.failure.signature", analysis.signature().value());
+      property(xml, "taf.failure.signature.algorithm", analysis.signature().algorithm());
+    }
   }
 
   /**

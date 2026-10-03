@@ -115,32 +115,35 @@ public final class ControllerRegistry implements AutoCloseable {
               Proxy.newProxyInstance(
                   type.getClassLoader(),
                   new Class<?>[] {type},
-                  (ignored, method, arguments) -> {
-                    java.lang.reflect.Method target =
-                        controller
-                            .getClass()
-                            .getMethod(method.getName(), method.getParameterTypes());
-                    if (!target.canAccess(controller)) target.trySetAccessible();
-                    try {
-                      return interceptor.invoke(
-                          target,
-                          arguments,
-                          () -> {
-                            try {
-                              return target.invoke(controller, arguments);
-                            } catch (InvocationTargetException failure) {
-                              throwAny(failure.getCause());
-                              return null;
-                            }
-                          });
-                    } catch (Throwable failure) {
-                      throwAny(failure);
-                      return null;
-                    }
-                  });
+                  (ignored, method, arguments) -> invoke(interceptor, method, arguments));
           exposed = type.cast(proxy);
         }
         return exposed;
+      }
+    }
+
+    private Object invoke(
+        ReportingActionInterceptor interceptor,
+        java.lang.reflect.Method method,
+        Object[] arguments) {
+      try {
+        java.lang.reflect.Method target =
+            controller.getClass().getMethod(method.getName(), method.getParameterTypes());
+        if (!target.canAccess(controller)) target.trySetAccessible();
+        return interceptor.invoke(target, arguments, () -> invokeTarget(target, arguments));
+      } catch (Throwable failure) {
+        throwAny(failure);
+        return null;
+      }
+    }
+
+    private Object invokeTarget(java.lang.reflect.Method target, Object[] arguments)
+        throws Exception {
+      try {
+        return target.invoke(controller, arguments);
+      } catch (InvocationTargetException failure) {
+        throwAny(failure.getCause());
+        return null;
       }
     }
 
@@ -163,13 +166,17 @@ public final class ControllerRegistry implements AutoCloseable {
           order.add(this);
         } catch (Throwable failure) {
           state.set(ControllerState.FAILED);
-          try {
-            controller.close();
-          } catch (Throwable cleanup) {
-            failure.addSuppressed(cleanup);
-          }
+          closeAfterFailedInitialization(failure);
           throwUnchecked(failure);
         }
+      }
+    }
+
+    private void closeAfterFailedInitialization(Throwable failure) {
+      try {
+        controller.close();
+      } catch (Throwable cleanup) {
+        failure.addSuppressed(cleanup);
       }
     }
 
