@@ -46,19 +46,27 @@ public final class AppleEvidence {
 
   /** Returns redacted artifacts; the controller publishes once through its session collector. */
   public List<TestArtifact> collect(IOSDriver driver, ArtifactReason reason) {
-    // At most four capture batches, including teardown; no unbounded session accumulation.
-    if (captures >= 4) {
-      stop(driver);
-      if (captures++ == 4) {
-        var limit = new ArrayList<TestArtifact>();
-        outcome(limit, prefix, "capture-budget", "unavailable");
-        if (settings.getVideo()) outcome(limit, prefix, "video", videoOutcome);
-        return List.copyOf(limit);
-      }
-      return List.of();
-    }
+    if (captures >= 4) return captureBudgetExhausted(driver);
     String batch = prefix + "-" + ++captures;
     var artifacts = new ArrayList<TestArtifact>();
+    captureMetadata(driver, artifacts, batch);
+    captureFailureEvidence(driver, reason, artifacts, batch);
+    captureDeviceLog(driver, artifacts, batch);
+    captureVideo(driver, artifacts, batch);
+    return List.copyOf(artifacts);
+  }
+
+  private List<TestArtifact> captureBudgetExhausted(IOSDriver driver) {
+    // At most four capture batches, including teardown; no unbounded session accumulation.
+    stop(driver);
+    if (captures++ != 4) return List.of();
+    var artifacts = new ArrayList<TestArtifact>();
+    outcome(artifacts, prefix, "capture-budget", "unavailable");
+    if (settings.getVideo()) outcome(artifacts, prefix, "video", videoOutcome);
+    return List.copyOf(artifacts);
+  }
+
+  private void captureMetadata(IOSDriver driver, List<TestArtifact> artifacts, String batch) {
     capture(
         artifacts,
         batch,
@@ -79,6 +87,10 @@ public final class AppleEvidence {
               + "; version="
               + safeVersion;
         });
+  }
+
+  private void captureFailureEvidence(
+      IOSDriver driver, ArtifactReason reason, List<TestArtifact> artifacts, String batch) {
     boolean failure = reason == ArtifactReason.FAILURE || reason == ArtifactReason.CLEANUP_FAILURE;
     if ((failure || reason == ArtifactReason.EXPLICIT) && settings.getScreenshotOnFailure()) {
       if (!settings.getAllowVisualArtifacts())
@@ -96,6 +108,9 @@ public final class AppleEvidence {
         outcome(artifacts, batch, "page-source", "unavailable");
       else capture(artifacts, batch, "page-source", "application/xml", driver::getPageSource);
     }
+  }
+
+  private void captureDeviceLog(IOSDriver driver, List<TestArtifact> artifacts, String batch) {
     if (settings.getDeviceLogs())
       capture(
           artifacts,
@@ -114,6 +129,9 @@ public final class AppleEvidence {
             }
             return lines.toString();
           });
+  }
+
+  private void captureVideo(IOSDriver driver, List<TestArtifact> artifacts, String batch) {
     if (settings.getVideo()) {
       if (recording)
         capture(
@@ -127,7 +145,6 @@ public final class AppleEvidence {
             });
       else outcome(artifacts, batch, "video", videoOutcome);
     }
-    return List.copyOf(artifacts);
   }
 
   private String encoded(String value) {

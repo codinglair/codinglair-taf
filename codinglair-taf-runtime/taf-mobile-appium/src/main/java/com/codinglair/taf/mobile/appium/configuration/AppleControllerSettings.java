@@ -117,58 +117,79 @@ public class AppleControllerSettings {
     var result = new AppleControllerSettings();
     for (var layer : new AppleControllerSettings[] {base, instance, authorizedOverrides}) {
       if (layer == null) continue;
-      if (layer.platform != null) result.platform = layer.platform;
-      if (layer.allocationResource != null) result.allocationResource = layer.allocationResource;
-      if (layer.deviceFamily != null) result.deviceFamily = layer.deviceFamily;
-      if (layer.executionMode != null) result.executionMode = layer.executionMode;
-      if (layer.deviceKind != null) result.deviceKind = layer.deviceKind;
-      if (layer.topology != null) result.topology = layer.topology;
-      if (layer.serverUrl != null) result.serverUrl = layer.serverUrl;
-      if (layer.deviceName != null) result.deviceName = layer.deviceName;
-      if (layer.deviceId != null) result.deviceId = layer.deviceId;
-      if (layer.platformVersion != null) result.platformVersion = layer.platformVersion;
-      if (layer.automationName != null) result.automationName = layer.automationName;
-      if (layer.applicationMode != null) result.applicationMode = layer.applicationMode;
-      if (layer.appReference != null) {
-        var previous = result.appReference;
-        var next = layer.appReference;
-        result.appReference =
-            previous == null
-                ? next
-                : new AppReference(
-                    next.kind() == null ? previous.kind() : next.kind(),
-                    next.value() == null ? previous.value() : next.value(),
-                    next.buildKind() == null ? previous.buildKind() : next.buildKind());
-      }
-      if (layer.bundleId != null) result.bundleId = layer.bundleId;
-      if (layer.commandTimeout != null) result.commandTimeout = layer.commandTimeout;
-      if (layer.readinessTimeout != null) result.readinessTimeout = layer.readinessTimeout;
-      if (layer.contextTimeout != null) result.contextTimeout = layer.contextTimeout;
-      if (layer.cleanupTimeout != null) result.cleanupTimeout = layer.cleanupTimeout;
-      if (layer.lifecyclePolicy != null) result.lifecyclePolicy = layer.lifecyclePolicy;
-      if (layer.terminateAppOnClose != null) result.terminateAppOnClose = layer.terminateAppOnClose;
-      if (layer.uninstallPackagedAppOnClose != null)
-        result.uninstallPackagedAppOnClose = layer.uninstallPackagedAppOnClose;
-      if (layer.screenshotOnFailure != null) result.screenshotOnFailure = layer.screenshotOnFailure;
-      if (layer.pageSourceOnFailure != null) result.pageSourceOnFailure = layer.pageSourceOnFailure;
-      if (layer.deviceLogs != null) result.deviceLogs = layer.deviceLogs;
-      if (layer.video != null) result.video = layer.video;
-      if (layer.requireEvidence != null) result.requireEvidence = layer.requireEvidence;
-      if (layer.allowVisualArtifacts != null)
-        result.allowVisualArtifacts = layer.allowVisualArtifacts;
-      if (layer.autoAcceptAlerts != null) result.autoAcceptAlerts = layer.autoAcceptAlerts;
-      if (layer.autoDismissAlerts != null) result.autoDismissAlerts = layer.autoDismissAlerts;
-      result.providerOptions = JsonOptions.merge(result.providerOptions, layer.providerOptions);
-      result.providerSelection =
-          JsonOptions.merge(result.providerSelection, layer.providerSelection);
-      result.authentication =
-          AppleAuthentication.merge(result.authentication, layer.authentication);
-      result.wda = AppleWdaSettings.merge(result.wda, layer.wda);
-      var metadata = new LinkedHashMap<>(result.prerequisites);
-      metadata.putAll(layer.prerequisites);
-      result.prerequisites = Map.copyOf(metadata);
+      mergeTarget(result, layer);
+      mergeApplication(result, layer);
+      mergeLifecycle(result, layer);
+      mergeEvidencePolicy(result, layer);
+      mergeProviderConfiguration(result, layer);
     }
     return result;
+  }
+
+  private static void mergeTarget(AppleControllerSettings result, AppleControllerSettings layer) {
+    if (layer.platform != null) result.platform = layer.platform;
+    if (layer.allocationResource != null) result.allocationResource = layer.allocationResource;
+    if (layer.deviceFamily != null) result.deviceFamily = layer.deviceFamily;
+    if (layer.executionMode != null) result.executionMode = layer.executionMode;
+    if (layer.deviceKind != null) result.deviceKind = layer.deviceKind;
+    if (layer.topology != null) result.topology = layer.topology;
+    if (layer.serverUrl != null) result.serverUrl = layer.serverUrl;
+    if (layer.deviceName != null) result.deviceName = layer.deviceName;
+    if (layer.deviceId != null) result.deviceId = layer.deviceId;
+    if (layer.platformVersion != null) result.platformVersion = layer.platformVersion;
+    if (layer.automationName != null) result.automationName = layer.automationName;
+  }
+
+  private static void mergeApplication(
+      AppleControllerSettings result, AppleControllerSettings layer) {
+    if (layer.applicationMode != null) result.applicationMode = layer.applicationMode;
+    if (layer.appReference != null)
+      result.appReference = mergeAppReference(result.appReference, layer.appReference);
+    if (layer.bundleId != null) result.bundleId = layer.bundleId;
+  }
+
+  private static AppReference mergeAppReference(AppReference previous, AppReference next) {
+    if (previous == null) return next;
+    return new AppReference(
+        next.kind() == null ? previous.kind() : next.kind(),
+        next.value() == null ? previous.value() : next.value(),
+        next.buildKind() == null ? previous.buildKind() : next.buildKind());
+  }
+
+  private static void mergeLifecycle(
+      AppleControllerSettings result, AppleControllerSettings layer) {
+    if (layer.commandTimeout != null) result.commandTimeout = layer.commandTimeout;
+    if (layer.readinessTimeout != null) result.readinessTimeout = layer.readinessTimeout;
+    if (layer.contextTimeout != null) result.contextTimeout = layer.contextTimeout;
+    if (layer.cleanupTimeout != null) result.cleanupTimeout = layer.cleanupTimeout;
+    if (layer.lifecyclePolicy != null) result.lifecyclePolicy = layer.lifecyclePolicy;
+    if (layer.terminateAppOnClose != null) result.terminateAppOnClose = layer.terminateAppOnClose;
+    if (layer.uninstallPackagedAppOnClose != null)
+      result.uninstallPackagedAppOnClose = layer.uninstallPackagedAppOnClose;
+    if (layer.autoAcceptAlerts != null) result.autoAcceptAlerts = layer.autoAcceptAlerts;
+    if (layer.autoDismissAlerts != null) result.autoDismissAlerts = layer.autoDismissAlerts;
+  }
+
+  private static void mergeEvidencePolicy(
+      AppleControllerSettings result, AppleControllerSettings layer) {
+    if (layer.screenshotOnFailure != null) result.screenshotOnFailure = layer.screenshotOnFailure;
+    if (layer.pageSourceOnFailure != null) result.pageSourceOnFailure = layer.pageSourceOnFailure;
+    if (layer.deviceLogs != null) result.deviceLogs = layer.deviceLogs;
+    if (layer.video != null) result.video = layer.video;
+    if (layer.requireEvidence != null) result.requireEvidence = layer.requireEvidence;
+    if (layer.allowVisualArtifacts != null)
+      result.allowVisualArtifacts = layer.allowVisualArtifacts;
+  }
+
+  private static void mergeProviderConfiguration(
+      AppleControllerSettings result, AppleControllerSettings layer) {
+    result.providerOptions = JsonOptions.merge(result.providerOptions, layer.providerOptions);
+    result.providerSelection = JsonOptions.merge(result.providerSelection, layer.providerSelection);
+    result.authentication = AppleAuthentication.merge(result.authentication, layer.authentication);
+    result.wda = AppleWdaSettings.merge(result.wda, layer.wda);
+    var metadata = new LinkedHashMap<>(result.prerequisites);
+    metadata.putAll(layer.prerequisites);
+    result.prerequisites = Map.copyOf(metadata);
   }
 
   public MobileDeviceFamily family() {
@@ -189,6 +210,13 @@ public class AppleControllerSettings {
     authentication.validate();
     wda.validate();
     family();
+    validateTarget();
+    validateTimeoutsAndPolicies();
+    validateApplication();
+    validateProviderConfiguration();
+  }
+
+  private void validateTarget() {
     if (!"XCUITest".equalsIgnoreCase(getAutomationName()))
       throw invalid("automation-name must be XCUITest");
     endpoint(getServerUrl());
@@ -201,6 +229,9 @@ public class AppleControllerSettings {
       throw invalid("physical target requires device-id or provider-selection");
     if (!providerSelection.isEmpty() && getTopology() != MobileTopology.PROVIDER)
       throw invalid("provider-selection requires PROVIDER topology");
+  }
+
+  private void validateTimeoutsAndPolicies() {
     for (Duration timeout :
         new Duration[] {
           getCommandTimeout(), getReadinessTimeout(), getContextTimeout(), getCleanupTimeout()
@@ -211,6 +242,9 @@ public class AppleControllerSettings {
       throw invalid("alert policies are mutually exclusive");
     if (getVideo() && !getAllowVisualArtifacts())
       throw invalid("video requires allow-visual-artifacts");
+  }
+
+  private void validateApplication() {
     if (getExecutionMode() == MobileExecutionMode.SAFARI) {
       if (applicationMode != null
           || appReference != null
@@ -250,6 +284,9 @@ public class AppleControllerSettings {
     if (getLifecyclePolicy() == LifecyclePolicy.REINSTALL
         && getApplicationMode() != ApplicationMode.PACKAGED)
       throw invalid("REINSTALL requires packaged mode");
+  }
+
+  private void validateProviderConfiguration() {
     JsonOptions.validateCapabilities(providerOptions);
     JsonOptions.validateCapabilities(providerSelection);
     JsonOptions.merge(providerOptions, providerSelection);
