@@ -134,37 +134,47 @@ public final class DefaultAppleController implements AppleController {
       evidence = new AppleEvidence(settings, context);
       evidence.start(driver);
     } catch (RuntimeException failure) {
-      state = ControllerState.FAILED;
-      uncertain = driver == null && reservation != null && remoteUncertain(failure);
-      var primary =
-          new AppleControllerException(
-              uncertain
-                  ? "initialize: remote session outcome uncertain; reconcile only identifiable owned sessions"
-                  : "initialize");
-      if (driver != null) {
-        try {
-          driver.quit();
-        } catch (RuntimeException _) {
-          uncertain = true;
-          primary.addSuppressed(new AppleControllerException("partial initialization cleanup"));
-        } finally {
-          driver = null;
-        }
-      }
-      if (uncertain && providerOwnedSession != null) {
-        try {
-          AppleAllocation.cleanup(settings, providerOwnedSession, security, context.sessionId());
-          // A pending create can complete after a successful DELETE/404. Keep quarantine until
-          // the provider/operator authoritatively reconciles the allocation.
-        } catch (InterruptedException _) {
-          Thread.currentThread().interrupt();
-          primary.addSuppressed(new AppleControllerException("owned session cleanup cancelled"));
-        } catch (Exception _) {
-          primary.addSuppressed(new AppleControllerException("owned session cleanup"));
-        }
-      }
-      if (!uncertain) releaseReservation(primary);
-      throw primary;
+      throw failedInitialization(failure);
+    }
+  }
+
+  private AppleControllerException failedInitialization(RuntimeException failure) {
+    state = ControllerState.FAILED;
+    uncertain = driver == null && reservation != null && remoteUncertain(failure);
+    var primary =
+        new AppleControllerException(
+            uncertain
+                ? "initialize: remote session outcome uncertain; reconcile only identifiable owned sessions"
+                : "initialize");
+    cleanupPartialDriver(primary);
+    reconcileOwnedSession(primary);
+    if (!uncertain) releaseReservation(primary);
+    return primary;
+  }
+
+  private void cleanupPartialDriver(AppleControllerException primary) {
+    if (driver == null) return;
+    try {
+      driver.quit();
+    } catch (RuntimeException _) {
+      uncertain = true;
+      primary.addSuppressed(new AppleControllerException("partial initialization cleanup"));
+    } finally {
+      driver = null;
+    }
+  }
+
+  private void reconcileOwnedSession(AppleControllerException primary) {
+    if (!uncertain || providerOwnedSession == null) return;
+    try {
+      AppleAllocation.cleanup(settings, providerOwnedSession, security, context.sessionId());
+      // A pending create can complete after a successful DELETE/404. Keep quarantine until the
+      // provider/operator authoritatively reconciles the allocation.
+    } catch (InterruptedException _) {
+      Thread.currentThread().interrupt();
+      primary.addSuppressed(new AppleControllerException("owned session cleanup cancelled"));
+    } catch (Exception _) {
+      primary.addSuppressed(new AppleControllerException("owned session cleanup"));
     }
   }
 
@@ -250,48 +260,55 @@ public final class DefaultAppleController implements AppleController {
   @Override
   public synchronized void close() {
     if (state == ControllerState.CLOSED) return;
-    boolean evidenceFailed = false;
-    if (driver != null && context != null) {
-      try (var artifacts = collectArtifacts(ArtifactReason.DIAGNOSTIC)) {
-        // Collection publishes once; close the returned stream before application teardown.
-      } catch (RuntimeException _) {
-        evidenceFailed = true;
-      }
-    }
+    boolean evidenceFailed = finalizeEvidence();
     state = ControllerState.CLOSED;
     IOSDriver owned = driver;
     driver = null;
     generation++;
     if (owned != null) {
-      boolean failed = evidenceFailed;
-      try {
-        if (settings.getExecutionMode() != MobileExecutionMode.SAFARI
-            && settings.getTerminateAppOnClose()
-            && settings.getBundleId() != null) owned.terminateApp(settings.getBundleId());
-      } catch (RuntimeException _) {
-        failed = true;
-      }
-      try {
-        if (installedByController && settings.getUninstallPackagedAppOnClose())
-          owned.removeApp(bundle());
-      } catch (RuntimeException _) {
-        failed = true;
-      }
-      try {
-        owned.quit();
-      } catch (RuntimeException _) {
-        failed = true;
-        uncertain = true;
-      }
-      var cleanup = new AppleControllerException("close");
-      if (!uncertain) releaseReservation(cleanup);
-      if (failed || cleanup.getSuppressed().length > 0) throw cleanup;
+      AppleControllerException failure = teardownOwnedDriver(owned, evidenceFailed);
+      if (failure != null) throw failure;
     }
     if (!uncertain && owned == null) {
       var cleanup = new AppleControllerException("allocation release");
       releaseReservation(cleanup);
       if (cleanup.getSuppressed().length > 0) throw cleanup;
     }
+  }
+
+  private boolean finalizeEvidence() {
+    if (driver == null || context == null) return false;
+    try (var artifacts = collectArtifacts(ArtifactReason.DIAGNOSTIC)) {
+      // Collection publishes once; close the returned stream before application teardown.
+      return false;
+    } catch (RuntimeException _) {
+      return true;
+    }
+  }
+
+  private AppleControllerException teardownOwnedDriver(IOSDriver owned, boolean failed) {
+    try {
+      if (settings.getExecutionMode() != MobileExecutionMode.SAFARI
+          && settings.getTerminateAppOnClose()
+          && settings.getBundleId() != null) owned.terminateApp(settings.getBundleId());
+    } catch (RuntimeException _) {
+      failed = true;
+    }
+    try {
+      if (installedByController && settings.getUninstallPackagedAppOnClose())
+        owned.removeApp(bundle());
+    } catch (RuntimeException _) {
+      failed = true;
+    }
+    try {
+      owned.quit();
+    } catch (RuntimeException _) {
+      failed = true;
+      uncertain = true;
+    }
+    var cleanup = new AppleControllerException("close");
+    if (!uncertain) releaseReservation(cleanup);
+    return failed || cleanup.getSuppressed().length > 0 ? cleanup : null;
   }
 
   private <T> T operation(String name, Supplier<T> action) {
