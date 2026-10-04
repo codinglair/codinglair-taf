@@ -115,6 +115,33 @@ class ContainerLifecycleCoordinatorTest {
   }
 
   @Test
+  void failedSharedLeaseCreationSuppressesCleanupFailureAndRemovesSharedState() {
+    ContainerLifecycleCoordinator coordinator = new ContainerLifecycleCoordinator();
+    FakeContainer container = FakeContainer.success(21_005);
+    container.failProperties = true;
+    container.failStop = true;
+
+    assertThatThrownBy(
+            () ->
+                coordinator.acquire(
+                    request("property-cleanup-failure", ContainerLifecycle.SHARED),
+                    DATABASE,
+                    () -> container))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("property resolution failed")
+        .satisfies(
+            failure ->
+                assertThat(failure.getSuppressed())
+                    .singleElement()
+                    .satisfies(
+                        cleanupFailure -> assertThat(cleanupFailure).hasMessage("cleanup failed")));
+
+    assertThat(container.starts).hasValue(1);
+    assertThat(container.stops).hasValue(1);
+    assertThat(coordinator.sharedContainerCount()).isZero();
+  }
+
+  @Test
   void cancellationDuringInitializationStopsContainerAndPreservesInterrupt() {
     ContainerLifecycleCoordinator coordinator = new ContainerLifecycleCoordinator();
     FakeContainer container = FakeContainer.success(21_002);
@@ -169,6 +196,7 @@ class ContainerLifecycleCoordinatorTest {
     private volatile boolean running;
     private boolean interruptOnStart;
     private boolean failProperties;
+    private boolean failStop;
 
     private FakeContainer(int port, boolean fail) {
       this.port = port;
@@ -195,6 +223,7 @@ class ContainerLifecycleCoordinatorTest {
     public void stop() {
       stops.incrementAndGet();
       running = false;
+      if (failStop) throw new IllegalStateException("cleanup failed");
     }
 
     @Override
