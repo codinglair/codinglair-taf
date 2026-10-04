@@ -182,21 +182,41 @@ final class StructuredFileComparator {
       String line;
       int row = 0;
       while ((line = reader.readLine()) != null) {
-        int offset = 0;
-        for (int column = 0; column < options.fixedWidths().size(); column++) {
-          int end = offset + options.fixedWidths().get(column);
-          if (end > line.length()) throw new IOException("short fixed-width row");
-          values.put("row[" + row + "].column[" + column + "]", line.substring(offset, end));
-          offset = end;
-        }
-        if (offset != line.length()) throw new IOException("long fixed-width row");
+        mapFixedRow(line, row, options.fixedWidths(), values);
         row++;
       }
     }
     return values;
   }
 
+  private static void mapFixedRow(
+      String line, int row, List<Integer> widths, Map<String, String> values) throws IOException {
+    int offset = 0;
+    for (int column = 0; column < widths.size(); column++) {
+      int end = offset + widths.get(column);
+      if (end > line.length()) throw new IOException("short fixed-width row");
+      values.put("row[" + row + "].column[" + column + "]", line.substring(offset, end));
+      offset = end;
+    }
+    if (offset != line.length()) throw new IOException("long fixed-width row");
+  }
+
   private SortedMap<String, String> excel(CheckedFile file) throws Exception {
+    SortedMap<String, byte[]> entries = workbookEntries(file);
+    if (entries.keySet().stream().noneMatch(name -> name.startsWith("xl/worksheets/sheet")))
+      throw new IOException("workbook has no worksheets");
+    List<String> shared =
+        entries.containsKey("xl/sharedStrings.xml")
+            ? sharedStrings(entries.get("xl/sharedStrings.xml"))
+            : List.of();
+    SortedMap<String, String> values = new TreeMap<>();
+    for (var entry : entries.entrySet())
+      if (entry.getKey().startsWith("xl/worksheets/sheet"))
+        worksheet(entry.getKey(), entry.getValue(), shared, values);
+    return values;
+  }
+
+  private SortedMap<String, byte[]> workbookEntries(CheckedFile file) throws IOException {
     SortedMap<String, byte[]> entries = new TreeMap<>();
     long expandedBytes = 0;
     try (ZipInputStream zip = new ZipInputStream(sandbox.open(file))) {
@@ -210,17 +230,7 @@ final class StructuredFileComparator {
         }
       }
     }
-    if (entries.keySet().stream().noneMatch(name -> name.startsWith("xl/worksheets/sheet")))
-      throw new IOException("workbook has no worksheets");
-    List<String> shared =
-        entries.containsKey("xl/sharedStrings.xml")
-            ? sharedStrings(entries.get("xl/sharedStrings.xml"))
-            : List.of();
-    SortedMap<String, String> values = new TreeMap<>();
-    for (var entry : entries.entrySet())
-      if (entry.getKey().startsWith("xl/worksheets/sheet"))
-        worksheet(entry.getKey(), entry.getValue(), shared, values);
-    return values;
+    return entries;
   }
 
   private static byte[] readBoundedEntry(InputStream input, long remaining) throws IOException {
