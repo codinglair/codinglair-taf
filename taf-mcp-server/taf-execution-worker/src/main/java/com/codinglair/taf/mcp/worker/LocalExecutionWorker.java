@@ -77,19 +77,8 @@ public final class LocalExecutionWorker {
       WorkerRequest request, CancellationToken cancellation, ResourceAuthorizer authorizer) {
     Objects.requireNonNull(request, "request");
     Objects.requireNonNull(cancellation, "cancellation");
-    var command = commands.get(request.workflow());
-    if (command == null) {
-      throw new WorkerExecutionException("WORKFLOW_DENIED", "Workflow is not allowlisted");
-    }
-    for (var resource : workflowResources.getOrDefault(request.workflow(), Set.of())) {
-      if (!authorizer.permits(resource))
-        throw new WorkerExecutionException("RESOURCE_DENIED", "Workflow resource access denied");
-    }
-    if (request.timeout().isZero()
-        || request.timeout().isNegative()
-        || request.timeout().compareTo(limits.maximumTimeout()) > 0) {
-      throw new WorkerExecutionException("TIMEOUT_LIMIT", "Timeout exceeds administrative limit");
-    }
+    var command = authorize(request, authorizer);
+    validateTimeout(request.timeout());
     Path workspace = null;
     Process process = null;
     var started = clock.instant();
@@ -113,20 +102,7 @@ public final class LocalExecutionWorker {
                   }
                 });
         var deadline = System.nanoTime() + request.timeout().toNanos();
-        WorkerStatus status = null;
-        while (process.isAlive()) {
-          if (cancellation.cancellationRequested()) {
-            status = WorkerStatus.CANCELLED;
-            terminateTree(process);
-            break;
-          }
-          if (System.nanoTime() >= deadline) {
-            status = WorkerStatus.TIMED_OUT;
-            terminateTree(process);
-            break;
-          }
-          process.waitFor(25, TimeUnit.MILLISECONDS);
-        }
+        var status = awaitCompletion(process, cancellation, deadline);
         drain.get(10, TimeUnit.SECONDS);
         var exit = process.isAlive() ? -1 : process.exitValue();
         if (status == null) {
@@ -163,6 +139,43 @@ public final class LocalExecutionWorker {
         throw new UncheckedIOException("Worker workspace cleanup failed", error);
       }
     }
+  }
+
+  private WorkerCommand authorize(WorkerRequest request, ResourceAuthorizer authorizer) {
+    var command = commands.get(request.workflow());
+    if (command == null) {
+      throw new WorkerExecutionException("WORKFLOW_DENIED", "Workflow is not allowlisted");
+    }
+    for (var resource : workflowResources.getOrDefault(request.workflow(), Set.of())) {
+      if (!authorizer.permits(resource)) {
+        throw new WorkerExecutionException("RESOURCE_DENIED", "Workflow resource access denied");
+      }
+    }
+    return command;
+  }
+
+  private void validateTimeout(Duration timeout) {
+    if (timeout.isZero()
+        || timeout.isNegative()
+        || timeout.compareTo(limits.maximumTimeout()) > 0) {
+      throw new WorkerExecutionException("TIMEOUT_LIMIT", "Timeout exceeds administrative limit");
+    }
+  }
+
+  private static WorkerStatus awaitCompletion(
+      Process process, CancellationToken cancellation, long deadline) throws InterruptedException {
+    while (process.isAlive()) {
+      if (cancellation.cancellationRequested()) {
+        terminateTree(process);
+        return WorkerStatus.CANCELLED;
+      }
+      if (System.nanoTime() >= deadline) {
+        terminateTree(process);
+        return WorkerStatus.TIMED_OUT;
+      }
+      process.waitFor(25, TimeUnit.MILLISECONDS);
+    }
+    return null;
   }
 
   private java.util.List<ArtifactManifestEntry> collectArtifacts(
