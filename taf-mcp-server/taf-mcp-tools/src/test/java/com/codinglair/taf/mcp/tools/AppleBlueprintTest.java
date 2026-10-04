@@ -229,46 +229,56 @@ class AppleBlueprintTest {
       for (String mode : List.of("NATIVE", "HYBRID", "SAFARI")) {
         String name = platform.toLowerCase() + "-" + mode.toLowerCase();
         var destination = root.resolve(name);
-        var request =
-            request(
-                platform,
-                mode,
-                platform.equals("IOS") ? "SIMULATOR" : "PHYSICAL",
-                mode.equals("NATIVE")
-                    ? "LOCAL_HOST"
-                    : mode.equals("HYBRID") ? "REMOTE_HOST" : "PROVIDER",
-                "CUCUMBER_TESTNG",
-                null,
-                null);
-        var plan = plan(request, destination);
-        assertThat(plan.valid()).as(plan.diagnostics().toString()).isTrue();
-        assertThat(engine.write(plan, destination).status())
-            .isEqualTo(BlueprintCompositionEngine.WriteStatus.WRITTEN);
+        writeFixture(fixtureRequest(platform, mode), destination);
       }
       var destination = root.resolve(platform.toLowerCase() + "-packaged");
-      var packaged =
-          new Request(
-              "com.example",
-              "apple",
-              "com.example.apple",
-              "1.2.0",
-              List.of("MOBILE"),
-              null,
-              platform,
-              null,
-              "TESTNG",
-              "NONE",
-              null,
-              null,
-              "NATIVE",
-              platform.equals("IOS") ? "SIMULATOR" : "PHYSICAL",
-              "REMOTE_HOST",
-              "PACKAGED");
-      var packagedPlan = plan(packaged, destination);
-      assertThat(packagedPlan.valid()).isTrue();
-      assertThat(engine.write(packagedPlan, destination).status())
-          .isEqualTo(BlueprintCompositionEngine.WriteStatus.WRITTEN);
+      writeFixture(packagedFixtureRequest(platform), destination);
     }
+  }
+
+  private static Request fixtureRequest(String platform, String mode) {
+    String topology =
+        switch (mode) {
+          case "NATIVE" -> "LOCAL_HOST";
+          case "HYBRID" -> "REMOTE_HOST";
+          case "SAFARI" -> "PROVIDER";
+          default -> throw new IllegalArgumentException("unsupported fixture mode: " + mode);
+        };
+    return request(
+        platform,
+        mode,
+        platform.equals("IOS") ? "SIMULATOR" : "PHYSICAL",
+        topology,
+        "CUCUMBER_TESTNG",
+        null,
+        null);
+  }
+
+  private static Request packagedFixtureRequest(String platform) {
+    return new Request(
+        "com.example",
+        "apple",
+        "com.example.apple",
+        "1.2.0",
+        List.of("MOBILE"),
+        null,
+        platform,
+        null,
+        "TESTNG",
+        "NONE",
+        null,
+        null,
+        "NATIVE",
+        platform.equals("IOS") ? "SIMULATOR" : "PHYSICAL",
+        "REMOTE_HOST",
+        "PACKAGED");
+  }
+
+  private void writeFixture(Request request, Path destination) {
+    var fixturePlan = plan(request, destination);
+    assertThat(fixturePlan.valid()).as(fixturePlan.diagnostics().toString()).isTrue();
+    assertThat(engine.write(fixturePlan, destination).status())
+        .isEqualTo(BlueprintCompositionEngine.WriteStatus.WRITTEN);
   }
 
   private static Request request(

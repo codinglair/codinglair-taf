@@ -164,60 +164,7 @@ public final class BlueprintCompositionEngine {
     }
     MessagingProvider messaging = enumValue(MessagingProvider.class, provider);
     if (provider != null && messaging == null) unsupported(diagnostics, "messaging provider");
-    var platformToken = token(request.mobilePlatform());
-    var automationToken = token(request.mobileAutomationName());
-    MobilePlatform platform = enumValue(MobilePlatform.class, platformToken);
-    String family = token(request.mobileFamily());
-    String mode = token(request.mobileMode());
-    String deviceKind = token(request.mobileDeviceKind());
-    String topology = token(request.mobileTopology());
-    String applicationMode = token(request.mobileApplicationMode());
-    if (capabilities.contains(Capability.MOBILE)) {
-      platform = normalizeMobilePlatform(platformToken, platform, family, diagnostics);
-      String expectedAutomation = platform == MobilePlatform.ANDROID ? "UIAUTOMATOR2" : "XCUITEST";
-      if (automationToken != null && !expectedAutomation.equals(automationToken)) {
-        unsupported(diagnostics, "mobile automation name");
-      }
-      automationToken = expectedAutomation;
-      if (platform != MobilePlatform.ANDROID) {
-        String expectedFamily = platform == MobilePlatform.IPADOS ? "IPAD" : "IPHONE";
-        family = family == null ? expectedFamily : family;
-        if (!expectedFamily.equals(family))
-          unsupported(diagnostics, "mobile family/platform conflict");
-        mode = defaultToken(mode, "NATIVE", List.of("NATIVE", "HYBRID", "SAFARI"), diagnostics);
-        deviceKind =
-            defaultToken(deviceKind, "SIMULATOR", List.of("SIMULATOR", "PHYSICAL"), diagnostics);
-        topology =
-            defaultToken(
-                topology,
-                "REMOTE_HOST",
-                List.of("LOCAL_HOST", "REMOTE_HOST", "PROVIDER"),
-                diagnostics);
-        if ("SAFARI".equals(mode)) {
-          if (applicationMode != null) unsupported(diagnostics, "application mode with Safari");
-        } else
-          applicationMode =
-              defaultToken(
-                  applicationMode,
-                  "PREINSTALLED",
-                  List.of("PREINSTALLED", "PACKAGED"),
-                  diagnostics);
-      } else if (family != null
-          || mode != null
-          || deviceKind != null
-          || topology != null
-          || applicationMode != null) {
-        unsupported(diagnostics, "Apple options with Android");
-      }
-    } else if (platformToken != null
-        || automationToken != null
-        || family != null
-        || mode != null
-        || deviceKind != null
-        || topology != null
-        || applicationMode != null) {
-      unsupported(diagnostics, "mobile options without MOBILE");
-    }
+    var mobile = normalizeMobileSelection(request, capabilities, diagnostics);
     Runner runner = defaulted(Runner.class, request.runner(), Runner.TESTNG, diagnostics);
     Reporting reporting =
         defaulted(Reporting.class, request.reporting(), Reporting.ALLURE, diagnostics);
@@ -237,16 +184,82 @@ public final class BlueprintCompositionEngine {
         tafVersion,
         List.copyOf(capabilities),
         Optional.ofNullable(messaging),
-        capabilities.contains(Capability.MOBILE) ? Optional.of(platform) : Optional.empty(),
-        capabilities.contains(Capability.MOBILE) ? Optional.of(automationToken) : Optional.empty(),
+        capabilities.contains(Capability.MOBILE)
+            ? Optional.of(mobile.platform())
+            : Optional.empty(),
+        capabilities.contains(Capability.MOBILE)
+            ? Optional.of(mobile.automation())
+            : Optional.empty(),
         runner,
         reporting,
         definitions,
-        family,
-        mode,
-        deviceKind,
-        topology,
-        applicationMode);
+        mobile.family(),
+        mobile.mode(),
+        mobile.deviceKind(),
+        mobile.topology(),
+        mobile.applicationMode());
+  }
+
+  private static MobileSelection normalizeMobileSelection(
+      Request request, List<Capability> capabilities, List<Diagnostic> diagnostics) {
+    String platformToken = token(request.mobilePlatform());
+    String automation = token(request.mobileAutomationName());
+    MobilePlatform platform = enumValue(MobilePlatform.class, platformToken);
+    String family = token(request.mobileFamily());
+    String mode = token(request.mobileMode());
+    String deviceKind = token(request.mobileDeviceKind());
+    String topology = token(request.mobileTopology());
+    String applicationMode = token(request.mobileApplicationMode());
+    if (!capabilities.contains(Capability.MOBILE)) {
+      if (platformToken != null
+          || automation != null
+          || family != null
+          || mode != null
+          || deviceKind != null
+          || topology != null
+          || applicationMode != null) {
+        unsupported(diagnostics, "mobile options without MOBILE");
+      }
+      return new MobileSelection(
+          platform, automation, family, mode, deviceKind, topology, applicationMode);
+    }
+
+    platform = normalizeMobilePlatform(platformToken, platform, family, diagnostics);
+    String expectedAutomation = platform == MobilePlatform.ANDROID ? "UIAUTOMATOR2" : "XCUITEST";
+    if (automation != null && !expectedAutomation.equals(automation)) {
+      unsupported(diagnostics, "mobile automation name");
+    }
+    automation = expectedAutomation;
+    if (platform == MobilePlatform.ANDROID) {
+      if (family != null
+          || mode != null
+          || deviceKind != null
+          || topology != null
+          || applicationMode != null) {
+        unsupported(diagnostics, "Apple options with Android");
+      }
+      return new MobileSelection(
+          platform, automation, family, mode, deviceKind, topology, applicationMode);
+    }
+
+    String expectedFamily = platform == MobilePlatform.IPADOS ? "IPAD" : "IPHONE";
+    family = family == null ? expectedFamily : family;
+    if (!expectedFamily.equals(family)) unsupported(diagnostics, "mobile family/platform conflict");
+    mode = defaultToken(mode, "NATIVE", List.of("NATIVE", "HYBRID", "SAFARI"), diagnostics);
+    deviceKind =
+        defaultToken(deviceKind, "SIMULATOR", List.of("SIMULATOR", "PHYSICAL"), diagnostics);
+    topology =
+        defaultToken(
+            topology, "REMOTE_HOST", List.of("LOCAL_HOST", "REMOTE_HOST", "PROVIDER"), diagnostics);
+    if ("SAFARI".equals(mode)) {
+      if (applicationMode != null) unsupported(diagnostics, "application mode with Safari");
+    } else {
+      applicationMode =
+          defaultToken(
+              applicationMode, "PREINSTALLED", List.of("PREINSTALLED", "PACKAGED"), diagnostics);
+    }
+    return new MobileSelection(
+        platform, automation, family, mode, deviceKind, topology, applicationMode);
   }
 
   private static List<Contribution> select(
@@ -254,21 +267,7 @@ public final class BlueprintCompositionEngine {
     var selected =
         available.stream()
             .filter(c -> c.selector().matches(request))
-            .map(
-                c ->
-                    c.selector().capability() == Capability.MOBILE
-                            && request.mobilePlatform().orElse(MobilePlatform.ANDROID)
-                                != MobilePlatform.ANDROID
-                        ? new Contribution(
-                            c.id(),
-                            c.blueprintVersion(),
-                            c.kind(),
-                            c.selector(),
-                            c.order(),
-                            c.manifestIds(),
-                            MobileBlueprintAssets.assets(request),
-                            c.configurationClaims())
-                        : c)
+            .map(contribution -> adaptSelectedContribution(contribution, request))
             .sorted(Comparator.comparingInt(Contribution::order).thenComparing(Contribution::id))
             .toList();
     if (selected.stream().filter(c -> c.kind() == Kind.COMMON).count() != 1) {
@@ -299,6 +298,23 @@ public final class BlueprintCompositionEngine {
       }
     }
     return selected;
+  }
+
+  private static Contribution adaptSelectedContribution(
+      Contribution contribution, NormalizedRequest request) {
+    if (contribution.selector().capability() != Capability.MOBILE
+        || request.mobilePlatform().orElse(MobilePlatform.ANDROID) == MobilePlatform.ANDROID) {
+      return contribution;
+    }
+    return new Contribution(
+        contribution.id(),
+        contribution.blueprintVersion(),
+        contribution.kind(),
+        contribution.selector(),
+        contribution.order(),
+        contribution.manifestIds(),
+        MobileBlueprintAssets.assets(request),
+        contribution.configurationClaims());
   }
 
   private static void validateContributions(
@@ -360,6 +376,7 @@ public final class BlueprintCompositionEngine {
       List<Diagnostic> diagnostics) {
     var writes = new LinkedHashMap<String, PlannedWrite>();
     var folded = new TreeSet<String>();
+    var destinationRoot = destination.toAbsolutePath().normalize();
     var tokens =
         Map.of(
             "__GROUP_ID__", request.groupId(),
@@ -371,66 +388,75 @@ public final class BlueprintCompositionEngine {
             "__TAF_REPORTING_DEPENDENCIES__", reportingDependencyDeclarations(request.reporting()));
     for (var contribution : selected) {
       for (var asset : contribution.assets()) {
-        String path = replace(asset.path(), tokens).replace('\\', '/');
-        String content = replace(asset.content(), tokens).replace("\r\n", "\n").replace('\r', '\n');
-        if (!safePath(path) || TOKEN.matcher(path).find()) {
-          diagnostics.add(
-              error(
-                  "SCF_PATH_INVALID",
-                  Phase.PATH,
-                  contribution.id(),
-                  path,
-                  null,
-                  "target path is unsafe",
-                  "Use a normalized relative path below the destination."));
-          continue;
-        }
-        if (TOKEN.matcher(content).find()) {
-          diagnostics.add(
-              error(
-                  "SCF_UNRESOLVED_TOKEN",
-                  Phase.RENDER,
-                  contribution.id(),
-                  path,
-                  null,
-                  "rendered content contains an unresolved token",
-                  "Provide the value or repair the contribution."));
-          continue;
-        }
-        String fold = path.toLowerCase(Locale.ROOT);
-        if (writes.containsKey(path) || !folded.add(fold)) {
-          diagnostics.add(
-              error(
-                  "SCF_PATH_COLLISION",
-                  Phase.PATH,
-                  contribution.id(),
-                  path,
-                  null,
-                  "multiple contributions own the same target",
-                  "Assign the target to one contribution."));
-          continue;
-        }
-        Path target = destination.toAbsolutePath().normalize().resolve(path).normalize();
-        if (!target.startsWith(destination.toAbsolutePath().normalize())
-            || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-          diagnostics.add(
-              error(
-                  "SCF_PATH_COLLISION",
-                  Phase.PATH,
-                  contribution.id(),
-                  path,
-                  null,
-                  "target already exists or escapes the destination",
-                  "Choose an empty destination."));
-          continue;
-        }
-        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-        writes.put(
-            path,
-            new PlannedWrite(Path.of(path), bytes, sha256(bytes), asset.dependencyMetadata()));
+        renderAsset(contribution, asset, tokens, destinationRoot, writes, folded, diagnostics);
       }
     }
     return List.copyOf(writes.values());
+  }
+
+  private static void renderAsset(
+      Contribution contribution,
+      Asset asset,
+      Map<String, String> tokens,
+      Path destinationRoot,
+      Map<String, PlannedWrite> writes,
+      TreeSet<String> folded,
+      List<Diagnostic> diagnostics) {
+    String path = replace(asset.path(), tokens).replace('\\', '/');
+    String content = replace(asset.content(), tokens).replace("\r\n", "\n").replace('\r', '\n');
+    if (!safePath(path) || TOKEN.matcher(path).find()) {
+      diagnostics.add(
+          error(
+              "SCF_PATH_INVALID",
+              Phase.PATH,
+              contribution.id(),
+              path,
+              null,
+              "target path is unsafe",
+              "Use a normalized relative path below the destination."));
+      return;
+    }
+    if (TOKEN.matcher(content).find()) {
+      diagnostics.add(
+          error(
+              "SCF_UNRESOLVED_TOKEN",
+              Phase.RENDER,
+              contribution.id(),
+              path,
+              null,
+              "rendered content contains an unresolved token",
+              "Provide the value or repair the contribution."));
+      return;
+    }
+    String fold = path.toLowerCase(Locale.ROOT);
+    if (writes.containsKey(path) || !folded.add(fold)) {
+      diagnostics.add(
+          error(
+              "SCF_PATH_COLLISION",
+              Phase.PATH,
+              contribution.id(),
+              path,
+              null,
+              "multiple contributions own the same target",
+              "Assign the target to one contribution."));
+      return;
+    }
+    Path target = destinationRoot.resolve(path).normalize();
+    if (!target.startsWith(destinationRoot) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+      diagnostics.add(
+          error(
+              "SCF_PATH_COLLISION",
+              Phase.PATH,
+              contribution.id(),
+              path,
+              null,
+              "target already exists or escapes the destination",
+              "Choose an empty destination."));
+      return;
+    }
+    byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+    writes.put(
+        path, new PlannedWrite(Path.of(path), bytes, sha256(bytes), asset.dependencyMetadata()));
   }
 
   private static String dependencyDeclarations(List<Dependency> dependencies) {
@@ -478,11 +504,7 @@ public final class BlueprintCompositionEngine {
     for (var contribution : selected) {
       for (var claim : contribution.configurationClaims()) {
         for (var existing : claims) {
-          if (existing.claim.document().equals(claim.document())
-              && overlaps(existing.claim.pointer(), claim.pointer())
-              && !(existing.claim.rule() == MergeRule.REQUIRE_EQUAL
-                  && claim.rule() == MergeRule.REQUIRE_EQUAL
-                  && Objects.equals(existing.claim.canonicalValue(), claim.canonicalValue()))) {
+          if (claimsOverlapIncompatibly(existing.claim, claim)) {
             diagnostics.add(
                 error(
                     "SCF_CONFIG_COLLISION",
@@ -497,6 +519,17 @@ public final class BlueprintCompositionEngine {
         claims.add(new ClaimOwner(contribution.id(), claim));
       }
     }
+  }
+
+  private static boolean claimsOverlapIncompatibly(
+      ConfigurationClaim existing, ConfigurationClaim candidate) {
+    boolean equalValuesRequired =
+        existing.rule() == MergeRule.REQUIRE_EQUAL
+            && candidate.rule() == MergeRule.REQUIRE_EQUAL
+            && Objects.equals(existing.canonicalValue(), candidate.canonicalValue());
+    return existing.document().equals(candidate.document())
+        && overlaps(existing.pointer(), candidate.pointer())
+        && !equalValuesRequired;
   }
 
   private static boolean overlaps(String left, String right) {
@@ -1015,6 +1048,15 @@ public final class BlueprintCompositionEngine {
   }
 
   public record WriteResult(WriteStatus status, String message) {}
+
+  private record MobileSelection(
+      MobilePlatform platform,
+      String automation,
+      String family,
+      String mode,
+      String deviceKind,
+      String topology,
+      String applicationMode) {}
 
   private record ClaimOwner(String contributionId, ConfigurationClaim claim) {}
 }
