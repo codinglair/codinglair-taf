@@ -207,16 +207,8 @@ public final class FileTestDefinitionRepository implements TestDefinitionReposit
       Files.createDirectories(parent);
       Path temporary = Files.createTempFile(parent, target.getFileName().toString(), ".tmp");
       try {
-        mapper.writeValue(temporary.toFile(), canonical(document));
-        try {
-          Files.move(
-              temporary,
-              target,
-              StandardCopyOption.ATOMIC_MOVE,
-              StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException _) {
-          Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-        }
+        writeTemporary(temporary, document);
+        replaceTarget(temporary, target);
       } finally {
         Files.deleteIfExists(temporary);
       }
@@ -226,6 +218,19 @@ public final class FileTestDefinitionRepository implements TestDefinitionReposit
           null,
           "Cannot atomically write definition document '" + target + "'",
           failure);
+    }
+  }
+
+  private void writeTemporary(Path temporary, Document document) throws IOException {
+    mapper.writeValue(temporary.toFile(), canonical(document));
+  }
+
+  private static void replaceTarget(Path temporary, Path target) throws IOException {
+    try {
+      Files.move(
+          temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    } catch (AtomicMoveNotSupportedException _) {
+      Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
     }
   }
 

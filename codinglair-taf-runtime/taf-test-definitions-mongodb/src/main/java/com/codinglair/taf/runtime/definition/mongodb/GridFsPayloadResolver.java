@@ -42,6 +42,22 @@ public final class GridFsPayloadResolver implements PayloadResolver {
   private ResolvedPayload stage(PayloadReference reference, PayloadRange range) {
     ObjectId id = id(reference);
     GridFSFile file = bucket.find(new Document("_id", id)).first();
+    validateMetadata(file, reference);
+    Path staged = null;
+    try {
+      staged = download(file, id);
+      ResolvedPayload delegate = openStaged(staged, reference, range);
+      return managed(delegate, staged);
+    } catch (PayloadException failure) {
+      cleanup(staged);
+      throw failure;
+    } catch (IOException _) {
+      cleanup(staged);
+      throw failure(PayloadException.Kind.IO, reference);
+    }
+  }
+
+  private void validateMetadata(GridFSFile file, PayloadReference reference) {
     if (file == null) throw failure(PayloadException.Kind.MISSING, reference);
     if (file.getLength() > maximumSize || file.getLength() > reference.size())
       throw failure(PayloadException.Kind.OVERSIZED, reference);
@@ -49,58 +65,55 @@ public final class GridFsPayloadResolver implements PayloadResolver {
         file.getMetadata() == null ? null : file.getMetadata().getString("contentType");
     if (!reference.mediaType().equalsIgnoreCase(contentType))
       throw failure(PayloadException.Kind.MEDIA_TYPE, reference);
-    Path staged = null;
+  }
+
+  private Path download(GridFSFile file, ObjectId id) throws IOException {
+    Files.createDirectories(temporaryDirectory);
+    String filename = file.getFilename();
+    int extensionAt = filename.lastIndexOf('.');
+    String suffix = extensionAt < 0 ? ".bin" : filename.substring(extensionAt);
+    Path staged = Files.createTempFile(temporaryDirectory, "taf-payload-", suffix);
     try {
-      Files.createDirectories(temporaryDirectory);
-      String filename = file.getFilename();
-      int extensionAt = filename.lastIndexOf('.');
-      String suffix = extensionAt < 0 ? ".bin" : filename.substring(extensionAt);
-      staged = Files.createTempFile(temporaryDirectory, "taf-payload-", suffix);
       try (OutputStream output = Files.newOutputStream(staged)) {
         bucket.downloadToStream(id, output);
       }
-      PayloadReference local =
-          new PayloadReference(
-              reference.logicalId(),
-              staged.toUri(),
-              reference.checksum(),
-              reference.mediaType(),
-              reference.size(),
-              reference.version());
-      ResolvedPayload delegate =
-          range == null
-              ? new FilePayloadResolver(temporaryDirectory, maximumSize).open(local)
-              : new FilePayloadResolver(temporaryDirectory, maximumSize).open(local, range);
-      Path cleanup = staged;
-      return new ResolvedPayload(
-          delegate.evidence(),
-          delegate.range(),
-          delegate.stream(),
-          () -> {
-            delegate.close();
-            try {
-              Files.deleteIfExists(cleanup);
-            } catch (IOException _) {
-              cleanup.toFile().deleteOnExit();
-            }
-          });
-    } catch (PayloadException e) {
-      if (staged != null)
-        try {
-          Files.deleteIfExists(staged);
-        } catch (IOException _) {
-          staged.toFile().deleteOnExit();
-        }
-      throw e;
+      return staged;
+    } catch (IOException failure) {
+      cleanup(staged);
+      throw failure;
+    }
+  }
+
+  private ResolvedPayload openStaged(Path staged, PayloadReference reference, PayloadRange range) {
+    PayloadReference local =
+        new PayloadReference(
+            reference.logicalId(),
+            staged.toUri(),
+            reference.checksum(),
+            reference.mediaType(),
+            reference.size(),
+            reference.version());
+    var resolver = new FilePayloadResolver(temporaryDirectory, maximumSize);
+    return range == null ? resolver.open(local) : resolver.open(local, range);
+  }
+
+  private static ResolvedPayload managed(ResolvedPayload delegate, Path staged) {
+    return new ResolvedPayload(
+        delegate.evidence(),
+        delegate.range(),
+        delegate.stream(),
+        () -> {
+          delegate.close();
+          cleanup(staged);
+        });
+  }
+
+  private static void cleanup(Path staged) {
+    if (staged == null) return;
+    try {
+      Files.deleteIfExists(staged);
     } catch (IOException _) {
-      if (staged != null) {
-        try {
-          Files.deleteIfExists(staged);
-        } catch (IOException _) {
-          staged.toFile().deleteOnExit();
-        }
-      }
-      throw failure(PayloadException.Kind.IO, reference);
+      staged.toFile().deleteOnExit();
     }
   }
 
