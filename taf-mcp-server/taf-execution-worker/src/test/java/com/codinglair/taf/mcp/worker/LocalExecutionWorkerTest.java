@@ -21,7 +21,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -231,6 +235,49 @@ class LocalExecutionWorkerTest {
     }
 
     @Test
+    @DisplayName("interruption promptly terminates the process tree before output-drain shutdown")
+    void interruptionKillsDescendantsBeforeDrainShutdown() throws Exception {
+      var existingDescendants =
+          ProcessHandle.current().descendants().map(ProcessHandle::pid).collect(Collectors.toSet());
+      var failure = new AtomicReference<Throwable>();
+      var interrupted = new AtomicBoolean();
+      var thread =
+          Thread.ofPlatform()
+              .unstarted(
+                  () -> {
+                    try {
+                      worker("tree", limits(4096))
+                          .execute(
+                              request("tree", Duration.ofSeconds(20), List.of()),
+                              CancellationToken.NEVER);
+                    } catch (Throwable error) {
+                      failure.set(error);
+                      interrupted.set(Thread.currentThread().isInterrupted());
+                    }
+                  });
+      thread.start();
+      var ownedProcesses =
+          awaitProcesses(
+              () ->
+                  ProcessHandle.current()
+                      .descendants()
+                      .filter(process -> !existingDescendants.contains(process.pid()))
+                      .toList());
+
+      thread.interrupt();
+      thread.join(Duration.ofSeconds(5));
+
+      assertThat(thread.isAlive()).isFalse();
+      assertThat(failure.get())
+          .isInstanceOf(WorkerExecutionException.class)
+          .extracting(error -> ((WorkerExecutionException) error).code())
+          .isEqualTo("INTERRUPTED");
+      assertThat(interrupted.get()).isTrue();
+      assertThat(ownedProcesses).allMatch(process -> !process.isAlive());
+      assertThat(executionRoot).isEmptyDirectory();
+    }
+
+    @Test
     @DisplayName("bounds returned process output")
     void boundsOutput() throws Exception {
       var result =
@@ -372,5 +419,18 @@ class LocalExecutionWorkerTest {
   private static String javaExecutable() {
     var suffix = System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java";
     return Path.of(System.getProperty("java.home"), "bin", suffix).toAbsolutePath().toString();
+  }
+
+  private static List<ProcessHandle> awaitProcesses(Supplier<List<ProcessHandle>> processes) {
+    var deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+    List<ProcessHandle> owned;
+    do {
+      owned = processes.get();
+      if (owned.size() >= 2) {
+        return owned;
+      }
+      java.util.concurrent.locks.LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
+    } while (System.nanoTime() < deadline);
+    throw new AssertionError("Owned process tree did not start within five seconds");
   }
 }

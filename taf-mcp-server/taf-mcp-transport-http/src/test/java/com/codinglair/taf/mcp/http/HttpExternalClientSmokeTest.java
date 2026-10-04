@@ -1,12 +1,16 @@
 package com.codinglair.taf.mcp.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -34,6 +38,70 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 @DisplayName("External Streamable HTTP MCP client compatibility")
 class HttpExternalClientSmokeTest {
   @LocalServerPort int port;
+
+  @Test
+  @DisplayName("frames initialize response bytes consistently with HTTP headers")
+  void framesInitializeResponse() throws Exception {
+    String body =
+        """
+        {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"framing-client","version":"1.0"}}}
+        """
+            .strip();
+    byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
+    String request =
+        "POST /mcp HTTP/1.1\r\n"
+            + "Host: localhost:"
+            + port
+            + "\r\nAuthorization: Bearer gate-token\r\n"
+            + "Content-Type: application/json\r\n"
+            + "Accept: application/json, text/event-stream\r\n"
+            + "Content-Length: "
+            + bodyBytes.length
+            + "\r\n\r\n"
+            + body;
+
+    byte[] raw;
+    try (var socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(1_000);
+      socket.getOutputStream().write(request.getBytes(StandardCharsets.UTF_8));
+      var response = new java.io.ByteArrayOutputStream();
+      try {
+        socket.getInputStream().transferTo(response);
+      } catch (SocketTimeoutException _) {
+        // A persistent HTTP/1.1 connection remains open after the complete response.
+      }
+      raw = response.toByteArray();
+    }
+
+    String response = new String(raw, StandardCharsets.ISO_8859_1);
+    int boundary = response.indexOf("\r\n\r\n");
+    assertThat(boundary).isPositive();
+    String headers = response.substring(0, boundary);
+    byte[] responseBody = java.util.Arrays.copyOfRange(raw, boundary + 4, raw.length);
+    assertThat(headers).contains("HTTP/1.1 200");
+    assertThat(responseBody).as("raw response body after framing headers").isNotEmpty();
+    if (headers.toLowerCase().contains("transfer-encoding: chunked")) {
+      int lineEnd = indexOf(responseBody, "\r\n".getBytes(StandardCharsets.US_ASCII));
+      assertThat(lineEnd).as("chunk-size line terminator").isPositive();
+      String chunkSize = new String(responseBody, 0, lineEnd, StandardCharsets.US_ASCII);
+      assertThatCode(() -> Integer.parseInt(chunkSize, 16)).doesNotThrowAnyException();
+    } else {
+      assertThat(headers).containsIgnoringCase("Content-Length:");
+    }
+  }
+
+  private static int indexOf(byte[] value, byte[] target) {
+    outer:
+    for (int index = 0; index <= value.length - target.length; index++) {
+      for (int offset = 0; offset < target.length; offset++) {
+        if (value[index + offset] != target[offset]) {
+          continue outer;
+        }
+      }
+      return index;
+    }
+    return -1;
+  }
 
   @Test
   @DisplayName("connects and discovers governed prompts through authenticated HTTP")

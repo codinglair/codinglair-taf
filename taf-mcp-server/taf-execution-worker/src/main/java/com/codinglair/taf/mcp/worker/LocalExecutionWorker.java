@@ -92,31 +92,36 @@ public final class LocalExecutionWorker {
               .start();
       var runningProcess = process;
       try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-        var drain =
-            executor.submit(
-                () -> {
-                  try {
-                    output.drain(runningProcess.getInputStream());
-                  } catch (IOException error) {
-                    throw new UncheckedIOException(error);
-                  }
-                });
-        var deadline = System.nanoTime() + request.timeout().toNanos();
-        var status = awaitCompletion(process, cancellation, deadline);
-        drain.get(10, TimeUnit.SECONDS);
-        var exit = process.isAlive() ? -1 : process.exitValue();
-        if (status == null) {
-          status = exit == 0 ? WorkerStatus.SUCCEEDED : WorkerStatus.FAILED;
+        try {
+          var drain =
+              executor.submit(
+                  () -> {
+                    try {
+                      output.drain(runningProcess.getInputStream());
+                    } catch (IOException error) {
+                      throw new UncheckedIOException(error);
+                    }
+                  });
+          var deadline = System.nanoTime() + request.timeout().toNanos();
+          var status = awaitCompletion(process, cancellation, deadline);
+          drain.get(10, TimeUnit.SECONDS);
+          var exit = process.isAlive() ? -1 : process.exitValue();
+          if (status == null) {
+            status = exit == 0 ? WorkerStatus.SUCCEEDED : WorkerStatus.FAILED;
+          }
+          var manifest = collectArtifacts(request, workspace);
+          return new WorkerResult(
+              WorkerProtocol.VERSION,
+              status,
+              exit,
+              output.sanitized(redactor),
+              output.truncated(),
+              Duration.between(started, clock.instant()),
+              manifest);
+        } catch (InterruptedException error) {
+          terminateTree(process);
+          throw error;
         }
-        var manifest = collectArtifacts(request, workspace);
-        return new WorkerResult(
-            WorkerProtocol.VERSION,
-            status,
-            exit,
-            output.sanitized(redactor),
-            output.truncated(),
-            Duration.between(started, clock.instant()),
-            manifest);
       }
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
