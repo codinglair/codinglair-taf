@@ -34,64 +34,104 @@ public final class CsvSecretNormalizer {
     try {
       byte[] original = Files.readAllBytes(source);
       byte[] version = digest(original);
-      String lineEnding =
-          new String(original, StandardCharsets.UTF_8).contains("\r\n") ? "\r\n" : "\n";
-      CsvSchema schema = CsvSchema.emptySchema().withHeader();
-      var iterator =
-          mapper.readerFor(STRING_MAP).with(schema).<Map<String, String>>readValues(original);
-      List<Map<String, String>> rows = new ArrayList<>();
-      int normalized = 0;
-      while (iterator.hasNext()) {
-        Map<String, String> row = new LinkedHashMap<>(iterator.next());
-        String id = row.get(request.caseIdColumn());
-        if (id == null || id.isBlank())
-          throw failure("CSV row has no safe definition identifier", null);
-        for (Map.Entry<String, SecretFieldDefinition> field : request.secretFields().entrySet()) {
-          String value = row.get(field.getKey());
-          if (value == null || value.isBlank()) {
-            if (field.getValue().required())
-              throw failure("A required classified field is absent", null);
-            continue;
-          }
-          if (isApproved(value)) continue;
-          if (value.startsWith("secret://")
-              || value.startsWith("credential://")
-              || value.startsWith("ENC(")) {
-            throw failure("A classified field contains a malformed or unsupported reference", null);
-          }
-          SecretProvisioningContext context =
-              new SecretProvisioningContext(
-                  request.project(),
-                  request.environment(),
-                  source.getFileName().toString(),
-                  id,
-                  field.getKey(),
-                  request.caller(),
-                  request.authorized());
-          try (TransientSecretValue plaintext = TransientSecretValue.of(value.toCharArray())) {
-            String protectedReference =
-                provisioner.protect(plaintext, field.getValue().kind(), context);
-            SecretReference.requireApproved(protectedReference);
-            row.put(field.getKey(), protectedReference);
-            normalized++;
-          }
-        }
-        rows.add(row);
-      }
-      if (normalized == 0) return 0;
-      byte[] canonical = write(rows, lineEnding);
-      validateCanonical(canonical, request);
-      if (!MessageDigest.isEqual(version, digest(Files.readAllBytes(source)))) {
-        throw failure("CSV source changed concurrently", null);
-      }
-      atomicReplace(source, canonical);
-      validateCanonical(Files.readAllBytes(source), request);
-      return normalized;
+      Normalization normalization = normalizeRows(original, request, provisioner);
+      if (normalization.count() == 0) return 0;
+      commit(source, version, normalization.rows(), lineEnding(original), request);
+      return normalization.count();
     } catch (SecretNormalizationException failure) {
       throw failure;
     } catch (IOException failure) {
       throw failure("CSV normalization failed safely", failure);
     }
+  }
+
+  private Normalization normalizeRows(
+      byte[] original, CsvSecretNormalizationRequest request, SecretProvisioner provisioner)
+      throws IOException {
+    var iterator =
+        mapper
+            .readerFor(STRING_MAP)
+            .with(CsvSchema.emptySchema().withHeader())
+            .<Map<String, String>>readValues(original);
+    List<Map<String, String>> rows = new ArrayList<>();
+    int normalized = 0;
+    while (iterator.hasNext()) {
+      Map<String, String> row = new LinkedHashMap<>(iterator.next());
+      normalized += normalizeRow(row, request, provisioner);
+      rows.add(row);
+    }
+    return new Normalization(rows, normalized);
+  }
+
+  private int normalizeRow(
+      Map<String, String> row,
+      CsvSecretNormalizationRequest request,
+      SecretProvisioner provisioner) {
+    String id = row.get(request.caseIdColumn());
+    if (id == null || id.isBlank())
+      throw failure("CSV row has no safe definition identifier", null);
+    int normalized = 0;
+    for (Map.Entry<String, SecretFieldDefinition> field : request.secretFields().entrySet()) {
+      normalized += normalizeField(row, id, field, request, provisioner);
+    }
+    return normalized;
+  }
+
+  private int normalizeField(
+      Map<String, String> row,
+      String id,
+      Map.Entry<String, SecretFieldDefinition> field,
+      CsvSecretNormalizationRequest request,
+      SecretProvisioner provisioner) {
+    String value = row.get(field.getKey());
+    if (value == null || value.isBlank()) {
+      if (field.getValue().required()) throw failure("A required classified field is absent", null);
+      return 0;
+    }
+    if (isApproved(value)) return 0;
+    if (isReferenceLike(value))
+      throw failure("A classified field contains a malformed or unsupported reference", null);
+    SecretProvisioningContext context =
+        new SecretProvisioningContext(
+            request.project(),
+            request.environment(),
+            request.source().getFileName().toString(),
+            id,
+            field.getKey(),
+            request.caller(),
+            request.authorized());
+    try (TransientSecretValue plaintext = TransientSecretValue.of(value.toCharArray())) {
+      String protectedReference = provisioner.protect(plaintext, field.getValue().kind(), context);
+      SecretReference.requireApproved(protectedReference);
+      row.put(field.getKey(), protectedReference);
+      return 1;
+    }
+  }
+
+  private void commit(
+      Path source,
+      byte[] version,
+      List<Map<String, String>> rows,
+      String lineEnding,
+      CsvSecretNormalizationRequest request)
+      throws IOException {
+    byte[] canonical = write(rows, lineEnding);
+    validateCanonical(canonical, request);
+    if (!MessageDigest.isEqual(version, digest(Files.readAllBytes(source)))) {
+      throw failure("CSV source changed concurrently", null);
+    }
+    atomicReplace(source, canonical);
+    validateCanonical(Files.readAllBytes(source), request);
+  }
+
+  private static String lineEnding(byte[] original) {
+    return new String(original, StandardCharsets.UTF_8).contains("\r\n") ? "\r\n" : "\n";
+  }
+
+  private static boolean isReferenceLike(String value) {
+    return value.startsWith("secret://")
+        || value.startsWith("credential://")
+        || value.startsWith("ENC(");
   }
 
   private byte[] write(List<Map<String, String>> rows, String lineEnding) throws IOException {
@@ -164,4 +204,6 @@ public final class CsvSecretNormalizer {
   private static SecretNormalizationException failure(String message, Throwable cause) {
     return new SecretNormalizationException(message, cause);
   }
+
+  private record Normalization(List<Map<String, String>> rows, int count) {}
 }
