@@ -29,6 +29,7 @@ class ArtifactDownloadTransportTest {
   final AtomicInteger targetConnections = new AtomicInteger();
   final AtomicReference<String> receivedCredential = new AtomicReference<>();
   String redirect;
+  String targetRedirect;
 
   @BeforeEach
   void start() throws Exception {
@@ -48,6 +49,7 @@ class ArtifactDownloadTransportTest {
         "/artifact",
         exchange -> {
           sourceConnections.incrementAndGet();
+          receivedCredential.set(exchange.getRequestHeaders().getFirst("Authorization"));
           if (redirect != null) {
             exchange.getResponseHeaders().set("Location", redirect);
             exchange.sendResponseHeaders(302, -1);
@@ -62,8 +64,13 @@ class ArtifactDownloadTransportTest {
         exchange -> {
           targetConnections.incrementAndGet();
           receivedCredential.set(exchange.getRequestHeaders().getFirst("Authorization"));
-          exchange.sendResponseHeaders(200, 8);
-          exchange.getResponseBody().write("artifact".getBytes(StandardCharsets.UTF_8));
+          if (targetRedirect != null) {
+            exchange.getResponseHeaders().set("Location", targetRedirect);
+            exchange.sendResponseHeaders(302, -1);
+          } else {
+            exchange.sendResponseHeaders(200, 8);
+            exchange.getResponseBody().write("artifact".getBytes(StandardCharsets.UTF_8));
+          }
           exchange.close();
         });
     source.start();
@@ -113,6 +120,14 @@ class ArtifactDownloadTransportTest {
   }
 
   @Test
+  @DisplayName("forwards credentials to the authorized initial origin")
+  void sameOriginCredentials() {
+    transport(Set.of(grant(first)), 16, 2)
+        .download(first, Map.of("Authorization", "FAKE_CREDENTIAL"));
+    assertThat(receivedCredential.get()).isEqualTo("FAKE_CREDENTIAL");
+  }
+
+  @Test
   @DisplayName("permits trusted signed destinations while dropping credentials across origins")
   void allowedRedirect() {
     redirect = second.toString();
@@ -122,6 +137,18 @@ class ArtifactDownloadTransportTest {
         .asString(StandardCharsets.UTF_8)
         .isEqualTo("artifact");
     assertThat(receivedCredential.get()).isNull();
+  }
+
+  @Test
+  @DisplayName("authorizes every hop in a multi-redirect chain before connecting")
+  void deniedLaterRedirect() {
+    redirect = second.toString();
+    targetRedirect = "/denied";
+    assertThrows(
+        SecurityException.class,
+        () -> transport(Set.of(grant(first), grant(second)), 16, 2).download(first, Map.of()));
+    assertThat(sourceConnections.get()).isEqualTo(1);
+    assertThat(targetConnections.get()).isEqualTo(1);
   }
 
   @Test

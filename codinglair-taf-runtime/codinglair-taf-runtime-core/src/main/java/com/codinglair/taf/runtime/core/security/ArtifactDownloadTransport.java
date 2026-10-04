@@ -78,33 +78,11 @@ public final class ArtifactDownloadTransport {
             .followRedirects(HttpClient.Redirect.NEVER)
             .build()) {
       for (int redirects = 0; ; redirects++) {
-        authorizer.require(
-            new ResourceAccess(
-                ResourceAccess.Kind.ARTIFACT_DESTINATION, destination(current), "download"));
-        boolean forward = origin(initial).equals(origin(current));
-        if (!forward && !headers.isEmpty())
-          forward =
-              authorizer.permits(
-                  new ResourceAccess(
-                      ResourceAccess.Kind.CREDENTIAL_FORWARDING,
-                      origin(initial) + " -> " + origin(current),
-                      "forward"));
-        long remaining = deadline - System.nanoTime();
-        if (remaining <= 0) throw new IOException();
-        var request = HttpRequest.newBuilder(current).timeout(Duration.ofNanos(remaining)).GET();
-        if (forward) headers.forEach(request::header);
-        var response = client.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+        var request = prepareRequest(initial, current, headers, deadline);
+        var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
         try (var body = response.body()) {
           if (Set.of(301, 302, 303, 307, 308).contains(response.statusCode())) {
-            if (redirects >= maximumRedirects) throw new IOException();
-            String location =
-                response.headers().firstValue("Location").orElseThrow(IOException::new);
-            URI next = current.resolve(location);
-            validate(next);
-            if (current.getScheme().equalsIgnoreCase("https")
-                && !next.getScheme().equalsIgnoreCase("https"))
-              throw new SecurityException("Artifact TLS downgrade denied");
-            current = next;
+            current = redirectTarget(current, response, redirects);
             continue;
           }
           if (response.statusCode() != 200) throw new IOException();
@@ -120,5 +98,37 @@ public final class ArtifactDownloadTransport {
     } catch (IOException | IllegalArgumentException _) {
       throw new IllegalStateException("Artifact download failed safely");
     }
+  }
+
+  private HttpRequest prepareRequest(
+      URI initial, URI current, Map<String, String> headers, long deadline) throws IOException {
+    authorizer.require(
+        new ResourceAccess(
+            ResourceAccess.Kind.ARTIFACT_DESTINATION, destination(current), "download"));
+    boolean forward = origin(initial).equals(origin(current));
+    if (!forward && !headers.isEmpty())
+      forward =
+          authorizer.permits(
+              new ResourceAccess(
+                  ResourceAccess.Kind.CREDENTIAL_FORWARDING,
+                  origin(initial) + " -> " + origin(current),
+                  "forward"));
+    long remaining = deadline - System.nanoTime();
+    if (remaining <= 0) throw new IOException();
+    var request = HttpRequest.newBuilder(current).timeout(Duration.ofNanos(remaining)).GET();
+    if (forward) headers.forEach(request::header);
+    return request.build();
+  }
+
+  private URI redirectTarget(URI current, HttpResponse<?> response, int completedRedirects)
+      throws IOException {
+    if (completedRedirects >= maximumRedirects) throw new IOException();
+    String location = response.headers().firstValue("Location").orElseThrow(IOException::new);
+    URI next = current.resolve(location);
+    validate(next);
+    if (current.getScheme().equalsIgnoreCase("https")
+        && !next.getScheme().equalsIgnoreCase("https"))
+      throw new SecurityException("Artifact TLS downgrade denied");
+    return next;
   }
 }
