@@ -19,26 +19,10 @@ public final class ContainerLifecycleCoordinator implements AutoCloseable {
     Objects.requireNonNull(request, "request");
     ContainerLifecycle lifecycle = ContainerLifecycle.from(request);
     if (lifecycle == ContainerLifecycle.ISOLATED) {
-      ManagedContainer container = start(factory);
-      try {
-        return lease(
-            request.resourceName() + "-" + UUID.randomUUID(),
-            type,
-            lifecycle,
-            container,
-            container::stop);
-      } catch (RuntimeException failure) {
-        stopAfterFailure(container, failure);
-        throw failure;
-      }
+      return acquireIsolated(request, type, factory);
     }
 
-    String key =
-        request
-            .properties()
-            .getOrDefault(
-                ContainerLifecycle.SHARED_KEY_PROPERTY,
-                request.type().name() + ":" + request.resourceName());
+    String key = sharedKey(request);
     if (key.isBlank()) {
       throw new IllegalArgumentException("Shared container key must not be blank");
     }
@@ -49,22 +33,52 @@ public final class ContainerLifecycleCoordinator implements AutoCloseable {
         shared.put(key, state);
       }
       state.references++;
-      SharedContainer acquired = state;
+      return sharedLease(request, type, lifecycle, key, state);
+    }
+  }
+
+  private ContainerLease acquireIsolated(
+      EnvironmentRequest request,
+      EnvironmentType type,
+      Supplier<? extends ManagedContainer> factory) {
+    ManagedContainer container = start(factory);
+    try {
+      return lease(
+          request.resourceName(), type, ContainerLifecycle.ISOLATED, container, container::stop);
+    } catch (RuntimeException failure) {
+      stopAfterFailure(container, failure);
+      throw failure;
+    }
+  }
+
+  private static String sharedKey(EnvironmentRequest request) {
+    return request
+        .properties()
+        .getOrDefault(
+            ContainerLifecycle.SHARED_KEY_PROPERTY,
+            request.type().name() + ":" + request.resourceName());
+  }
+
+  private ContainerLease sharedLease(
+      EnvironmentRequest request,
+      EnvironmentType type,
+      ContainerLifecycle lifecycle,
+      String key,
+      SharedContainer state) {
+    try {
+      return lease(
+          request.resourceName(),
+          type,
+          lifecycle,
+          state.container,
+          () -> releaseShared(key, state));
+    } catch (RuntimeException failure) {
       try {
-        return lease(
-            request.resourceName() + "-" + UUID.randomUUID(),
-            type,
-            lifecycle,
-            state.container,
-            () -> releaseShared(key, acquired));
-      } catch (RuntimeException failure) {
-        try {
-          releaseShared(key, acquired);
-        } catch (RuntimeException cleanupFailure) {
-          failure.addSuppressed(cleanupFailure);
-        }
-        throw failure;
+        releaseShared(key, state);
+      } catch (RuntimeException cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
       }
+      throw failure;
     }
   }
 
@@ -97,12 +111,13 @@ public final class ContainerLifecycleCoordinator implements AutoCloseable {
   }
 
   private ContainerLease lease(
-      String id,
+      String resourceName,
       EnvironmentType type,
       ContainerLifecycle lifecycle,
       ManagedContainer container,
       Runnable cleanup) {
-    return new ContainerLease(id, type, lifecycle, container, cleanup);
+    return new ContainerLease(
+        resourceName + "-" + UUID.randomUUID(), type, lifecycle, container, cleanup);
   }
 
   private void releaseShared(String key, SharedContainer expected) {
