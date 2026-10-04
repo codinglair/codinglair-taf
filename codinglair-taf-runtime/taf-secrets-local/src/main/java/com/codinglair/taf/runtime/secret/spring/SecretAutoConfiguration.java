@@ -88,6 +88,11 @@ public class SecretAutoConfiguration {
     }
     if (selected != null) return List.of(findProvider(selected, available));
 
+    return routedProviders(routing, available);
+  }
+
+  private static List<SecretProvider> routedProviders(
+      Map<String, String> routing, Map<String, SecretProvider> available) {
     Map<String, SecretProvider> routed = new LinkedHashMap<>();
     routing.forEach(
         (providerId, beanName) -> {
