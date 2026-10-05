@@ -1,6 +1,7 @@
 package com.codinglair.taf.mcp.resources;
 
 import com.codinglair.taf.core.Capability;
+import com.codinglair.taf.mobile.ApplePlatformManifest;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -84,6 +85,27 @@ public final class RuntimeCapabilityCatalog {
                 {"all observation is bounded", "receipt handles are never returned"},
                 {"taf.aws.connections.<profile>.sqs.<instance>"}
               };
+          case ApplePlatformManifest.CAPABILITY_ID -> {
+            var apple = ApplePlatformManifest.descriptor();
+            yield new String[][] {
+              {
+                "discover",
+                "validate",
+                "execute-fixture",
+                "cancel",
+                "scaffold",
+                "screenshot",
+                "source",
+                "syslog",
+                "video"
+              },
+              apple.limitations().toArray(String[]::new),
+              {
+                "taf.mobile.apple.instances.<name>",
+                "external Appium/XCUITest endpoint and authorized target"
+              }
+            };
+          }
           default -> new String[][] {{}, {}, {}};
         };
     return new RuntimeCapabilityDescriptor(

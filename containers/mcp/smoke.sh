@@ -10,6 +10,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
+docker run --rm --entrypoint sh "$image" -c \
+  "grep -Fq '\"tafRelease\": \"1.3.0\"' /opt/taf/image-compatibility.json && \
+   grep -Fq '\"id\": \"mobile.apple\"' /opt/taf/capabilities.json && \
+   ! find /opt/taf -iname '*xcode*' -o -iname '*simulator*' -o -iname '*ios-deploy*' | grep -q ."
+
 common=(--read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 768m --cpus 1 --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m)
 
 launcher_java="$config_dir/java"

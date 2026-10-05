@@ -18,6 +18,8 @@ import com.codinglair.taf.mcp.security.InMemoryAuditLog;
 import com.codinglair.taf.mcp.security.McpEnforcementService;
 import com.codinglair.taf.mcp.security.PolicyRule;
 import com.codinglair.taf.mcp.security.ResponseRedactor;
+import com.codinglair.taf.mcp.tools.ConfiguredCapability;
+import com.codinglair.taf.mcp.tools.DefaultCapabilityPreflight;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
 import com.codinglair.taf.mcp.tools.WorkflowOutcome;
 import com.codinglair.taf.mcp.tools.WorkflowResult;
@@ -105,7 +107,18 @@ public class ExternalStdioTestServer {
         },
         Executors.newVirtualThreadPerTaskExecutor(),
         clock,
-        redactor);
+        redactor,
+        new DefaultCapabilityPreflight(
+            List.of(
+                new ConfiguredCapability(
+                    "mobile.apple",
+                    "fixture",
+                    "local",
+                    true,
+                    true,
+                    "TEST_OWNED",
+                    "DEDICATED_RESOURCE",
+                    Set.of("validate", "execute-fixture")))));
   }
 
   @Bean
@@ -144,8 +157,10 @@ public class ExternalStdioTestServer {
     var capabilities =
         new RuntimeCapabilityCatalog(
             List.of(
-                new Capability("stdio", "STDIO transport", Capability.CapabilityType.CONTROLLER)),
-            Map.of("stdio", "1.0.0"),
+                new Capability("stdio", "STDIO transport", Capability.CapabilityType.CONTROLLER),
+                new Capability(
+                    "mobile.apple", "Apple Appium", Capability.CapabilityType.CONTROLLER)),
+            Map.of("stdio", "1.0.0", "mobile.apple", "1.3.0"),
             "1.0.0");
     return new McpResourceService(
         capabilities,

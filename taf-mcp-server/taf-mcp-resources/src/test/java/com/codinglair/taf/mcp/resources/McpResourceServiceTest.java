@@ -82,6 +82,23 @@ class McpResourceServiceTest {
     }
 
     @Test
+    @DisplayName("reports Apple implemented support without claiming configured readiness")
+    void reportsAppleCapabilityDetails() {
+      var capability =
+          new Capability("mobile.apple", "Apple Appium", Capability.CapabilityType.CONTROLLER);
+      var descriptor =
+          new RuntimeCapabilityCatalog(List.of(capability), Map.of(), "1.3.0")
+              .descriptors()
+              .getFirst();
+
+      assertThat(descriptor.status())
+          .isEqualTo(RuntimeCapabilityDescriptor.InstallationStatus.ABSENT);
+      assertThat(descriptor.operations()).contains("discover", "execute-fixture", "cancel");
+      assertThat(descriptor.limitations()).anyMatch(value -> value.contains("does not allocate"));
+      assertThat(descriptor.requiredConfiguration()).allMatch(value -> !value.contains("secret"));
+    }
+
+    @Test
     @DisplayName("paginates a large catalog deterministically without duplicates")
     void paginatesLargeCatalogDeterministically() {
       var service = service(largeCatalog(257, Map.of(), "2.1.0"), allowedPolicy(), _ -> List.of());

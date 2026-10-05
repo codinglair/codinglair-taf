@@ -1,5 +1,6 @@
 package com.codinglair.taf.mobile.appium.configuration;
 
+import com.codinglair.taf.mobile.ApplePlatformManifest;
 import com.codinglair.taf.mobile.ApplicationMode;
 import com.codinglair.taf.mobile.MobileDeviceFamily;
 import com.codinglair.taf.mobile.MobileDeviceKind;
@@ -8,7 +9,6 @@ import com.codinglair.taf.mobile.MobileTopology;
 import java.net.URI;
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -193,17 +193,15 @@ public class AppleControllerSettings {
   }
 
   public MobileDeviceFamily family() {
-    if (getPlatform() == null) throw invalid("platform is required");
-    MobileDeviceFamily inferred =
-        switch (getPlatform().toLowerCase(Locale.ROOT)) {
-          case "ios" -> MobileDeviceFamily.IPHONE;
-          case "ipados" -> MobileDeviceFamily.IPAD;
-          case "apple" -> getDeviceFamily();
-          default -> throw invalid("platform must be ios, ipados or apple");
-        };
-    if (inferred == null || (deviceFamily != null && deviceFamily != inferred))
-      throw invalid("device-family is required and must agree with platform");
-    return inferred;
+    return ApplePlatformManifest.validate(
+            getPlatform(),
+            getDeviceFamily() == null ? null : getDeviceFamily().name(),
+            getExecutionMode() == null ? null : getExecutionMode().name(),
+            getDeviceKind() == null ? null : getDeviceKind().name(),
+            getTopology() == null ? null : getTopology().name(),
+            applicationMode == null ? null : applicationMode.name(),
+            getAutomationName())
+        .family();
   }
 
   public void validate() {

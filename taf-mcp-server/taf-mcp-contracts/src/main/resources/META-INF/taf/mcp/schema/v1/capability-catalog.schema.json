@@ -21,7 +21,7 @@
     },
     "runtimeCapabilities": {
       "type": "array",
-      "minItems": 2,
+      "minItems": 3,
       "uniqueItems": true,
       "items": {
         "type": "object",
@@ -37,7 +37,8 @@
           "id": {
             "enum": [
               "aws.eventbridge",
-              "aws.sqs"
+              "aws.sqs",
+              "mobile.apple"
             ]
           },
           "version": {
