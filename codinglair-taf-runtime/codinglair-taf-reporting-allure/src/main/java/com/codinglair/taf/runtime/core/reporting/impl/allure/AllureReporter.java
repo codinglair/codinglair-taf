@@ -141,22 +141,29 @@ public final class AllureReporter implements TestReporter {
     InvocationState state = requireState();
     String testUuid = state.testId;
     if (event.phase() == ReportEvent.Phase.STARTED) {
-      if (state.completedEvents.contains(event.id()) || state.stepIds.containsKey(event.id()))
-        return;
-      String uuid = UUID.randomUUID().toString();
-      if (state.stepIds.putIfAbsent(event.id(), uuid) != null) return;
-      StepResult result =
-          new StepResult()
-              .setName(redactionService.redact(event.name()))
-              .setDescription(redactionService.redact(event.description()));
-      String parentUuid =
-          event.parentId() == null
-              ? testUuid
-              : state.stepIds.getOrDefault(event.parentId(), testUuid);
-      lifecycle.startStep(parentUuid, uuid, result);
-      stepCount.incrementAndGet();
+      reportStartedEvent(event, state, testUuid);
       return;
     }
+    reportCompletedEvent(event, state, testUuid);
+  }
+
+  private void reportStartedEvent(ReportEvent event, InvocationState state, String testUuid) {
+    if (state.completedEvents.contains(event.id()) || state.stepIds.containsKey(event.id())) return;
+    String uuid = UUID.randomUUID().toString();
+    if (state.stepIds.putIfAbsent(event.id(), uuid) != null) return;
+    StepResult result =
+        new StepResult()
+            .setName(redactionService.redact(event.name()))
+            .setDescription(redactionService.redact(event.description()));
+    String parentUuid =
+        event.parentId() == null
+            ? testUuid
+            : state.stepIds.getOrDefault(event.parentId(), testUuid);
+    lifecycle.startStep(parentUuid, uuid, result);
+    stepCount.incrementAndGet();
+  }
+
+  private void reportCompletedEvent(ReportEvent event, InvocationState state, String testUuid) {
     if (!state.completedEvents.add(event.id())) return;
     String uuid = state.stepIds.remove(event.id());
     Status status = toStatus(event.status());

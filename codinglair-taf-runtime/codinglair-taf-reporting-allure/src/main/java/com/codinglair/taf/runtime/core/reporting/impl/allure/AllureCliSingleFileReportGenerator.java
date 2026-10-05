@@ -37,6 +37,12 @@ final class AllureCliSingleFileReportGenerator implements SingleFileReportGenera
           failure);
     }
 
+    awaitSuccessfulCompletion(process, request, log);
+    return request.stagingDirectory().resolve("index.html");
+  }
+
+  private static void awaitSuccessfulCompletion(
+      Process process, GenerationRequest request, Path log) {
     boolean completed;
     try {
       completed = process.waitFor(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
@@ -62,7 +68,6 @@ final class AllureCliSingleFileReportGenerator implements SingleFileReportGenera
               + diagnostic(log)
               + "; verify Allure 2 compatibility and the results directory");
     }
-    return request.stagingDirectory().resolve("index.html");
   }
 
   private static List<String> command(GenerationRequest request) {

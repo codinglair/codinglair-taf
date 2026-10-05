@@ -1,5 +1,6 @@
 package com.codinglair.taf.runtime.cucumber;
 
+import com.codinglair.taf.runtime.core.failure.FailureAnalysis;
 import com.codinglair.taf.runtime.core.failure.FailureClassificationService;
 import com.codinglair.taf.runtime.core.failure.FailureContext;
 import com.codinglair.taf.runtime.core.failure.FailureSignatureService;
@@ -119,43 +120,52 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
     if (state == null) {
       return;
     }
-    var nativeStatus = event.getResult().getStatus();
-    var outcome =
-        nativeStatus == io.cucumber.plugin.event.Status.PASSED
-            ? ExecutionAttemptSummary.Outcome.PASSED
-            : nativeStatus == io.cucumber.plugin.event.Status.FAILED
-                ? ExecutionAttemptSummary.Outcome.FAILED
-                : ExecutionAttemptSummary.Outcome.INCONCLUSIVE;
-    var completion =
-        attemptHistory.complete(
-            new AttemptHistoryService.AttemptDescriptor(
-                null,
-                hash(state.testCase.getUri() + ":" + state.testCase.getLine()),
-                state.testCase.getId().toString(),
-                "attempt-1",
-                java.time.Instant.now(),
-                outcome,
-                Duration.between(state.startedAt, Instant.now()),
-                null,
-                null,
-                "cucumber",
-                "scenario-or-hook",
-                FailureContext.Boundary.UNKNOWN,
-                event.getResult().getError(),
-                List.of()));
-    CucumberBusinessResult result =
-        new CucumberBusinessResult(
-            state.testCase.getId().toString(),
-            state.testCase.getName(),
-            state.testCase.getUri(),
-            state.testCase.getLine(),
-            event.getResult().getStatus().name(),
-            state.testCase.getTags(),
-            state.steps,
-            state.artifacts,
-            completion.analysis());
+    var outcome = outcome(event.getResult().getStatus());
+    var completion = attemptHistory.complete(attemptDescriptor(state, event, outcome));
+    CucumberBusinessResult result = businessResult(state, event, completion.analysis());
     results.add(result);
     listeners.forEach(listener -> listener.onResult(result));
+  }
+
+  private static ExecutionAttemptSummary.Outcome outcome(io.cucumber.plugin.event.Status status) {
+    return switch (status) {
+      case PASSED -> ExecutionAttemptSummary.Outcome.PASSED;
+      case FAILED -> ExecutionAttemptSummary.Outcome.FAILED;
+      default -> ExecutionAttemptSummary.Outcome.INCONCLUSIVE;
+    };
+  }
+
+  private static AttemptHistoryService.AttemptDescriptor attemptDescriptor(
+      ScenarioState state, TestCaseFinished event, ExecutionAttemptSummary.Outcome outcome) {
+    return new AttemptHistoryService.AttemptDescriptor(
+        null,
+        hash(state.testCase.getUri() + ":" + state.testCase.getLine()),
+        state.testCase.getId().toString(),
+        "attempt-1",
+        Instant.now(),
+        outcome,
+        Duration.between(state.startedAt, Instant.now()),
+        null,
+        null,
+        "cucumber",
+        "scenario-or-hook",
+        FailureContext.Boundary.UNKNOWN,
+        event.getResult().getError(),
+        List.of());
+  }
+
+  private static CucumberBusinessResult businessResult(
+      ScenarioState state, TestCaseFinished event, FailureAnalysis analysis) {
+    return new CucumberBusinessResult(
+        state.testCase.getId().toString(),
+        state.testCase.getName(),
+        state.testCase.getUri(),
+        state.testCase.getLine(),
+        event.getResult().getStatus().name(),
+        state.testCase.getTags(),
+        state.steps,
+        state.artifacts,
+        analysis);
   }
 
   private ScenarioState state(TestCase testCase) {
