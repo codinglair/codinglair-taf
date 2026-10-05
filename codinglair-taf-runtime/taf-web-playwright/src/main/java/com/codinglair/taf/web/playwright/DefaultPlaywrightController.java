@@ -54,26 +54,8 @@ final class DefaultPlaywrightController implements PlaywrightController {
     try {
       properties.validate("taf.web.playwright.controllers." + identity.name());
       playwright = Playwright.create();
-      BrowserType type = browserType(playwright);
-      if (properties.getMode() == PlaywrightProperties.Mode.REMOTE) {
-        browser = type.connect(properties.getRemoteEndpoint().toString());
-      } else {
-        BrowserType.LaunchOptions launch =
-            new BrowserType.LaunchOptions().setHeadless(properties.isHeadless());
-        if (properties.getChannel() != null && !properties.getChannel().isBlank())
-          launch.setChannel(properties.getChannel());
-        browser = type.launch(launch);
-      }
-      Browser.NewContextOptions options =
-          new Browser.NewContextOptions()
-              .setViewportSize(properties.getViewportWidth(), properties.getViewportHeight());
-      if (properties.getStorageState() != null)
-        options.setStorageStatePath(properties.getStorageState());
-      if (properties.getEvidence().isVideo()) {
-        requireVisualPolicy("video");
-        options.setRecordVideoDir(evidenceDirectory());
-      }
-      browserContext = browser.newContext(options);
+      browser = createBrowser(browserType(playwright));
+      browserContext = browser.newContext(createContextOptions());
       if (properties.getEvidence().isTrace()) {
         browserContext
             .tracing()
@@ -95,6 +77,29 @@ final class DefaultPlaywrightController implements PlaywrightController {
           "verify browser installation, channel, or remote endpoint configuration",
           failure);
     }
+  }
+
+  private Browser createBrowser(BrowserType type) {
+    if (properties.getMode() == PlaywrightProperties.Mode.REMOTE)
+      return type.connect(properties.getRemoteEndpoint().toString());
+    BrowserType.LaunchOptions launch =
+        new BrowserType.LaunchOptions().setHeadless(properties.isHeadless());
+    if (properties.getChannel() != null && !properties.getChannel().isBlank())
+      launch.setChannel(properties.getChannel());
+    return type.launch(launch);
+  }
+
+  private Browser.NewContextOptions createContextOptions() {
+    Browser.NewContextOptions options =
+        new Browser.NewContextOptions()
+            .setViewportSize(properties.getViewportWidth(), properties.getViewportHeight());
+    if (properties.getStorageState() != null)
+      options.setStorageStatePath(properties.getStorageState());
+    if (properties.getEvidence().isVideo()) {
+      requireVisualPolicy("video");
+      options.setRecordVideoDir(evidenceDirectory());
+    }
+    return options;
   }
 
   private BrowserType browserType(Playwright owner) {
@@ -144,15 +149,7 @@ final class DefaultPlaywrightController implements PlaywrightController {
   public Stream<TestArtifact> collectArtifacts(ArtifactReason reason) {
     ensureInitializedOrFailed();
     List<TestArtifact> artifacts = new ArrayList<>();
-    if (reason == ArtifactReason.FAILURE && page != null) {
-      if (properties.getEvidence().isScreenshotOnFailure()
-          && properties.getEvidence().isAllowVisualArtifacts()) {
-        artifacts.add(
-            binaryArtifact("failure-screenshot.png", "screenshot", page.screenshot(), "image/png"));
-      }
-      if (properties.getEvidence().isDomOnFailure())
-        artifacts.add(textArtifact("page.html", "dom", page.content(), "text/html"));
-    }
+    captureFailureArtifacts(reason, artifacts);
     if (properties.getEvidence().isConsoleErrors() && !consoleErrors.isEmpty())
       artifacts.add(
           textArtifact(
@@ -164,18 +161,31 @@ final class DefaultPlaywrightController implements PlaywrightController {
     stopTraceIfNeeded();
     if (tracePath != null && Files.exists(tracePath))
       artifacts.add(binaryArtifact("trace.zip", "trace", read(tracePath), "application/zip"));
-    if (properties.getEvidence().isVideo() && page != null && page.video() != null) {
-      Video video = page.video();
-      Throwable closeFailure = close(browserContext, null);
-      browserContext = null;
-      page = null;
-      if (closeFailure != null)
-        throw new PlaywrightControllerException(
-            "evidence", "browser context could not be finalized for video capture", closeFailure);
-      artifacts.add(binaryArtifact("video.webm", "video", read(video.path()), "video/webm"));
-    }
+    finalizeVideoAndReleaseContext(artifacts);
     artifacts.forEach(controllerContext.artifacts()::addArtifact);
     return artifacts.stream();
+  }
+
+  private void captureFailureArtifacts(ArtifactReason reason, List<TestArtifact> artifacts) {
+    if (reason != ArtifactReason.FAILURE || page == null) return;
+    if (properties.getEvidence().isScreenshotOnFailure()
+        && properties.getEvidence().isAllowVisualArtifacts())
+      artifacts.add(
+          binaryArtifact("failure-screenshot.png", "screenshot", page.screenshot(), "image/png"));
+    if (properties.getEvidence().isDomOnFailure())
+      artifacts.add(textArtifact("page.html", "dom", page.content(), "text/html"));
+  }
+
+  private void finalizeVideoAndReleaseContext(List<TestArtifact> artifacts) {
+    if (!properties.getEvidence().isVideo() || page == null || page.video() == null) return;
+    Video video = page.video();
+    Throwable closeFailure = close(browserContext, null);
+    browserContext = null;
+    page = null;
+    if (closeFailure != null)
+      throw new PlaywrightControllerException(
+          "evidence", "browser context could not be finalized for video capture", closeFailure);
+    artifacts.add(binaryArtifact("video.webm", "video", read(video.path()), "video/webm"));
   }
 
   private TestArtifact textArtifact(String name, String type, String content, String contentType) {
