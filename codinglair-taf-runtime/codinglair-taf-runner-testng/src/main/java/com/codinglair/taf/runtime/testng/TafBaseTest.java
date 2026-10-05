@@ -153,13 +153,13 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
     try {
       lifecycle.close(descriptor, InvocationOutcome.setupFailed(setupFailure));
     } catch (Throwable cleanupFailure) {
-      if (cleanupFailure != setupFailure) setupFailure.addSuppressed(cleanupFailure);
+      suppressSecondary(setupFailure, cleanupFailure);
     } finally {
       result.setThrowable(setupFailure);
       try {
         finishInvocation(result, descriptor, true);
       } catch (Throwable finalizationFailure) {
-        if (finalizationFailure != setupFailure) setupFailure.addSuppressed(finalizationFailure);
+        suppressSecondary(setupFailure, finalizationFailure);
       }
     }
   }
@@ -174,15 +174,23 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
         else finishReporting(result);
       }
     } finally {
-      invocation.remove();
-      metadata.remove();
-      reporting.remove();
-      try {
-        currentReporting.unbind();
-      } finally {
-        SessionFactory.unbindObservation(result);
-      }
+      unbindInvocationContext(result);
     }
+  }
+
+  private void unbindInvocationContext(ITestResult result) {
+    invocation.remove();
+    metadata.remove();
+    reporting.remove();
+    try {
+      currentReporting.unbind();
+    } finally {
+      SessionFactory.unbindObservation(result);
+    }
+  }
+
+  private static void suppressSecondary(Throwable primary, Throwable secondary) {
+    if (secondary != primary) primary.addSuppressed(secondary);
   }
 
   private TestDefinitionResolver definitionResolver() {
