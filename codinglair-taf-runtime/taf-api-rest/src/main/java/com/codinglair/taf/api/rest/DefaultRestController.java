@@ -117,17 +117,7 @@ final class DefaultRestController implements RestController {
     do {
       latest = execute(request);
       if (condition.test(latest)) return latest;
-      try {
-        Thread.sleep(
-            Math.min(
-                interval.toMillis(),
-                Math.max(
-                    1, Duration.ofNanos(Math.max(0, deadline - System.nanoTime())).toMillis())));
-      } catch (InterruptedException failure) {
-        Thread.currentThread().interrupt();
-        throw new RestControllerException(
-            "poll", "preserve cancellation and retry only when appropriate", failure);
-      }
+      waitForNextAttempt(interval, deadline);
     } while (System.nanoTime() < deadline);
     throw new RestControllerException(
         "poll",
@@ -149,36 +139,12 @@ final class DefaultRestController implements RestController {
   }
 
   private void capture(RestRequest request, RestResponse response) {
-    String requestEvidence =
-        request.method()
-            + " "
-            + request.path()
-            + "\nheaders="
-            + sanitize(request.headers())
-            + "\ncookies="
-            + (request.cookies().isEmpty() ? "{}" : "[REDACTED]")
-            + "\nbody="
-            + display(request.body(), request.contentType());
-    String responseEvidence =
-        "status="
-            + response.statusCode()
-            + "\nheaders="
-            + sanitize(
-                response.nativeResponse().headers().asList().stream()
-                    .collect(
-                        java.util.stream.Collectors.toMap(
-                            io.restassured.http.Header::getName,
-                            io.restassured.http.Header::getValue,
-                            (first, second) -> second,
-                            LinkedHashMap::new)))
-            + "\nbody="
-            + display(response.body(), response.nativeResponse().contentType());
     context
         .artifacts()
         .addArtifact(
             "rest-request-" + context.artifacts().nextSequenceNumber() + ".txt",
             "http-request",
-            requestEvidence,
+            requestEvidence(request),
             "text/plain",
             null);
     context
@@ -186,9 +152,49 @@ final class DefaultRestController implements RestController {
         .addArtifact(
             "rest-response-" + context.artifacts().nextSequenceNumber() + ".txt",
             "http-response",
-            responseEvidence,
+            responseEvidence(response),
             "text/plain",
             null);
+  }
+
+  private static void waitForNextAttempt(Duration interval, long deadline) {
+    long remainingMillis = Duration.ofNanos(Math.max(0, deadline - System.nanoTime())).toMillis();
+    try {
+      Thread.sleep(Math.min(interval.toMillis(), Math.max(1, remainingMillis)));
+    } catch (InterruptedException failure) {
+      Thread.currentThread().interrupt();
+      throw new RestControllerException(
+          "poll", "preserve cancellation and retry only when appropriate", failure);
+    }
+  }
+
+  private static String requestEvidence(RestRequest request) {
+    return request.method()
+        + " "
+        + request.path()
+        + "\nheaders="
+        + sanitize(request.headers())
+        + "\ncookies="
+        + (request.cookies().isEmpty() ? "{}" : "[REDACTED]")
+        + "\nbody="
+        + display(request.body(), request.contentType());
+  }
+
+  private static String responseEvidence(RestResponse response) {
+    Map<String, String> headers =
+        response.nativeResponse().headers().asList().stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    io.restassured.http.Header::getName,
+                    io.restassured.http.Header::getValue,
+                    (first, second) -> second,
+                    LinkedHashMap::new));
+    return "status="
+        + response.statusCode()
+        + "\nheaders="
+        + sanitize(headers)
+        + "\nbody="
+        + display(response.body(), response.nativeResponse().contentType());
   }
 
   private static Map<String, Object> sanitize(Map<String, ?> source) {
