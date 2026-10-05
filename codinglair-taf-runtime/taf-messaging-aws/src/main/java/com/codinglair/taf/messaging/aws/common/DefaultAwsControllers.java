@@ -18,6 +18,7 @@ import java.util.stream.Stream;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
+import software.amazon.awssdk.services.eventbridge.model.PutEventsResultEntry;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
@@ -188,35 +189,11 @@ final class DefaultAwsControllers {
           request.timeout().compareTo(connection.getPolicy().getOperationTimeout()) > 0
               ? connection.getPolicy().getOperationTimeout()
               : request.timeout();
-      int waitSeconds = Math.toIntExact(Math.min(20, Math.max(0, allowed.toSeconds())));
       try {
-        var response =
-            client.receiveMessage(
-                builder ->
-                    builder
-                        .queueUrl(settings.getQueue())
-                        .maxNumberOfMessages(request.maximumMessages())
-                        .waitTimeSeconds(waitSeconds)
-                        .messageAttributeNames("All")
-                        .messageSystemAttributeNames(
-                            MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT,
-                            MessageSystemAttributeName.SENT_TIMESTAMP));
+        var response = client.receiveMessage(receiveRequest(request, allowed));
         List<ReceivedSqsMessage> matches = new ArrayList<>();
         for (Message sdkMessage : response.messages()) {
-          ReceivedSqsMessage received = AwsResponseMapper.message(sdkMessage, Instant.now());
-          if (matches(sdkMessage, request)) {
-            inFlight
-                .keySet()
-                .removeIf(
-                    existing ->
-                        Objects.equals(
-                            existing.message().messageId(), received.message().messageId()));
-            inFlight.put(
-                received, new SqsVisibility(Optional.empty(), received.message().receivedAt()));
-            matches.add(received);
-          } else {
-            restore(sdkMessage.receiptHandle());
-          }
+          classifyReceivedMessage(sdkMessage, request, matches);
         }
         return List.copyOf(matches);
       } catch (RuntimeException failure) {
@@ -374,19 +351,10 @@ final class DefaultAwsControllers {
       RuntimeException cleanupFailure = null;
       if (current != null) {
         for (ReceivedSqsMessage message : List.copyOf(inFlight.keySet())) {
-          try {
-            current.changeMessageVisibility(
-                builder ->
-                    builder
-                        .queueUrl(settings.getQueue())
-                        .receiptHandle(message.receiptHandle())
-                        .visibilityTimeout(0));
-            inFlight.remove(message);
-          } catch (RuntimeException failure) {
-            if (messageNoLongerInFlight(failure)) inFlight.remove(message);
-            else if (cleanupFailure == null) cleanupFailure = failure;
-            else cleanupFailure.addSuppressed(failure);
-          }
+          RuntimeException failure = restoreInFlightMessage(current, message);
+          if (failure == null) continue;
+          if (cleanupFailure == null) cleanupFailure = failure;
+          else cleanupFailure.addSuppressed(failure);
         }
         current.close();
       }
@@ -399,6 +367,54 @@ final class DefaultAwsControllers {
           && sqs.statusCode() == 400
           && ("ReceiptHandleIsInvalid".equals(sqs.awsErrorDetails().errorCode())
               || "InvalidParameterValue".equals(sqs.awsErrorDetails().errorCode()));
+    }
+
+    private RuntimeException restoreInFlightMessage(SqsClient current, ReceivedSqsMessage message) {
+      try {
+        current.changeMessageVisibility(
+            builder ->
+                builder
+                    .queueUrl(settings.getQueue())
+                    .receiptHandle(message.receiptHandle())
+                    .visibilityTimeout(0));
+        inFlight.remove(message);
+        return null;
+      } catch (RuntimeException failure) {
+        if (messageNoLongerInFlight(failure)) {
+          inFlight.remove(message);
+          return null;
+        }
+        return failure;
+      }
+    }
+
+    private ReceiveMessageRequest receiveRequest(SqsReceiveRequest request, Duration allowed) {
+      int waitSeconds = Math.toIntExact(Math.min(20, Math.max(0, allowed.toSeconds())));
+      return ReceiveMessageRequest.builder()
+          .queueUrl(settings.getQueue())
+          .maxNumberOfMessages(request.maximumMessages())
+          .waitTimeSeconds(waitSeconds)
+          .messageAttributeNames("All")
+          .messageSystemAttributeNames(
+              MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT,
+              MessageSystemAttributeName.SENT_TIMESTAMP)
+          .build();
+    }
+
+    private void classifyReceivedMessage(
+        Message sdkMessage, SqsReceiveRequest request, List<ReceivedSqsMessage> matches) {
+      ReceivedSqsMessage received = AwsResponseMapper.message(sdkMessage, Instant.now());
+      if (!matches(sdkMessage, request)) {
+        restore(sdkMessage.receiptHandle());
+        return;
+      }
+      inFlight
+          .keySet()
+          .removeIf(
+              existing ->
+                  Objects.equals(existing.message().messageId(), received.message().messageId()));
+      inFlight.put(received, new SqsVisibility(Optional.empty(), received.message().receivedAt()));
+      matches.add(received);
     }
 
     private SqsVisibility requireOwned(ReceivedSqsMessage message) {
@@ -535,41 +551,13 @@ final class DefaultAwsControllers {
         throw new IllegalArgumentException("events must contain between 1 and 10 entries");
       try {
         List<String> details = events.stream().map(envelopes::detail).toList();
-        List<PutEventsRequestEntry> entries = new ArrayList<>();
-        for (int index = 0; index < events.size(); index++) {
-          EventPublishRequest event = events.get(index);
-          entries.add(
-              PutEventsRequestEntry.builder()
-                  .eventBusName(settings.getEventBus())
-                  .source(event.source())
-                  .detailType(event.detailType())
-                  .detail(details.get(index))
-                  .resources(event.resources())
-                  .traceHeader(event.traceHeader())
-                  .build());
-        }
+        List<PutEventsRequestEntry> entries = requestEntries(events, details);
         var response = client.putEvents(PutEventsRequest.builder().entries(entries).build());
         List<EventPublishEntryResult> results = new ArrayList<>();
         List<EventPublishEvidence> evidence = new ArrayList<>();
         for (int index = 0; index < events.size(); index++) {
-          if (index < response.entries().size())
-            results.add(AwsResponseMapper.eventEntry(index, response.entries().get(index)));
-          else
-            results.add(
-                new EventPublishEntryResult(
-                    index, false, null, "MissingResult", "AWS returned no result for this entry"));
-          EventPublishRequest event = events.get(index);
-          evidence.add(
-              new EventPublishEvidence(
-                  index,
-                  event.source(),
-                  event.detailType(),
-                  event.resources(),
-                  AwsEvidenceSanitizer.attributes(event.metadata()),
-                  event.correlationId(),
-                  AwsEvidenceSanitizer.payload(
-                      envelopes.sanitizedDetail(details.get(index)),
-                      connection.getPolicy().getMaximumEvidenceBytes())));
+          results.add(entryResult(index, response.entries()));
+          evidence.add(publishEvidence(index, events.get(index), details.get(index)));
         }
         EventPublishResult result = new EventPublishResult(results, evidence, Instant.now());
         for (EventPublishEvidence item : evidence)
@@ -578,6 +566,44 @@ final class DefaultAwsControllers {
       } catch (RuntimeException failure) {
         throw publishFailure("EventBridge", "publish", failure);
       }
+    }
+
+    private List<PutEventsRequestEntry> requestEntries(
+        List<EventPublishRequest> events, List<String> details) {
+      List<PutEventsRequestEntry> entries = new ArrayList<>();
+      for (int index = 0; index < events.size(); index++) {
+        EventPublishRequest event = events.get(index);
+        entries.add(
+            PutEventsRequestEntry.builder()
+                .eventBusName(settings.getEventBus())
+                .source(event.source())
+                .detailType(event.detailType())
+                .detail(details.get(index))
+                .resources(event.resources())
+                .traceHeader(event.traceHeader())
+                .build());
+      }
+      return entries;
+    }
+
+    private static EventPublishEntryResult entryResult(
+        int index, List<PutEventsResultEntry> entries) {
+      if (index < entries.size()) return AwsResponseMapper.eventEntry(index, entries.get(index));
+      return new EventPublishEntryResult(
+          index, false, null, "MissingResult", "AWS returned no result for this entry");
+    }
+
+    private EventPublishEvidence publishEvidence(
+        int index, EventPublishRequest event, String detail) {
+      return new EventPublishEvidence(
+          index,
+          event.source(),
+          event.detailType(),
+          event.resources(),
+          AwsEvidenceSanitizer.attributes(event.metadata()),
+          event.correlationId(),
+          AwsEvidenceSanitizer.payload(
+              envelopes.sanitizedDetail(detail), connection.getPolicy().getMaximumEvidenceBytes()));
     }
 
     public EventRouteResult verifyRoute(EventRouteRequest request, SqsController target)

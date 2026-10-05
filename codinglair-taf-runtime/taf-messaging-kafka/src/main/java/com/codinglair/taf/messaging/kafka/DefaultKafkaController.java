@@ -175,16 +175,8 @@ final class DefaultKafkaController implements KafkaController {
           Duration remaining = Duration.ofNanos(Math.max(1, deadline - System.nanoTime()));
           ConsumerRecords<byte[], byte[]> records =
               consumer.poll(min(remaining, Duration.ofMillis(100)));
-          for (ConsumerRecord<byte[], byte[]> nativeRecord : records) {
-            MessageRecord candidate = fromNative(nativeRecord, consumerGroup);
-            if (query.selector().matches(candidate)) {
-              commitAfter(consumer, nativeRecord);
-              remember("consume", candidate);
-              return ConsumptionResult.matched(candidate, elapsed(started));
-            }
-            buffer(query.destination(), candidate);
-            commitAfter(consumer, nativeRecord);
-          }
+          ConsumptionResult match = handleRecords(consumer, records, query, consumerGroup, started);
+          if (match != null) return match;
         }
         return ConsumptionResult.noMatch(elapsed(started));
       } catch (InterruptException failure) {
@@ -246,16 +238,25 @@ final class DefaultKafkaController implements KafkaController {
   }
 
   private void ensureTopic(String topic) {
+    if (topicExists(topic)) return;
+    if (settings.getTopicPolicy() == KafkaTopicPolicy.REQUIRE_EXISTING)
+      throw new KafkaControllerException(
+          "resolve topic", "create the topic or select CREATE_IF_MISSING", null);
+    createTopic(topic);
+  }
+
+  private boolean topicExists(String topic) {
     try {
-      if (admin
+      return admin
           .describeTopics(List.of(topic))
           .allTopicNames()
           .get(settings.getOperationTimeout().toMillis(), TimeUnit.MILLISECONDS)
-          .containsKey(topic)) return;
+          .containsKey(topic);
     } catch (ExecutionException failure) {
       if (settings.getTopicPolicy() == KafkaTopicPolicy.REQUIRE_EXISTING)
         throw new KafkaControllerException(
             "resolve topic", "create the topic or select CREATE_IF_MISSING", failure);
+      return false;
     } catch (InterruptedException failure) {
       Thread.currentThread().interrupt();
       throw new KafkaControllerException(
@@ -263,9 +264,9 @@ final class DefaultKafkaController implements KafkaController {
     } catch (TimeoutException failure) {
       throw new KafkaControllerException("resolve topic", "verify broker availability", failure);
     }
-    if (settings.getTopicPolicy() == KafkaTopicPolicy.REQUIRE_EXISTING)
-      throw new KafkaControllerException(
-          "resolve topic", "create the topic or select CREATE_IF_MISSING", null);
+  }
+
+  private void createTopic(String topic) {
     try {
       admin
           .createTopics(
@@ -285,6 +286,25 @@ final class DefaultKafkaController implements KafkaController {
     } catch (TimeoutException failure) {
       throw new KafkaControllerException("create topic", "verify broker availability", failure);
     }
+  }
+
+  private ConsumptionResult handleRecords(
+      Consumer<byte[], byte[]> consumer,
+      ConsumerRecords<byte[], byte[]> records,
+      MessageQuery query,
+      String consumerGroup,
+      long started) {
+    for (ConsumerRecord<byte[], byte[]> nativeRecord : records) {
+      MessageRecord candidate = fromNative(nativeRecord, consumerGroup);
+      if (query.selector().matches(candidate)) {
+        commitAfter(consumer, nativeRecord);
+        remember("consume", candidate);
+        return ConsumptionResult.matched(candidate, elapsed(started));
+      }
+      buffer(query.destination(), candidate);
+      commitAfter(consumer, nativeRecord);
+    }
+    return null;
   }
 
   private MessageRecord fromNative(ConsumerRecord<byte[], byte[]> value, String group) {
