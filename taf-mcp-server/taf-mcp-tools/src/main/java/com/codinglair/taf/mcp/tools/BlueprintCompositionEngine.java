@@ -1,5 +1,6 @@
 package com.codinglair.taf.mcp.tools;
 
+import com.codinglair.taf.mobile.ApplePlatformManifest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -242,21 +243,18 @@ public final class BlueprintCompositionEngine {
           platform, automation, family, mode, deviceKind, topology, applicationMode);
     }
 
-    String expectedFamily = platform == MobilePlatform.IPADOS ? "IPAD" : "IPHONE";
-    family = family == null ? expectedFamily : family;
-    if (!expectedFamily.equals(family)) unsupported(diagnostics, "mobile family/platform conflict");
-    mode = defaultToken(mode, "NATIVE", List.of("NATIVE", "HYBRID", "SAFARI"), diagnostics);
-    deviceKind =
-        defaultToken(deviceKind, "SIMULATOR", List.of("SIMULATOR", "PHYSICAL"), diagnostics);
-    topology =
-        defaultToken(
-            topology, "REMOTE_HOST", List.of("LOCAL_HOST", "REMOTE_HOST", "PROVIDER"), diagnostics);
-    if ("SAFARI".equals(mode)) {
-      if (applicationMode != null) unsupported(diagnostics, "application mode with Safari");
-    } else {
-      applicationMode =
-          defaultToken(
-              applicationMode, "PREINSTALLED", List.of("PREINSTALLED", "PACKAGED"), diagnostics);
+    try {
+      var apple =
+          ApplePlatformManifest.validate(
+              platform.name(), family, mode, deviceKind, topology, applicationMode, automation);
+      family = apple.family().name();
+      mode = apple.mode();
+      deviceKind = apple.targetKind();
+      topology = apple.topology();
+      applicationMode = apple.applicationMode();
+      automation = apple.automationName().toUpperCase(Locale.ROOT);
+    } catch (IllegalArgumentException failure) {
+      unsupported(diagnostics, failure.getMessage());
     }
     return new MobileSelection(
         platform, automation, family, mode, deviceKind, topology, applicationMode);
@@ -583,13 +581,6 @@ public final class BlueprintCompositionEngine {
         yield MobilePlatform.ANDROID;
       }
     };
-  }
-
-  private static String defaultToken(
-      String value, String fallback, List<String> supported, List<Diagnostic> diagnostics) {
-    String result = value == null ? fallback : value;
-    if (!supported.contains(result)) unsupported(diagnostics, "Apple mobile selection");
-    return result;
   }
 
   private static List<Capability> parseCapabilities(

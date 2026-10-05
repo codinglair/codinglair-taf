@@ -87,7 +87,8 @@ class StdioExternalClientSmokeTest {
             assertThat(client.readResource(new McpSchema.ReadResourceRequest("taf://capabilities")))
                 .extracting(result -> result.contents().toString())
                 .asString()
-                .contains("stdio");
+                .contains("stdio", "mobile.apple", "execute-fixture", "does not allocate")
+                .doesNotContain("stdio-secret-canary", "https://");
             assertThat(
                     client.getPrompt(
                         new McpSchema.GetPromptRequest(
@@ -205,6 +206,16 @@ class StdioExternalClientSmokeTest {
     var arguments = new java.util.LinkedHashMap<String, Object>();
     arguments.put("workspace", "");
     arguments.put("selector", "SmokeSuite");
+    arguments.put(
+        "requiredCapabilities",
+        java.util.List.of(
+            Map.of(
+                "capabilityId",
+                "mobile.apple",
+                "instance",
+                "fixture",
+                "operations",
+                java.util.List.of(operation.equals("validate") ? "validate" : "execute-fixture"))));
     if (targetJobId != null) {
       arguments.put("targetJobId", targetJobId);
     }

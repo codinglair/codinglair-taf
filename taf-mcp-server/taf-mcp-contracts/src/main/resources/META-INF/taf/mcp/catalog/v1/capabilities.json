@@ -36,6 +36,30 @@
       "requiredConfiguration": [
         "taf.aws.connections.<profile>.sqs.<instance>"
       ]
+    },
+    {
+      "id": "mobile.apple",
+      "version": "1.3.0",
+      "operations": [
+        "discover",
+        "validate",
+        "execute-fixture",
+        "cancel",
+        "scaffold",
+        "screenshot",
+        "source",
+        "syslog",
+        "video"
+      ],
+      "limitations": [
+        "External prepared Appium/XCUITest infrastructure is required",
+        "Artifact availability is conditional",
+        "Passive discovery does not allocate a target or create a session"
+      ],
+      "requiredConfiguration": [
+        "taf.mobile.apple.instances.<name>",
+        "external Appium/XCUITest endpoint and authorized target"
+      ]
     }
   ],
   "tools": [
