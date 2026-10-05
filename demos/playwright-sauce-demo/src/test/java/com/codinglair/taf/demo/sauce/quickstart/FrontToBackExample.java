@@ -58,21 +58,7 @@ public class FrontToBackExample extends TafBaseTest {
       var completed =
           AwaitableAssertion.create(
                   "API and database agree on COMPLETE",
-                  ignored -> {
-                    var apiOrder =
-                        api.execute(
-                            RestRequest.request(Method.GET, "/orders/{id}")
-                                .pathParameter("id", ownedOrderId)
-                                .build());
-                    if (apiOrder.statusCode() != 200) return false;
-                    var rows =
-                        database.query(
-                            "select status from orders where order_id = ?", ownedOrderId);
-                    return "COMPLETE"
-                            .equals(apiOrder.nativeResponse().jsonPath().getString("status"))
-                        && rows.rowCount() == 1
-                        && "COMPLETE".equals(rows.rows().getFirst().get("status"));
-                  },
+                  ignored -> isOrderComplete(api, database, ownedOrderId),
                   Duration.ofSeconds(60),
                   Duration.ofSeconds(1))
               .await();
@@ -88,19 +74,34 @@ public class FrontToBackExample extends TafBaseTest {
       primaryFailure = failure;
       throw failure;
     } finally {
-      if (orderId != null) {
-        try {
-          api.execute(
-                  RestRequest.request(Method.DELETE, "/orders/{id}")
-                      .pathParameter("id", orderId)
-                      .header("X-Correlation-Id", traceId)
-                      .build())
-              .assertStatus(204);
-        } catch (RuntimeException | AssertionError cleanupFailure) {
-          if (primaryFailure != null) primaryFailure.addSuppressed(cleanupFailure);
-          else throw cleanupFailure;
-        }
-      }
+      cleanupOwnedOrder(api, orderId, traceId, primaryFailure);
+    }
+  }
+
+  private boolean isOrderComplete(RestController api, DatabaseController database, String orderId) {
+    var apiOrder =
+        api.execute(
+            RestRequest.request(Method.GET, "/orders/{id}").pathParameter("id", orderId).build());
+    if (apiOrder.statusCode() != 200) return false;
+    var rows = database.query("select status from orders where order_id = ?", orderId);
+    return "COMPLETE".equals(apiOrder.nativeResponse().jsonPath().getString("status"))
+        && rows.rowCount() == 1
+        && "COMPLETE".equals(rows.rows().getFirst().get("status"));
+  }
+
+  private void cleanupOwnedOrder(
+      RestController api, String orderId, String traceId, Throwable primaryFailure) {
+    if (orderId == null) return;
+    try {
+      api.execute(
+              RestRequest.request(Method.DELETE, "/orders/{id}")
+                  .pathParameter("id", orderId)
+                  .header("X-Correlation-Id", traceId)
+                  .build())
+          .assertStatus(204);
+    } catch (RuntimeException | AssertionError cleanupFailure) {
+      if (primaryFailure != null) primaryFailure.addSuppressed(cleanupFailure);
+      else throw cleanupFailure;
     }
   }
 }
