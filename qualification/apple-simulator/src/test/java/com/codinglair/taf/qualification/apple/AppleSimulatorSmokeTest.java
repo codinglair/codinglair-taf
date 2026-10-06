@@ -19,7 +19,9 @@ import org.springframework.test.context.ContextConfiguration;
 import org.testng.annotations.Test;
 
 @ActiveProfiles("taf-local")
-@ContextConfiguration(classes = AppleSimulatorConfiguration.class)
+@ContextConfiguration(
+    classes = AppleSimulatorConfiguration.class,
+    initializers = AppleSimulatorConfiguration.Initializer.class)
 public final class AppleSimulatorSmokeTest extends TafBaseTest {
   private static final AppleLocator NATIVE_ACTION =
       new AppleLocator(AppleLocator.Kind.ACCESSIBILITY, "native-action");

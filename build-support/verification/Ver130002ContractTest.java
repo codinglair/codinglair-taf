@@ -26,9 +26,19 @@ public final class Ver130002ContractTest {
     require(smoke, "controller(AppleController.class", "nativeApplicationInteractionAndRelaunch",
         "hybridWebViewAndNativeReturn", "mobileSafariUsesLocalDeterministicPage",
         "@ActiveProfiles(\"taf-local\")", "AwaitableAssertion.create",
+        "AppleSimulatorConfiguration.Initializer.class",
         "collectArtifacts(ArtifactReason.EXPLICIT)",
         "Nonempty screenshot and page source are required");
     reject(smoke, "IOSDriver", "Thread.sleep(", "SkipException");
+
+    String configurationTest = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorConfigurationTest.java");
+    require(configurationTest, "AppleSimulatorConfiguration.Initializer.class",
+        "hasController(AppleController.class, \"native\")",
+        "hasController(AppleController.class, \"hybrid\")",
+        "hasController(AppleController.class, \"safari\")");
+    String configuration = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorConfiguration.java");
+    require(configuration, "YamlPropertySourceLoader", "ClassPathResource(\"application.yml\")",
+        "Cannot load Apple simulator configuration");
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",
