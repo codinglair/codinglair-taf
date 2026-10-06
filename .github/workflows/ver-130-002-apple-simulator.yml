@@ -1,0 +1,63 @@
+name: VER-130-002 Apple Simulator Qualification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'qualification/apple-simulator/**'
+      - 'codinglair-taf-runtime/taf-mobile-appium/**'
+      - '.github/workflows/ver-130-002-apple-simulator.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ver-130-002-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      APPLE_XCODE_PATH: /Applications/Xcode_16.4.app/Contents/Developer
+      APPLE_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
+      APPLE_DEVICE_TYPE: com.apple.CoreSimulator.SimDeviceType.iPhone-16
+      APPLE_PLATFORM_VERSION: '18.5'
+      APPIUM_VERSION: '3.0.0'
+      XCUITEST_VERSION: '10.0.0'
+      TAF_VERSION: '1.2.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Record hosted runner metadata
+        shell: bash
+        run: |
+          mkdir -p target/ver-130-002
+          printf '%s\n' \
+            "runnerImage=${ImageOS:-unknown}" \
+            "runnerImageVersion=${ImageVersion:-unknown}" \
+            "runId=${GITHUB_RUN_ID}" \
+            "runAttempt=${GITHUB_RUN_ATTEMPT}" \
+            "testedSha=${GITHUB_SHA}" > target/ver-130-002/runner-metadata.txt
+      - name: Execute real Apple simulator smoke
+        shell: bash
+        run: bash qualification/apple-simulator/run-smoke.sh
+      - name: Retain sanitized qualification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ver-130-002-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/ver-130-002/**
+            qualification/apple-simulator/target/surefire-reports/**
+            qualification/apple-simulator/target/apple-evidence/**
+          if-no-files-found: error
+          retention-days: 14

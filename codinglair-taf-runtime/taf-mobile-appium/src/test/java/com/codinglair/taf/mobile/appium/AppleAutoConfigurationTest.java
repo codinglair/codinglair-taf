@@ -199,6 +199,33 @@ class AppleAutoConfigurationTest {
   }
 
   @Test
+  @DisplayName("allows execution preflight after every local prerequisite is confirmed")
+  void confirmedLocalPreflight() {
+    runner
+        .withPropertyValues(
+            "taf.mobile.apple.enabled=true",
+            "taf.mobile.apple.platform=ios",
+            "taf.mobile.apple.device-kind=simulator",
+            "taf.mobile.apple.server-url=http://127.0.0.1:4723",
+            "taf.mobile.apple.bundle-id=com.example.fixture",
+            "taf.mobile.apple.device-name=fixture",
+            "taf.mobile.apple.prerequisites.endpoint=true",
+            "taf.mobile.apple.prerequisites.compatibility=true",
+            "taf.mobile.apple.prerequisites.target=true",
+            "taf.mobile.apple.prerequisites.application=true",
+            "taf.mobile.apple.prerequisites.wda=true",
+            "taf.mobile.apple.prerequisites.doctor=true",
+            "taf.mobile.apple.prerequisites.xcode=true",
+            "taf.mobile.apple.prerequisites.device=true",
+            "taf.mobile.apple.prerequisites.signing=true")
+        .run(
+            c -> {
+              assertThat(c).hasNotFailed();
+              assertThat(c.getBean(ConsumerPreflight.class).inspect().passed()).isTrue();
+            });
+  }
+
+  @Test
   @DisplayName("binds packaged references and nested WDA options through Spring")
   void nestedBinding() {
     runner

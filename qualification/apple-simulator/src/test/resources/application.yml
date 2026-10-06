@@ -1,0 +1,57 @@
+taf:
+  mobile:
+    apple:
+      enabled: true
+      controllers:
+        native: &fixture
+          platform: ios
+          device-family: IPHONE
+          automation-name: XCUITest
+          execution-mode: NATIVE
+          device-kind: SIMULATOR
+          topology: LOCAL_HOST
+          server-url: http://127.0.0.1:4723
+          device-name: '${APPLE_DEVICE_NAME}'
+          device-id: '${APPLE_DEVICE_UDID}'
+          platform-version: '${APPLE_PLATFORM_VERSION}'
+          application-mode: PREINSTALLED
+          bundle-id: com.codinglair.taf.fixture
+          allow-visual-artifacts: true
+          screenshot-on-failure: true
+          page-source-on-failure: true
+          device-logs: true
+          video: true
+          require-evidence: false
+          context-timeout: 30s
+          cleanup-timeout: 30s
+          prerequisites: &confirmed
+            endpoint: true
+            compatibility: true
+            target: true
+            application: true
+            wda: true
+            doctor: true
+            xcode: true
+            device: true
+            signing: true
+        hybrid:
+          <<: *fixture
+          execution-mode: HYBRID
+        safari:
+          platform: ios
+          device-family: IPHONE
+          automation-name: XCUITest
+          execution-mode: SAFARI
+          device-kind: SIMULATOR
+          topology: LOCAL_HOST
+          server-url: http://127.0.0.1:4723
+          device-name: '${APPLE_DEVICE_NAME}'
+          device-id: '${APPLE_DEVICE_UDID}'
+          platform-version: '${APPLE_PLATFORM_VERSION}'
+          allow-visual-artifacts: true
+          screenshot-on-failure: true
+          page-source-on-failure: true
+          device-logs: true
+          video: true
+          require-evidence: false
+          prerequisites: *confirmed
