@@ -20,6 +20,7 @@ export APPIUM_HOME="$OUT/appium-home"
 udid=""
 appium_pid=""
 web_pid=""
+candidate_log=""
 
 cleanup() {
   local status=$?
@@ -29,12 +30,15 @@ cleanup() {
     xcrun simctl shutdown "$udid" 2>/dev/null || true
     xcrun simctl delete "$udid" 2>/dev/null || true
   fi
+  mkdir -p "$OUT/logs"
+  if [[ -n "$candidate_log" && -f "$candidate_log" ]]; then
+    mv "$candidate_log" "$OUT/logs/candidate-build.log" 2>/dev/null || true
+  fi
   printf '%s\n' "exit=$status ownedSimulatorDeleted=$([[ -z "$udid" ]] && echo not-created || echo attempted)" > "$OUT/cleanup.txt"
   exit "$status"
 }
 trap cleanup EXIT INT TERM
 
-mkdir -p "$OUT/logs" "$CANDIDATE_REPO"
 export DEVELOPER_DIR="$XCODE_PATH"
 
 command -v java > /dev/null
@@ -49,6 +53,14 @@ command -v xcrun > /dev/null
 [[ "$(node --version)" == v22.12.0 ]] || { echo 'Node 22.12.0 is required' >&2; exit 11; }
 [[ -d "$XCODE_PATH" ]] || { echo "Selected Xcode is unavailable: $XCODE_PATH" >&2; exit 12; }
 
+candidate_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-candidate.XXXXXX.log")"
+"$ROOT/mvnw" -B -ntp clean deploy -Prelease-staging -DskipTests \
+  "-DaltDeploymentRepository=taf-candidate::default::file:$CANDIDATE_REPO" \
+  | tee "$candidate_log"
+mkdir -p "$OUT/logs" "$CANDIDATE_REPO"
+mv "$candidate_log" "$OUT/logs/candidate-build.log"
+candidate_log=""
+
 xcodebuild -version | tee "$OUT/xcode-version.txt"
 xcrun simctl list --json > "$OUT/simctl-list.json"
 xcrun simctl list runtimes | grep -F "$RUNTIME" > "$OUT/selected-runtime.txt" || {
@@ -57,10 +69,6 @@ xcrun simctl list runtimes | grep -F "$RUNTIME" > "$OUT/selected-runtime.txt" ||
 xcrun simctl list devicetypes | grep -F "$DEVICE_TYPE" > "$OUT/selected-device-type.txt" || {
   echo "Selected device type is unavailable: $DEVICE_TYPE" >&2; exit 14;
 }
-
-"$ROOT/mvnw" -B -ntp clean deploy -Prelease-staging -DskipTests \
-  "-DaltDeploymentRepository=taf-candidate::default::file:$CANDIDATE_REPO" \
-  | tee "$OUT/logs/candidate-build.log"
 
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 arch="$(uname -m)"

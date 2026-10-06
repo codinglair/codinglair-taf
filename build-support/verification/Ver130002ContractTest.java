@@ -10,13 +10,16 @@ public final class Ver130002ContractTest {
     require(workflow, "workflow_dispatch:", "pull_request:", "runs-on: macos-15",
         "java-version: '25'", "node-version: '22.12.0'", "APPIUM_VERSION: '3.0.0'",
         "XCUITEST_VERSION: '10.0.0'", "permissions:\n  contents: read", "if: ${{ always() }}");
+    requireOrder(workflow, "Execute real Apple simulator smoke", "Record hosted runner metadata");
     reject(workflow, "continue-on-error", "pull_request_target");
 
     String runner = read("qualification/apple-simulator/run-smoke.sh");
     require(runner, "simctl create", "simctl bootstatus", "simctl delete", "trap cleanup",
         "clean deploy -Prelease-staging", "-parse-as-library", "driver install", "/status", "/sessions",
         "controlledFailureStillUsesNormalSessionCleanup", "candidate-artifact-sha256.txt",
-        "command -v python3", "cleanup.txt", "compatibility-manifest.txt");
+        "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt");
+    requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
+    requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     reject(runner, "latest", "--relaxed-security");
 
     String smoke = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorSmokeTest.java");
@@ -57,5 +60,12 @@ public final class Ver130002ContractTest {
   private static void reject(String text, String... values) {
     for (String value : values)
       if (text.contains(value)) throw new AssertionError("Forbidden contract text: " + value);
+  }
+
+  private static void requireOrder(String text, String first, String second) {
+    int firstIndex = text.indexOf(first);
+    int secondIndex = text.indexOf(second);
+    if (firstIndex < 0 || secondIndex < 0 || firstIndex >= secondIndex)
+      throw new AssertionError("Required contract order is missing: " + first + " before " + second);
   }
 }
