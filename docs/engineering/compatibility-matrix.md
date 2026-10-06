@@ -28,7 +28,8 @@ selected by a consumer.
 | Allure | 2.29.0 | Optional reporting adapter |
 | AspectJ Weaver | 1.9.21.2 | Isolated to reporting integration; not a Runtime Core API |
 | Playwright | 1.57.0 | Optional browser capability |
-| Appium Java client | 10.1.1 | Optional Android capability |
+| Appium Java client | 10.1.1 | Optional Android and Apple/XCUITest capability |
+| Selenium BOM | 4.43.0 | Pinned transitive WebDriver boundary for Appium |
 | Testcontainers | 2.0.5 | Optional managed-environment providers |
 | Jackson | 2.19.2 | Managed Runtime serialization baseline |
 
@@ -46,6 +47,10 @@ verification and known limitations.
 - STDIO and Streamable HTTP implement the same versioned MCP application contracts.
 - Optional container, browser, broker, database, and Android checks require the prerequisites
   documented for those profiles; their absence does not make the base Runtime incompatible.
+- Apple 1.3.0 selects Appium server 3.0.0, XCUITest driver 10.0.0, Node 22.12.0 and
+  npm 10.9.0 as qualification candidates. Live macOS/Xcode/WDA/device results remain pending in
+  the [versioned Apple record](../reference/apple-appium-compatibility-1.3.0.md); generic endpoint
+  configurability is not named-provider certification.
 - Public API and schema changes are checked by the `api-compatibility` and
   `schema-compatibility` verification profiles. During the first public release these checks
   establish the baseline used by later releases.
