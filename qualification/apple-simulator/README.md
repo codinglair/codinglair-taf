@@ -5,6 +5,10 @@ does not inherit the reactor parent and resolves candidate TAF artifacts from th
 by `run-smoke.sh`. The fixture is synthetic source built for the selected simulator; no generated
 application binary is committed.
 
+Ordinary Maven `verify` compiles the consumer but skips its infrastructure-dependent tests. Only
+the prepared-Mac runner activates them with `-Dtaf.apple.live=true`; missing live infrastructure
+must then fail rather than skip.
+
 Run on a prepared Mac from the repository root:
 
 ```bash

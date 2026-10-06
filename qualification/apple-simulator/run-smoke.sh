@@ -67,6 +67,7 @@ arch="$(uname -m)"
 mkdir -p "$APP"
 cp "$ROOT/qualification/apple-simulator/fixture/Info.plist" "$APP/Info.plist"
 xcrun swiftc "$ROOT/qualification/apple-simulator/fixture/AppDelegate.swift" \
+  -parse-as-library \
   -sdk "$sdk" -target "${arch}-apple-ios${PLATFORM_VERSION}-simulator" \
   -framework UIKit -framework WebKit -o "$APP/TafAppleFixture"
 codesign --force --sign - "$APP"
@@ -102,12 +103,14 @@ export APPLE_TEST_URL="http://127.0.0.1:$WEB_PORT/index.html"
 
 candidate_uri="file://$CANDIDATE_REPO"
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
-  "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" test \
+  "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
+  -Dtaf.apple.live=true test \
   | tee "$OUT/logs/live-smoke.log"
 
 set +e
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
   "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
+  -Dtaf.apple.live=true \
   -Dtaf.apple.controlledFailure=true \
   '-Dtest=AppleSimulatorSmokeTest#controlledFailureStillUsesNormalSessionCleanup' test \
   > "$OUT/logs/controlled-failure.log" 2>&1

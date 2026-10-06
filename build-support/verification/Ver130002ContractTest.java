@@ -14,7 +14,7 @@ public final class Ver130002ContractTest {
 
     String runner = read("qualification/apple-simulator/run-smoke.sh");
     require(runner, "simctl create", "simctl bootstatus", "simctl delete", "trap cleanup",
-        "clean deploy -Prelease-staging", "driver install", "/status", "/sessions",
+        "clean deploy -Prelease-staging", "-parse-as-library", "driver install", "/status", "/sessions",
         "controlledFailureStillUsesNormalSessionCleanup", "candidate-artifact-sha256.txt",
         "command -v python3", "cleanup.txt", "compatibility-manifest.txt");
     reject(runner, "latest", "--relaxed-security");
@@ -28,7 +28,8 @@ public final class Ver130002ContractTest {
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",
-        "<artifactId>codinglair-taf-starter-mobile</artifactId>", "${taf.candidate.repository}");
+        "<artifactId>codinglair-taf-starter-mobile</artifactId>", "${taf.candidate.repository}",
+        "<name>taf.apple.live</name>", "<skipTests>true</skipTests>");
     reject(pom, "<parent>");
 
     String fixture = read("qualification/apple-simulator/fixture/AppDelegate.swift");

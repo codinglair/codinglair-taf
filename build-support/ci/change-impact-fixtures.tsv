@@ -16,5 +16,7 @@ Android emulator approval policy|M:docs/operations/android-emulator-image-approv
 standalone release consumer|M:release/consumer-smoke/mcp-http/pom.xml|||true|true|false|false|false
 reactor and standalone builds|M:codinglair-taf-bom/pom.xml;M:release/consumer-smoke/runtime-core/pom.xml|codinglair-taf-bom||true|true|false|false|true
 standalone example|M:examples/apple-appium-consumer/pom.xml||examples/apple-appium-consumer|true|false|false|false|false
+standalone Apple qualification|M:qualification/apple-simulator/pom.xml||qualification/apple-simulator|false|false|false|false|false
+mobile module and standalone Apple qualification|M:codinglair-taf-runtime/taf-mobile-appium/src/main/java/example.java;M:qualification/apple-simulator/pom.xml|codinglair-taf-runtime/taf-mobile-appium|qualification/apple-simulator|true|true|false|true|false
 reactor and standalone example|M:codinglair-taf-starter-mobile/pom.xml;M:examples/apple-appium-consumer/src/test/java/Example.java|codinglair-taf-starter-mobile|examples/apple-appium-consumer|true|false|false|false|false
 AWS module|M:codinglair-taf-runtime/taf-messaging-aws/src/main/java/example.java|codinglair-taf-runtime/taf-messaging-aws||true|true|false|false|true
