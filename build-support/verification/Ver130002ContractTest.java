@@ -25,7 +25,8 @@ public final class Ver130002ContractTest {
     String smoke = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorSmokeTest.java");
     require(smoke, "controller(AppleController.class", "nativeApplicationInteractionAndRelaunch",
         "hybridWebViewAndNativeReturn", "mobileSafariUsesLocalDeterministicPage",
-        "AwaitableAssertion.create", "collectArtifacts(ArtifactReason.EXPLICIT)",
+        "@ActiveProfiles(\"taf-local\")", "AwaitableAssertion.create",
+        "collectArtifacts(ArtifactReason.EXPLICIT)",
         "Nonempty screenshot and page source are required");
     reject(smoke, "IOSDriver", "Thread.sleep(", "SkipException");
 

@@ -14,9 +14,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.testng.annotations.Test;
 
+@ActiveProfiles("taf-local")
 @ContextConfiguration(classes = AppleSimulatorConfiguration.class)
 public final class AppleSimulatorSmokeTest extends TafBaseTest {
   private static final AppleLocator NATIVE_ACTION =
