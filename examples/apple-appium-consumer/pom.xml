@@ -35,6 +35,28 @@
     </dependency>
 
   </dependencies>
+  <profiles>
+    <profile>
+      <id>taf-candidate</id>
+      <activation>
+        <property>
+          <name>taf.candidate.repository</name>
+        </property>
+      </activation>
+      <repositories>
+        <repository>
+          <id>taf-candidate</id>
+          <url>${taf.candidate.repository}</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
   <build>
     <plugins>
       <plugin>

@@ -27,3 +27,14 @@ and `@taf.staging.repository@` tokens are populated by the root Invoker executio
 Each cloned fixture retains its full `build.log`, Surefire reports, dependency tree, and effective
 POM under `target/consumer-smoke/<fixture>/`. The isolated Maven repository is
 `target/consumer-repository`; the staged release repository is `target/staging-repository`.
+
+The Apple release-candidate gate additionally compiles the standalone native/hybrid/Safari example
+with its `taf-candidate` profile and a separate local repository. Run the complete local contract,
+Android regression, consumer, and MCP image-profile gate with:
+
+```powershell
+pwsh -NoProfile -File build-support/verification/ver-130-001.ps1
+```
+
+Its manifest deliberately classifies Apple results as protocol/consumer evidence and leaves live
+Apple qualification `UNVERIFIED`; `VER-130-002` owns real simulator qualification.
