@@ -1,6 +1,7 @@
 package com.codinglair.taf.mcp.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -106,6 +107,63 @@ class HttpAdmissionFilterTest {
       first.join();
 
       assertThat(rejected.getStatus()).isEqualTo(503);
+    }
+
+    @Test
+    @DisplayName("releases request admission when the handler fails")
+    void releasesRequestAdmissionAfterHandlerFailure() throws Exception {
+      TafMcpHttpProperties properties = properties();
+      properties.setMaxConcurrentRequests(1);
+      var filter = new HttpAdmissionFilter(properties, CLOCK);
+
+      assertThatThrownBy(
+              () ->
+                  filter.doFilter(
+                      request(),
+                      new MockHttpServletResponse(),
+                      (_, _) -> {
+                        throw new java.io.IOException("handler failure");
+                      }))
+          .isInstanceOf(java.io.IOException.class)
+          .hasMessage("handler failure");
+      var accepted = new MockHttpServletResponse();
+
+      filter.doFilter(request(), accepted, new MockFilterChain());
+
+      assertThat(accepted.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("removes a deleted session only after its handler completes")
+    void removesDeletedSessionAfterHandlerCompletes() throws Exception {
+      TafMcpHttpProperties properties = properties();
+      properties.setMaxSessions(1);
+      var filter = new HttpAdmissionFilter(properties, CLOCK);
+      filter.doFilter(session("one", "POST"), new MockHttpServletResponse(), new MockFilterChain());
+      var duringDelete = new MockHttpServletResponse();
+
+      filter.doFilter(
+          session("one", "DELETE"),
+          new MockHttpServletResponse(),
+          (_, _) -> filter.doFilter(session("two", "POST"), duringDelete, new MockFilterChain()));
+      var afterDelete = new MockHttpServletResponse();
+      filter.doFilter(session("two", "POST"), afterDelete, new MockFilterChain());
+
+      assertThat(duringDelete.getStatus()).isEqualTo(429);
+      assertThat(afterDelete.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("sets the request deadline from the configured timeout")
+    void setsRequestDeadline() throws Exception {
+      TafMcpHttpProperties properties = properties();
+      var filter = new HttpAdmissionFilter(properties, CLOCK);
+      var response = new MockHttpServletResponse();
+
+      filter.doFilter(request(), response, new MockFilterChain());
+
+      assertThat(response.getHeader("X-TAF-Request-Deadline-Millis"))
+          .isEqualTo(Long.toString(CLOCK.millis() + properties.getRequestTimeout().toMillis()));
     }
   }
 
