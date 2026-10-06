@@ -45,6 +45,18 @@ final class ImagePolicy {
       return new Decision(false, byPlane, List.copyOf(reasons));
     }
 
+    evaluateEvidenceHeader(evidence, reasons);
+    evaluateArtifacts(evidence, reasons);
+    evaluateLicenses(evidence, reasons);
+
+    int findingCount = count(evidence, reasons, "finding.count");
+    for (int index = 0; index < findingCount; index++) {
+      evaluateFinding(evidence, index, byPlane, reasons);
+    }
+    return new Decision(reasons.isEmpty(), immutable(byPlane), List.copyOf(reasons));
+  }
+
+  private static void evaluateEvidenceHeader(Map<String, String> evidence, List<String> reasons) {
     require(evidence, reasons, "candidate.name", "candidate.purpose", "target.os", "target.arch",
         "image.digest", "image.scannedDigest", "builder.baseDigests", "runtime.baseDigest", "source.repository",
         "source.commit", "sbom.location", "sbom.sha256", "provenance.location",
@@ -70,14 +82,18 @@ final class ImagePolicy {
     bool(evidence, reasons, "controls.ephemeralData", true);
     bool(evidence, reasons, "controls.productionConnectivity", false);
     bool(evidence, reasons, "controls.privileged", false);
+  }
 
+  private static void evaluateArtifacts(Map<String, String> evidence, List<String> reasons) {
     int artifacts = count(evidence, reasons, "artifact.count");
     for (int index = 0; index < artifacts; index++) {
       String prefix = "artifact." + index + ".";
       require(evidence, reasons, prefix + "url", prefix + "version", prefix + "sha256");
       exact(evidence, reasons, prefix + "sha256", SHA256);
     }
+  }
 
+  private static void evaluateLicenses(Map<String, String> evidence, List<String> reasons) {
     int licenses = count(evidence, reasons, "license.count");
     if (licenses == 0) reasons.add("Exact license inventory is required; a record count is insufficient");
     for (int index = 0; index < licenses; index++) {
@@ -89,12 +105,6 @@ final class ImagePolicy {
         reasons.add("License " + index + " has non-approved disposition " + safe(disposition));
       }
     }
-
-    int findingCount = count(evidence, reasons, "finding.count");
-    for (int index = 0; index < findingCount; index++) {
-      evaluateFinding(evidence, index, byPlane, reasons);
-    }
-    return new Decision(reasons.isEmpty(), immutable(byPlane), List.copyOf(reasons));
   }
 
   private static void evaluateFinding(Map<String, String> evidence, int index,

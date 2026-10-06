@@ -140,16 +140,7 @@ public final class ReleaseLicensePolicy {
     if (declarations.stream()
         .anyMatch(item -> item.classification() == Classification.UNKNOWN_OR_AMBIGUOUS)) return;
 
-    LicenseDeclaration selected =
-        declarations.stream()
-            .filter(item -> item.classification() == Classification.PERMISSIVE)
-            .findFirst()
-            .orElseGet(
-                () ->
-                    declarations.stream()
-                        .filter(item -> item.classification() == Classification.CONDITIONALLY_ALLOWED)
-                        .findFirst()
-                        .orElse(null));
+    LicenseDeclaration selected = selectPermitted(declarations);
     if (selected == null) {
       LicenseDeclaration prohibited = declarations.getFirst();
       violations.add(
@@ -157,26 +148,46 @@ public final class ReleaseLicensePolicy {
       return;
     }
     if (selected.classification() == Classification.CONDITIONALLY_ALLOWED) {
-      ConditionalApproval approval = CONDITIONAL_APPROVALS.get(identity);
-      if (approval == null || !approval.expressions().contains(selected.normalized())) {
-        violations.add(
-            diagnostic(
-                sbom,
-                identity,
-                selected,
-                "conditional license has no component-specific compliance approval"));
-        return;
-      }
-      conditionalEvidence.put(
-          identity,
-          identity
-              + " | raw="
-              + selected.raw()
-              + " | normalized="
-              + selected.normalized()
-              + " | classification=CONDITIONALLY_ALLOWED | obligations="
-              + approval.obligations());
+      recordConditionalDecision(sbom, identity, selected, violations, conditionalEvidence);
     }
+  }
+
+  private static LicenseDeclaration selectPermitted(List<LicenseDeclaration> declarations) {
+    return declarations.stream()
+        .filter(item -> item.classification() == Classification.PERMISSIVE)
+        .findFirst()
+        .orElseGet(
+            () -> declarations.stream()
+                .filter(item -> item.classification() == Classification.CONDITIONALLY_ALLOWED)
+                .findFirst()
+                .orElse(null));
+  }
+
+  private static void recordConditionalDecision(
+      Path sbom,
+      String identity,
+      LicenseDeclaration selected,
+      List<String> violations,
+      Map<String, String> conditionalEvidence) {
+    ConditionalApproval approval = CONDITIONAL_APPROVALS.get(identity);
+    if (approval == null || !approval.expressions().contains(selected.normalized())) {
+      violations.add(
+          diagnostic(
+              sbom,
+              identity,
+              selected,
+              "conditional license has no component-specific compliance approval"));
+      return;
+    }
+    conditionalEvidence.put(
+        identity,
+        identity
+            + " | raw="
+            + selected.raw()
+            + " | normalized="
+            + selected.normalized()
+            + " | classification=CONDITIONALLY_ALLOWED | obligations="
+            + approval.obligations());
   }
 
   private static List<LicenseDeclaration> declarations(String identity, String component) {
@@ -345,12 +356,26 @@ public final class ReleaseLicensePolicy {
     for (int index = start; index < value.length(); index++) {
       char character = value.charAt(index);
       if (inString) {
-        if (escaped) escaped = false;
-        else if (character == '\\') escaped = true;
-        else if (character == '"') inString = false;
-      } else if (character == '"') inString = true;
-      else if (character == open) depth++;
-      else if (character == close && --depth == 0) return index;
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (character == '\\') {
+          escaped = true;
+          continue;
+        }
+        if (character == '"') inString = false;
+        continue;
+      }
+      if (character == '"') {
+        inString = true;
+        continue;
+      }
+      if (character == open) {
+        depth++;
+        continue;
+      }
+      if (character == close && --depth == 0) return index;
     }
     return -1;
   }
