@@ -25,6 +25,20 @@
     {
       "document": "docs/architecture/solution-architecture.md",
       "validation": "cross-document-architecture-contract"
+    },
+    {
+      "document": "docs/reference/apple-appium-consumer-guide.md",
+      "languages": [
+        "xml",
+        "yaml",
+        "powershell"
+      ],
+      "goldenSource": "examples/apple-appium-consumer",
+      "validation": "DOC-130-001-apple-documentation-contract-and-standalone-consumer"
+    },
+    {
+      "document": "docs/reference/apple-appium-compatibility-1.3.0.md",
+      "validation": "DOC-130-001-selected-locks-and-pending-qualification-contract"
     }
   ]
 }

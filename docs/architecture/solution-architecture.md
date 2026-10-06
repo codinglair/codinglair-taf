@@ -56,9 +56,48 @@ type may coexist, and cleanup is reverse ordered and idempotent. Controllers con
 resources; `EnvironmentProvider` implementations own provisioning and cleanup.
 
 Optional public capabilities include Playwright web, REST and SOAP, JDBC, structured files,
-Appium/Android, Kafka, RabbitMQ, JMS, EventBridge, SQS, contracts, WireMock, observability, data
+Appium/Android and Apple/XCUITest, Kafka, RabbitMQ, JMS, EventBridge, SQS, contracts, WireMock,
+observability, data
 migration, test-definition providers, and environment providers. Conditional auto-configuration
 keeps unrelated technologies inactive and absent.
+
+## Apple mobile architecture for <!-- taf-version -->`1.2.0`
+
+The <!-- taf-version -->`1.2.0` Apple increment extends the existing `taf-mobile-appium` module and
+`codinglair-taf-starter-mobile`; it does not introduce an Apple-only dependency graph or change
+the Android default. A shared immutable manifest describes iPhone/iPad, native/hybrid/Safari,
+simulator/physical and local/remote/provider-compatible selections. Platform strategies preserve
+XCUITest semantics instead of manufacturing Android parity. Named controllers remain lazy and
+session-scoped, and multiple Apple controllers may coexist in one `TestSession`.
+
+Controllers consume prepared Appium/XCUITest endpoints and authorized targets. Customer or
+provider infrastructure owns macOS/Xcode, devices, simulators, signing and WDA. Exact endpoint
+paths and server-visible application references are preserved. Remote JVM and MCP clients need no
+local Apple toolchain. Passive readiness reports observable configuration and prerequisite state;
+target/WDA/signing facts that cannot be observed remotely remain unknown until initialization.
+
+Each session owns its driver, contexts, resource reservations and evidence namespace. Observable
+target/WDA/MJPEG/derived-data collisions are rejected, while providers/operators coordinate
+resources across processes. Screenshots, page source, genuine XCUITest logs and optional video
+flow through `ArtifactCollector`, redaction and the reporter-neutral contract before idempotent
+owned cleanup. Artifact availability is explicit and does not silently redefine readiness.
+
+MCP advertises `mobile.apple` through the same versioned catalog and governed discovery,
+validation, scaffolding, execution and cancellation workflows over STDIO and Streamable HTTP.
+Discovery allocates no device. The MCP image is a remote client and contains no Xcode, WDA,
+simulator or device. Generic Appium-compatible endpoint support is distinct from named-provider
+certification.
+
+This Apple scope partially supersedes ADR-013's Apple/hybrid/Safari deferral through
+[ADR-031](adrs/ADR-031_extend-the-existing-mobile-module-and-starter-with-xcuitest-strategies.md),
+[ADR-032](adrs/ADR-032_consume-external-apple-infrastructure-with-topology-aware-preflight.md),
+[ADR-033](adrs/ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md),
+[ADR-034](adrs/ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md)
+and [ADR-035](adrs/ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md).
+ADR-013's Android baseline, provisioning separation and tiered verification remain applicable.
+The [Apple consumer guide](../reference/apple-appium-consumer-guide.md) and
+[compatibility record](../reference/apple-appium-compatibility-1.3.0.md) define the public
+configuration and evidence limits.
 
 The AWS messaging module uses named profiles and independent EventBridge and SQS controller
 instances. LocalStack provides deterministic local AWS integration and Testcontainers-based
@@ -123,5 +162,6 @@ governed by published contracts and the accepted ADRs, especially
 
 Consumer entry points are the [Quick Start](../quick-start.md),
 [dependency guide](../reference/consumer-dependencies.md),
-[blueprint architecture](consumer-project-blueprint.md), and MCP operational guides. These
-documents describe supported 1.2.0 behavior and do not imply unreleased features.
+[blueprint architecture](consumer-project-blueprint.md), and MCP operational guides. The general
+documents describe supported 1.2.0 behavior. The explicitly versioned Apple sections describe the
+1.3.0 candidate scope and do not imply publication or completed live qualification.

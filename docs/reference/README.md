@@ -10,6 +10,8 @@ your work.
 | New contributor | [Installation and prerequisites](installation-and-prerequisites.md) |
 | Test author | [TestNG and Cucumber separation](testng-cucumber-separation.md) |
 | Mobile engineer | [Android and Appium setup](android-appium-setup.md) |
+| Apple mobile engineer | [Apple Appium 1.3.0 quick start, configuration, and troubleshooting](apple-appium-consumer-guide.md) |
+| Release verifier | [Apple Appium 1.3.0 compatibility and limitations record](apple-appium-compatibility-1.3.0.md) |
 | MCP client or operator | [MCP contracts, security, approvals, and audit](mcp-and-security.md) |
 | MCP image operator | [MCP image and runtime profile contract](mcp-image-runtime-contract.md) |
 | Platform operator | [CI/CD, Kind, release, and troubleshooting](operations-and-troubleshooting.md) |
