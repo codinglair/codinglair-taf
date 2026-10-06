@@ -14,6 +14,8 @@ import com.codinglair.taf.runtime.core.security.ResourceAccess;
 import com.codinglair.taf.runtime.secret.ResolvedSecret;
 import com.codinglair.taf.runtime.secret.SecretManager;
 import com.codinglair.taf.runtime.secret.SecretRequestContext;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -64,54 +66,64 @@ class AppleTransportSecurityTest extends AppleProtocolFixture {
   @BeforeEach
   void secureFixture() {
     server.removeContext("/");
-    server.createContext(
-        "/",
-        exchange -> {
-          String body =
-              new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-          String path = exchange.getRequestURI().getPath();
-          requests.add(exchange.getRequestMethod() + " " + path + " " + body);
-          String header = exchange.getRequestHeaders().getFirst("Authorization");
-          authorizationHeaders.add(header == null ? "absent" : header);
-          if (redirect) {
-            exchange
-                .getResponseHeaders()
-                .set("Location", "http://127.0.0.1:1/denied?token=" + CANARY);
-            exchange.sendResponseHeaders(302, -1);
-            exchange.close();
-            return;
-          }
-          Object value;
-          if (failResponse)
-            value = Map.of("error", "unknown error", "message", CANARY, "stacktrace", CANARY);
-          else if (path.equals("/session"))
-            value =
-                Map.of(
-                    "sessionId",
-                    "secure-fixture",
-                    "capabilities",
-                    Map.of(
-                        "platformName",
-                        "iOS",
-                        "cloud:options",
-                        Map.of("accessKey", CANARY),
-                        "note",
-                        CANARY,
-                        "artifact",
-                        "https://artifact.example/item?signature=" + CANARY));
-          else if (path.endsWith("/source")) value = "<source>" + CANARY + "</source>";
-          else if (path.endsWith("/screenshot"))
-            value = Base64.getEncoder().encodeToString(CANARY.getBytes(StandardCharsets.UTF_8));
-          else value = null;
-          byte[] bytes =
-              new Json()
-                  .toJson(Map.of("value", value == null ? Map.of() : value))
-                  .getBytes(StandardCharsets.UTF_8);
-          exchange.getResponseHeaders().set("Content-Type", "application/json");
-          exchange.sendResponseHeaders(failResponse ? 500 : 200, bytes.length);
-          exchange.getResponseBody().write(bytes);
-          exchange.close();
-        });
+    server.createContext("/", this::handleSecureRequest);
+  }
+
+  private void handleSecureRequest(HttpExchange exchange) throws IOException {
+    String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    String path = exchange.getRequestURI().getPath();
+    requests.add(exchange.getRequestMethod() + " " + path + " " + body);
+    recordAuthorizationHeader(exchange);
+    if (redirect) {
+      writeRedirect(exchange);
+      return;
+    }
+    writeSecureResponse(exchange, secureResponse(path));
+  }
+
+  private void recordAuthorizationHeader(HttpExchange exchange) {
+    String header = exchange.getRequestHeaders().getFirst("Authorization");
+    authorizationHeaders.add(header == null ? "absent" : header);
+  }
+
+  private void writeRedirect(HttpExchange exchange) throws IOException {
+    exchange.getResponseHeaders().set("Location", "http://127.0.0.1:1/denied?token=" + CANARY);
+    exchange.sendResponseHeaders(302, -1);
+    exchange.close();
+  }
+
+  private Object secureResponse(String path) {
+    if (failResponse)
+      return Map.of("error", "unknown error", "message", CANARY, "stacktrace", CANARY);
+    if (path.equals("/session"))
+      return Map.of(
+          "sessionId",
+          "secure-fixture",
+          "capabilities",
+          Map.of(
+              "platformName",
+              "iOS",
+              "cloud:options",
+              Map.of("accessKey", CANARY),
+              "note",
+              CANARY,
+              "artifact",
+              "https://artifact.example/item?signature=" + CANARY));
+    if (path.endsWith("/source")) return "<source>" + CANARY + "</source>";
+    if (path.endsWith("/screenshot"))
+      return Base64.getEncoder().encodeToString(CANARY.getBytes(StandardCharsets.UTF_8));
+    return null;
+  }
+
+  private void writeSecureResponse(HttpExchange exchange, Object value) throws IOException {
+    byte[] bytes =
+        new Json()
+            .toJson(Map.of("value", value == null ? Map.of() : value))
+            .getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().set("Content-Type", "application/json");
+    exchange.sendResponseHeaders(failResponse ? 500 : 200, bytes.length);
+    exchange.getResponseBody().write(bytes);
+    exchange.close();
   }
 
   void initializeSecure(AppleControllerSettings settings, AppleTransportSecurity security) {
