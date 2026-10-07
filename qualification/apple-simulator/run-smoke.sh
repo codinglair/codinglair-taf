@@ -195,12 +195,6 @@ capture_diagnostics() {
   if [[ -n "$appium_pid" ]]; then
     curl --silent --show-error --max-time 5 "http://127.0.0.1:$APPIUM_PORT/status" \
       > "$OUT/appium-status-final.json" 2> "$OUT/logs/appium-status-final-error.log" || true
-    local sessions_raw
-    sessions_raw="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-sessions.XXXXXX.json")"
-    curl --silent --show-error --max-time 5 "http://127.0.0.1:$APPIUM_PORT/sessions" \
-      > "$sessions_raw" 2> "$OUT/logs/appium-sessions-final-error.log" || true
-    sanitize_text_file "$sessions_raw" "$OUT/appium-sessions-final.json" || true
-    rm -f "$sessions_raw"
   fi
 
   if [[ -n "$udid" ]]; then
@@ -487,6 +481,8 @@ simulator_monitor_pid=""
 stop_simulator_log_capture
 
 set +e
+export APPLE_OWNED_SESSION_FILE="$OUT/controlled-failure-session-id.txt"
+rm -f "$APPLE_OWNED_SESSION_FILE"
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
   "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
   -Dtaf.apple.live=true \
@@ -496,9 +492,32 @@ set +e
 controlled_status=$?
 set -e
 [[ "$controlled_status" -ne 0 ]] || { echo 'Controlled failure unexpectedly passed' >&2; exit 20; }
-sessions="$(curl --fail --silent "http://127.0.0.1:$APPIUM_PORT/sessions")"
-python3 -c 'import json,sys; data=json.loads(sys.argv[1]); assert data.get("value") == [], data' "$sessions"
-printf '%s\n' 'expectedFailureObserved=true appiumSessionsAfterCleanup=0' > "$OUT/controlled-failure-cleanup.txt"
+[[ -s "$APPLE_OWNED_SESSION_FILE" ]] || {
+  echo 'Controlled failure did not record its owned Appium session ID' >&2
+  exit 21
+}
+owned_session="$(<"$APPLE_OWNED_SESSION_FILE")"
+[[ "$owned_session" =~ ^[A-Za-z0-9_-]{1,128}$ ]] || {
+  echo 'Controlled failure recorded an invalid Appium session ID' >&2
+  exit 22
+}
+cleanup_http_status="$(curl --silent --show-error --max-time 5 \
+  --output "$OUT/owned-session-cleanup-response.json" --write-out '%{http_code}' \
+  "http://127.0.0.1:$APPIUM_PORT/session/$owned_session/source")"
+[[ "$cleanup_http_status" == 404 ]] || {
+  echo "Deleted Appium session remained usable or returned an unexpected status: $cleanup_http_status" >&2
+  exit 23
+}
+python3 - "$OUT/owned-session-cleanup-response.json" <<'PY'
+import json
+import sys
+
+response = json.load(open(sys.argv[1], encoding="utf-8"))
+assert response.get("value", {}).get("error") == "invalid session id", response
+PY
+printf '%s\n' \
+  "expectedFailureObserved=true ownedSession=$owned_session ownedSessionCleanupVerified=true verificationEndpoint=GET_/session/{id}/source httpStatus=$cleanup_http_status" \
+  > "$OUT/controlled-failure-cleanup.txt"
 
 git -C "$ROOT" rev-parse HEAD > "$OUT/tested-sha.txt"
 git -C "$ROOT" diff --binary | shasum -a 256 > "$OUT/working-tree-diff-sha256.txt"

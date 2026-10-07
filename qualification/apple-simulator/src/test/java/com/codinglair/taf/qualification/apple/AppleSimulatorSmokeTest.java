@@ -68,10 +68,18 @@ public final class AppleSimulatorSmokeTest extends TafBaseTest {
   }
 
   @Test
-  public void controlledFailureStillUsesNormalSessionCleanup() {
+  public void controlledFailureStillUsesNormalSessionCleanup() throws IOException {
     if (!Boolean.getBoolean("taf.apple.controlledFailure")) return;
     AppleController apple = controller(AppleController.class, "native");
     apple.find(NATIVE_ACTION);
+    Path ownedSessionFile = Path.of(required("APPLE_OWNED_SESSION_FILE"));
+    Files.createDirectories(ownedSessionFile.getParent());
+    Files.writeString(
+        ownedSessionFile,
+        apple.nativeDriver().getSessionId().toString(),
+        StandardCharsets.UTF_8,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING);
     throw new AssertionError("VER-130-002 controlled failure");
   }
 

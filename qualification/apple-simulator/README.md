@@ -23,17 +23,17 @@ invoke this consumer.
 
 The script creates, boots and deletes one job-owned simulator. It starts loopback-only Appium and a
 loopback static page server, runs all three real cases, then runs one expected failing invocation and
-requires zero remaining Appium sessions. Its trap attempts process and simulator cleanup on every
-exit. Video and syslog are attempted and their controller-generated availability records are
-retained; unsupported optional video is not a smoke failure. Screenshot and page source must be
-nonempty.
+requires that invocation's owned Appium session to be deleted. Its trap attempts process and
+simulator cleanup on every exit. Video and syslog are attempted and their controller-generated
+availability records are retained; unsupported optional video is not a smoke failure. Screenshot
+and page source must be nonempty.
 
 The runner records prelaunch, readiness, pre-Appium, pre-Maven and periodic smoke-time WDA health
 in `wda-lifecycle.log`, with bounded status, process, port-listener and launch-log evidence. A
 supervisor records the `xcodebuild test-without-building` exit code without restarting WDA or
-changing the smoke result. Appium 3.0.0 currently returns HTTP 404 for the runner's existing
-`GET /sessions` cleanup check; that separate compatibility issue is intentionally not changed by
-the WDA-lifetime diagnostics.
+changing the smoke result. Controlled-failure cleanup records the qualification-owned Appium
+session ID, then verifies that the deleted session returns Appium 3's `invalid session id` response
+from the standard session-specific page-source route. It never enumerates or deletes other sessions.
 
 Simulator diagnostics retain the original `simctl bootstatus -b` output and elapsed time, then
 record CoreSimulator state, the relevant device JSON, Simulator/CoreSimulator process state and WDA

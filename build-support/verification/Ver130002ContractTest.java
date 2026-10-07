@@ -21,11 +21,11 @@ public final class Ver130002ContractTest {
 
     String runner = read("qualification/apple-simulator/run-smoke.sh");
     require(runner, "simctl create", "simctl bootstatus", "simctl delete", "trap cleanup",
-        "clean deploy -Prelease-staging", "-parse-as-library", "driver install", "/status", "/sessions",
+        "clean deploy -Prelease-staging", "-parse-as-library", "driver install", "/status",
         "controlledFailureStillUsesNormalSessionCleanup", "candidate-artifact-sha256.txt",
         "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt",
         "capture_diagnostics", "sanitize_text_file", "appium-sanitized.log",
-        "appium-status-final.json", "appium-sessions-final.json", "simctl-list-final.json",
+        "appium-status-final.json", "simctl-list-final.json",
         "tail -n 250", "cut -c1-2000", "local status=$?", "exit \"$status\"",
         "xcodebuild build-for-testing", "xcodebuild test-without-building",
         "wda-prebuild.log", "wda-launch.log", "wda-status.json", "APPLE_WDA_BASE_URL",
@@ -42,11 +42,13 @@ public final class Ver130002ContractTest {
         "open -Fn \"$SIMULATOR_APP\"", "simulator-ui-readiness.log", "for _ in {1..30}",
         "Simulator UI failed to become available within 30 seconds",
         "CoreSimulator device failed to remain booted while starting Simulator UI",
-        "record_simulator_checkpoint after-simulator-ui-readiness");
+        "record_simulator_checkpoint after-simulator-ui-readiness", "APPLE_OWNED_SESSION_FILE",
+        "owned-session-cleanup-response.json", "/session/$owned_session/source",
+        "invalid session id", "ownedSessionCleanupVerified=true");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
-    reject(runner, "latest", "--relaxed-security", "> \"$OUT/logs/appium.log\"");
+    reject(runner, "latest", "--relaxed-security", "> \"$OUT/logs/appium.log\"", "/sessions");
     requireOrder(runner, "record_wda_checkpoint before-appium", "appium_raw_log=\"$(mktemp");
     requireOrder(runner, "record_wda_checkpoint before-maven", "-Dtaf.apple.live=true test");
     requireOrder(runner, "event=before-simctl-boot", "xcrun simctl boot \"$udid\"");
@@ -61,7 +63,8 @@ public final class Ver130002ContractTest {
         "@ActiveProfiles(\"taf-local\")", "AwaitableAssertion.create",
         "AppleSimulatorConfiguration.Initializer.class",
         "collectArtifacts(ArtifactReason.EXPLICIT)",
-        "Nonempty screenshot and page source are required");
+        "Nonempty screenshot and page source are required", "APPLE_OWNED_SESSION_FILE",
+        "apple.nativeDriver().getSessionId().toString()", "StandardOpenOption.TRUNCATE_EXISTING");
     reject(smoke, "IOSDriver", "Thread.sleep(", "SkipException");
 
     String configurationTest = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorConfigurationTest.java");
