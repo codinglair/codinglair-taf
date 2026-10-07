@@ -1,7 +1,9 @@
 package com.codinglair.taf.qualification.apple;
 
+import com.codinglair.taf.mobile.appium.configuration.AppleProperties;
 import com.codinglair.taf.mobile.appium.service.AppleController;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -27,6 +29,7 @@ import org.testng.annotations.Test;
     })
 public final class AppleSimulatorConfigurationTest extends AbstractTestNGSpringContextTests {
   @Autowired private TestSessionFactory sessions;
+  @Autowired private AppleProperties apple;
 
   @Test
   public void loadsEveryNamedControllerFromApplicationYaml() {
@@ -35,6 +38,9 @@ public final class AppleSimulatorConfigurationTest extends AbstractTestNGSpringC
       assertRegistered(controllers.hasController(AppleController.class, "native"), "native");
       assertRegistered(controllers.hasController(AppleController.class, "hybrid"), "hybrid");
       assertRegistered(controllers.hasController(AppleController.class, "safari"), "safari");
+      if (!apple.settings("hybrid").getAdditionalWebviewBundleIds()
+          .equals(List.of("process-TafAppleFixture")))
+        throw new AssertionError("Hybrid Web Inspector application identifier was not bound");
     }
   }
 

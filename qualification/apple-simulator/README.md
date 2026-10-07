@@ -55,4 +55,7 @@ native `web-load-status` label from `WKNavigationDelegate` callbacks. The hybrid
 WebKit discovery failure. Repeated identical context sets are summarized in
 `target/apple-evidence/hybrid/context-observations.txt`; bounded sanitized Appium/WebKit context
 messages are retained in `logs/appium-hybrid-context.log`. The embedded hybrid page is independent
-of `APPLE_TEST_URL`, which remains the deterministic Mobile Safari fixture URL.
+of `APPLE_TEST_URL`, which remains the deterministic Mobile Safari fixture URL. The hybrid
+controller supplies the exact `process-TafAppleFixture` application identifier observed from Web
+Inspector so XCUITest attaches to the fixture process that owns the page instead of the separate,
+empty `com.apple.WebKit.WebContent` helper process.

@@ -67,7 +67,10 @@ reference already authorized by the caller), and PROVIDER_UPLOAD (an existing
 provider reference, PROVIDER topology only). Client filesystem paths are never
 converted or uploaded. Build-kind is an explicit declaration, not binary inspection.
 Safari emits `browserName=Safari`; omit application-mode, bundle-id, app-reference
-and application cleanup properties, including explicit false values.
+and application cleanup properties, including explicit false values. Hybrid sessions may supply
+`additional-webview-bundle-ids`, a list of additional application identifiers reported by Web
+Inspector. The list maps to XCUITest's `appium:additionalWebviewBundleIds` capability and is
+rejected outside HYBRID mode.
 
 An empty controller map registers `default`; a nonempty map registers only its
 named entries. Apple named settings inherit base/profile binding; explicitly

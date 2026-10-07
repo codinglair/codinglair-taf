@@ -28,6 +28,9 @@ public final class ApplePlatformStrategy {
     else {
       if (settings.getAppReference() != null) options.setApp(settings.getAppReference().value());
       if (settings.getBundleId() != null) options.setBundleId(settings.getBundleId());
+      if (!settings.getAdditionalWebviewBundleIds().isEmpty())
+        options.setCapability(
+            "appium:additionalWebviewBundleIds", settings.getAdditionalWebviewBundleIds());
     }
     options.setCapability("appium:autoAcceptAlerts", settings.getAutoAcceptAlerts());
     options.setCapability("appium:autoDismissAlerts", settings.getAutoDismissAlerts());

@@ -80,8 +80,13 @@ public final class Ver130002ContractTest {
         "Cannot load Apple simulator configuration");
     String appleProperties = read("qualification/apple-simulator/src/test/resources/application.yml");
     require(appleProperties, "command-timeout: 5m", "build-mode: RUNNING",
-        "base-url: '${APPLE_WDA_BASE_URL}'", "show-xcode-log: true");
+        "base-url: '${APPLE_WDA_BASE_URL}'", "show-xcode-log: true",
+        "additional-webview-bundle-ids:", "process-TafAppleFixture");
     require(appleProperties, "launch-timeout: 3m");
+
+    String appleStrategy = read("codinglair-taf-runtime/taf-mobile-appium/src/main/java/com/codinglair/taf/mobile/appium/platform/ApplePlatformStrategy.java");
+    require(appleStrategy, "appium:additionalWebviewBundleIds",
+        "settings.getAdditionalWebviewBundleIds()");
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",

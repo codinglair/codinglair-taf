@@ -43,6 +43,8 @@ taf:
         hybrid:
           <<: *fixture
           execution-mode: HYBRID
+          additional-webview-bundle-ids:
+            - process-TafAppleFixture
         safari:
           platform: ios
           device-family: IPHONE

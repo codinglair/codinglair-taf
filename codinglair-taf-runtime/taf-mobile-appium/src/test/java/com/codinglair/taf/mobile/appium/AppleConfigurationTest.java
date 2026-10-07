@@ -107,6 +107,20 @@ class AppleConfigurationTest {
       assertThat(new ApplePlatformStrategy().options(settings).getCapability("appium:app"))
           .isEqualTo(value);
     }
+
+    @Test
+    @DisplayName("maps exact additional Web Inspector application identifiers for hybrid sessions")
+    void hybridWebviewBundleIds() {
+      var settings = valid();
+      settings.setExecutionMode(MobileExecutionMode.HYBRID);
+      settings.setAdditionalWebviewBundleIds(List.of("process-TafAppleFixture"));
+
+      assertThat(
+              new ApplePlatformStrategy()
+                  .options(settings)
+                  .getCapability("appium:additionalWebviewBundleIds"))
+          .isEqualTo(List.of("process-TafAppleFixture"));
+    }
   }
 
   static Stream<Arguments> routes() {
@@ -140,6 +154,11 @@ class AppleConfigurationTest {
         s -> s.setReadinessTimeout(Duration.ZERO),
         s -> s.setCleanupTimeout(Duration.ofSeconds(-1)),
         s -> s.setContextTimeout(Duration.ofMinutes(11)),
+        s -> s.setAdditionalWebviewBundleIds(List.of("process-TafAppleFixture")),
+        s -> {
+          s.setExecutionMode(MobileExecutionMode.HYBRID);
+          s.setAdditionalWebviewBundleIds(List.of(" "));
+        },
         s -> s.getWda().setLocalPort(0),
         s -> s.getWda().setMjpegPort(65536),
         s -> s.getWda().setDerivedDataPath("C:/client/path"),
@@ -239,15 +258,19 @@ class AppleConfigurationTest {
     void precedence() {
       var base = valid();
       base.setAutoAcceptAlerts(true);
+      base.setExecutionMode(MobileExecutionMode.HYBRID);
+      base.setAdditionalWebviewBundleIds(List.of("process-BaseFixture"));
       var named = new AppleControllerSettings();
       named.setDeviceName("named");
       named.setAutoAcceptAlerts(false);
+      named.setAdditionalWebviewBundleIds(List.of("process-TafAppleFixture"));
       var job = new AppleControllerSettings();
       job.setDeviceName("job");
       var result = AppleControllerSettings.resolve(base, named, job);
       assertThat(result.getDeviceName()).isEqualTo("job");
       assertThat(result.getAutoAcceptAlerts()).isFalse();
       assertThat(result.getBundleId()).isEqualTo("com.example.fixture");
+      assertThat(result.getAdditionalWebviewBundleIds()).containsExactly("process-TafAppleFixture");
       assertThat(base.getDeviceName()).isEqualTo("fixture");
       assertThat(named.getDeviceName()).isEqualTo("named");
     }

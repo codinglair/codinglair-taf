@@ -9,6 +9,7 @@ import com.codinglair.taf.mobile.MobileTopology;
 import java.net.URI;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,6 +43,7 @@ public class AppleControllerSettings {
   private ApplicationMode applicationMode;
   private AppReference appReference;
   private String bundleId;
+  private List<String> additionalWebviewBundleIds;
   private Duration commandTimeout;
   private Duration readinessTimeout;
   private Duration contextTimeout;
@@ -146,6 +148,8 @@ public class AppleControllerSettings {
     if (layer.appReference != null)
       result.appReference = mergeAppReference(result.appReference, layer.appReference);
     if (layer.bundleId != null) result.bundleId = layer.bundleId;
+    if (layer.additionalWebviewBundleIds != null)
+      result.additionalWebviewBundleIds = layer.additionalWebviewBundleIds;
   }
 
   private static AppReference mergeAppReference(AppReference previous, AppReference next) {
@@ -243,6 +247,11 @@ public class AppleControllerSettings {
   }
 
   private void validateApplication() {
+    if (!getAdditionalWebviewBundleIds().isEmpty()
+        && getExecutionMode() != MobileExecutionMode.HYBRID)
+      throw invalid("additional-webview-bundle-ids requires HYBRID execution mode");
+    if (getAdditionalWebviewBundleIds().stream().anyMatch(AppleControllerSettings::blank))
+      throw invalid("additional-webview-bundle-ids must not contain blank values");
     if (getExecutionMode() == MobileExecutionMode.SAFARI) {
       if (applicationMode != null
           || appReference != null
@@ -448,6 +457,15 @@ public class AppleControllerSettings {
 
   public void setBundleId(String value) {
     bundleId = value;
+  }
+
+  /** Additional application identifiers reported by Web Inspector for hybrid context discovery. */
+  public List<String> getAdditionalWebviewBundleIds() {
+    return additionalWebviewBundleIds == null ? List.of() : additionalWebviewBundleIds;
+  }
+
+  public void setAdditionalWebviewBundleIds(List<String> value) {
+    additionalWebviewBundleIds = value == null ? null : List.copyOf(value);
   }
 
   public Duration getCommandTimeout() {
