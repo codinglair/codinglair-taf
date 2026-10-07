@@ -46,7 +46,7 @@ public final class Ver130002ContractTest {
     require(configuration, "YamlPropertySourceLoader", "ClassPathResource(\"application.yml\")",
         "Cannot load Apple simulator configuration");
     String appleProperties = read("qualification/apple-simulator/src/test/resources/application.yml");
-    require(appleProperties, "show-xcode-log: true");
+    require(appleProperties, "command-timeout: 5m", "show-xcode-log: true");
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",

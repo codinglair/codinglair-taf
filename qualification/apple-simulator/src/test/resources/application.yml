@@ -22,6 +22,7 @@ taf:
           device-logs: true
           video: true
           require-evidence: false
+          command-timeout: 5m
           context-timeout: 30s
           cleanup-timeout: 30s
           wda:
@@ -56,4 +57,7 @@ taf:
           device-logs: true
           video: true
           require-evidence: false
+          command-timeout: 5m
+          wda:
+            show-xcode-log: true
           prerequisites: *confirmed
