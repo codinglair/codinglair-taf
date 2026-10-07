@@ -109,8 +109,12 @@ cleanup() {
   fi
   sanitize_appium_log
   if [[ "$status" -ne 0 && -f "$OUT/logs/appium-sanitized.log" ]]; then
-    printf '%s\n' '::group::Sanitized Appium failure diagnostics (last 400 lines)'
-    tail -n 400 "$OUT/logs/appium-sanitized.log"
+    printf '%s\n' '::group::Sanitized Appium session/WDA failure diagnostics'
+    grep -E 'POST /session|createSession|Session created|wdaStart|wdaStarted|WebDriverAgent|Xcode.*(error|failed)|Encountered internal error|ECONNREFUSED' \
+      "$OUT/logs/appium-sanitized.log" | tail -n 250 | cut -c1-2000 || true
+    printf '%s\n' '::endgroup::'
+    printf '%s\n' '::group::Sanitized Appium final diagnostics (last 100 bounded lines)'
+    tail -n 100 "$OUT/logs/appium-sanitized.log" | cut -c1-2000
     printf '%s\n' '::endgroup::'
   fi
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi

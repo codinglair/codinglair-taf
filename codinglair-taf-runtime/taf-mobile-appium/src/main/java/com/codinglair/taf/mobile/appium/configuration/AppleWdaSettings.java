@@ -1,6 +1,7 @@
 package com.codinglair.taf.mobile.appium.configuration;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -97,6 +98,16 @@ public class AppleWdaSettings {
 
   private Boolean showXcodeLog;
 
+  private Duration launchTimeout;
+
+  public Duration getLaunchTimeout() {
+    return launchTimeout;
+  }
+
+  public void setLaunchTimeout(Duration value) {
+    launchTimeout = value;
+  }
+
   public boolean getShowXcodeLog() {
     return Boolean.TRUE.equals(showXcodeLog);
   }
@@ -128,6 +139,8 @@ public class AppleWdaSettings {
     result.prebuiltPath = overlay.prebuiltPath == null ? base.prebuiltPath : overlay.prebuiltPath;
     result.baseUrl = overlay.baseUrl == null ? base.baseUrl : overlay.baseUrl;
     result.showXcodeLog = overlay.showXcodeLog == null ? base.showXcodeLog : overlay.showXcodeLog;
+    result.launchTimeout =
+        overlay.launchTimeout == null ? base.launchTimeout : overlay.launchTimeout;
     return result;
   }
 
@@ -144,6 +157,12 @@ public class AppleWdaSettings {
         && (prebuiltPath == null || prebuiltPath.isBlank()))
       throw new IllegalArgumentException("Apple PREINSTALLED WDA requires a prebuilt app path");
     if (getBuildMode() == BuildMode.RUNNING) AppleControllerSettings.endpoint(baseUrl);
+    if (launchTimeout != null
+        && (launchTimeout.isZero()
+            || launchTimeout.isNegative()
+            || launchTimeout.compareTo(Duration.ofMinutes(10)) > 0))
+      throw new IllegalArgumentException(
+          "Apple WDA launch timeout must be positive and at most ten minutes");
     for (String path : new String[] {prebuiltPath, derivedDataPath})
       if (path != null && (!path.startsWith("/") || path.contains("..") || path.contains("\\")))
         throw new IllegalArgumentException(
@@ -162,6 +181,7 @@ public class AppleWdaSettings {
     if (prebuiltPath != null) result.put("appium:prebuiltWDAPath", prebuiltPath);
     if (baseUrl != null) result.put("appium:webDriverAgentUrl", baseUrl.toString());
     if (getShowXcodeLog()) result.put("appium:showXcodeLog", true);
+    if (launchTimeout != null) result.put("appium:wdaLaunchTimeout", launchTimeout.toMillis());
     switch (getBuildMode()) {
       case PREBUILT -> result.put("appium:usePrebuiltWDA", true);
       case PREINSTALLED -> result.put("appium:usePreinstalledWDA", true);

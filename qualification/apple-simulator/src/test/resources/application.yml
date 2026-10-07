@@ -28,6 +28,7 @@ taf:
           wda:
             build-mode: PREBUILT
             derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'
+            launch-timeout: 3m
             show-xcode-log: true
           prerequisites: &confirmed
             endpoint: true
@@ -63,5 +64,6 @@ taf:
           wda:
             build-mode: PREBUILT
             derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'
+            launch-timeout: 3m
             show-xcode-log: true
           prerequisites: *confirmed

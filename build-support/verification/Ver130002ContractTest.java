@@ -24,7 +24,8 @@ public final class Ver130002ContractTest {
         "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt",
         "capture_diagnostics", "sanitize_text_file", "appium-sanitized.log",
         "appium-status-final.json", "appium-sessions-final.json", "simctl-list-final.json",
-        "tail -n 400", "local status=$?", "exit \"$status\"", "xcodebuild build-for-testing",
+        "tail -n 250", "cut -c1-2000", "local status=$?", "exit \"$status\"",
+        "xcodebuild build-for-testing",
         "wda-prebuild.log", "APPLE_WDA_DERIVED_DATA_PATH");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
@@ -51,6 +52,7 @@ public final class Ver130002ContractTest {
     String appleProperties = read("qualification/apple-simulator/src/test/resources/application.yml");
     require(appleProperties, "command-timeout: 5m", "build-mode: PREBUILT",
         "derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'", "show-xcode-log: true");
+    require(appleProperties, "launch-timeout: 3m");
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",
