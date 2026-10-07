@@ -36,7 +36,11 @@ public final class Ver130002ContractTest {
         "record_simulator_checkpoint before-appium", "record_simulator_checkpoint before-maven",
         "simulator-runtime-monitor.log", "monitor_simulator", "log stream --style compact",
         "simulator-coresimulator-session.log", "record_simulator_checkpoint cleanup-before-teardown",
-        "event=maven-smoke-start");
+        "event=maven-smoke-start", "SIMULATOR_APP=\"$XCODE_PATH/Applications/Simulator.app\"",
+        "open -Fn \"$SIMULATOR_APP\"", "simulator-ui-readiness.log", "for _ in {1..30}",
+        "Simulator UI failed to become available within 30 seconds",
+        "CoreSimulator device failed to remain booted while starting Simulator UI",
+        "record_simulator_checkpoint after-simulator-ui-readiness");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
@@ -44,6 +48,8 @@ public final class Ver130002ContractTest {
     requireOrder(runner, "record_wda_checkpoint before-appium", "appium_raw_log=\"$(mktemp");
     requireOrder(runner, "record_wda_checkpoint before-maven", "-Dtaf.apple.live=true test");
     requireOrder(runner, "event=before-simctl-boot", "xcrun simctl boot \"$udid\"");
+    requireOrder(runner, "xcrun simctl bootstatus", "open -Fn \"$SIMULATOR_APP\"");
+    requireOrder(runner, "open -Fn \"$SIMULATOR_APP\"", "xcrun simctl install");
     requireOrder(runner, "record_simulator_checkpoint before-appium", "appium_raw_log=\"$(mktemp");
     requireOrder(runner, "record_simulator_checkpoint before-maven", "-Dtaf.apple.live=true test");
 

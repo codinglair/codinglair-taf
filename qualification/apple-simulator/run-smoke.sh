@@ -14,6 +14,7 @@ readonly TAF_VERSION="${TAF_VERSION:-1.2.0}"
 readonly CANDIDATE_REPO="$OUT/candidate-repository"
 readonly APP="$OUT/TafAppleFixture.app"
 readonly WDA_DERIVED_DATA="$OUT/wda-derived-data"
+readonly SIMULATOR_APP="$XCODE_PATH/Applications/Simulator.app"
 readonly WEB_PORT="${APPLE_WEB_PORT:-8765}"
 readonly APPIUM_PORT="${APPLE_APPIUM_PORT:-4723}"
 export APPIUM_HOME="$OUT/appium-home"
@@ -278,9 +279,12 @@ command -v curl > /dev/null
 command -v codesign > /dev/null
 command -v xcodebuild > /dev/null
 command -v xcrun > /dev/null
+command -v open > /dev/null
+command -v pgrep > /dev/null
 [[ "$(java -version 2>&1 | head -n 1)" == *'version "25'* ]] || { echo 'Java 25 is required' >&2; exit 10; }
 [[ "$(node --version)" == v22.12.0 ]] || { echo 'Node 22.12.0 is required' >&2; exit 11; }
 [[ -d "$XCODE_PATH" ]] || { echo "Selected Xcode is unavailable: $XCODE_PATH" >&2; exit 12; }
+[[ -d "$SIMULATOR_APP" ]] || { echo "Selected Simulator application is unavailable: $SIMULATOR_APP" >&2; exit 12; }
 
 candidate_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-candidate.XXXXXX.log")"
 "$ROOT/mvnw" -B -ntp clean deploy -Prelease-staging -DskipTests \
@@ -314,16 +318,48 @@ udid="$(xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$RUNTIME")"
 boot_start_epoch="$(date +%s)"
 printf '%s event=before-simctl-boot udid=%s\n' "$(timestamp_utc)" "$udid" \
   > "$OUT/simulator-lifecycle.log"
-xcrun simctl boot "$udid"
+xcrun simctl boot "$udid" || {
+  boot_status=$?
+  echo "CoreSimulator device failed to boot: $udid" >&2
+  exit "$boot_status"
+}
 printf '%s event=before-simctl-bootstatus udid=%s\n' "$(timestamp_utc)" "$udid" \
   >> "$OUT/simulator-lifecycle.log"
-xcrun simctl bootstatus "$udid" -b 2>&1 | tee "$OUT/simulator-bootstatus.log"
+xcrun simctl bootstatus "$udid" -b 2>&1 | tee "$OUT/simulator-bootstatus.log" || {
+  boot_status=$?
+  echo "CoreSimulator device failed to boot: $udid" >&2
+  exit "$boot_status"
+}
 boot_end_epoch="$(date +%s)"
 printf '%s event=simctl-bootstatus-succeeded udid=%s elapsedSeconds=%s\n' \
   "$(timestamp_utc)" "$udid" "$((boot_end_epoch - boot_start_epoch))" \
   >> "$OUT/simulator-lifecycle.log"
 xcrun simctl list devices > "$OUT/simctl-devices-after-boot.txt"
 record_simulator_checkpoint after-bootstatus
+{
+  printf '%s event=simulator-ui-launch app=%s udid=%s\n' \
+    "$(timestamp_utc)" "$SIMULATOR_APP" "$udid"
+} > "$OUT/simulator-ui-readiness.log"
+open -Fn "$SIMULATOR_APP"
+simulator_ui_pid=""
+for _ in {1..30}; do
+  target_device_line="$(xcrun simctl list devices 2>&1 | grep -F "$udid" | head -n 1 || true)"
+  if [[ "$target_device_line" != *"(Booted)"* ]]; then
+    echo "CoreSimulator device failed to remain booted while starting Simulator UI: $udid" >&2
+    exit 18
+  fi
+  simulator_ui_pid="$(pgrep -f "$SIMULATOR_APP/Contents/MacOS/Simulator" | head -n 1 || true)"
+  if [[ -n "$simulator_ui_pid" ]]; then break; fi
+  sleep 1
+done
+[[ -n "$simulator_ui_pid" ]] || {
+  echo "Simulator UI failed to become available within 30 seconds: $SIMULATOR_APP" >&2
+  exit 19
+}
+printf '%s event=simulator-ui-ready pid=%s udid=%s device=%s\n' \
+  "$(timestamp_utc)" "$simulator_ui_pid" "$udid" "$target_device_line" \
+  >> "$OUT/simulator-ui-readiness.log"
+record_simulator_checkpoint after-simulator-ui-readiness
 xcrun simctl install "$udid" "$APP"
 
 python3 -m http.server "$WEB_PORT" --bind 127.0.0.1 \

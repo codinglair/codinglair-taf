@@ -41,3 +41,10 @@ reachability after boot, after WDA readiness, before Appium, before Maven and ev
 during the primary session attempt. A bounded macOS unified-log capture covers that session attempt.
 These observations do not sleep, reboot, restart or otherwise alter the simulator. WDA termination
 evidence labels cleanup-requested termination separately from an unexpected process exit.
+
+After CoreSimulator boot readiness succeeds, the runner opens the `Simulator.app` bundled with the
+configured Xcode path. It waits up to 30 seconds for that exact application process while requiring
+the selected UDID to remain `Booted` on every poll. Failure messages distinguish CoreSimulator boot
+state loss from Simulator UI startup failure; `simulator-ui-readiness.log` records the launch and
+ready timestamps and UI PID. This prevents Appium from having to make a headless-but-booted
+simulator visible during `POST /session`.
