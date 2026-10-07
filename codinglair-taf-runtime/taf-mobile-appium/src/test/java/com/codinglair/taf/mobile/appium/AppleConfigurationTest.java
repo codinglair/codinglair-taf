@@ -12,6 +12,7 @@ import com.codinglair.taf.mobile.appium.configuration.AppleAuthentication.Mechan
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings.AppReference;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings.ReferenceKind;
+import com.codinglair.taf.mobile.appium.configuration.AppleWdaSettings;
 import com.codinglair.taf.mobile.appium.configuration.AppleWdaSettings.BuildMode;
 import com.codinglair.taf.mobile.appium.platform.ApplePlatformStrategy;
 import java.net.URI;
@@ -316,6 +317,28 @@ class AppleConfigurationTest {
       named.getWda().setMjpegPort(8101);
       assertThrows(
           IllegalArgumentException.class, () -> AppleControllerSettings.resolve(base, named, null));
+    }
+
+    @Test
+    @DisplayName("prebuilt WDA consumes derived data while preinstalled WDA consumes an app path")
+    void wdaBuildModes() {
+      var prebuilt = valid();
+      prebuilt.getWda().setBuildMode(AppleWdaSettings.BuildMode.PREBUILT);
+      assertThrows(IllegalArgumentException.class, prebuilt::validate);
+      prebuilt.getWda().setDerivedDataPath("/tmp/wda-derived-data");
+      var prebuiltOptions = new ApplePlatformStrategy().options(prebuilt);
+      assertThat(prebuiltOptions.getCapability("appium:usePrebuiltWDA")).isEqualTo(true);
+      assertThat(prebuiltOptions.getCapability("appium:derivedDataPath"))
+          .isEqualTo("/tmp/wda-derived-data");
+
+      var preinstalled = valid();
+      preinstalled.getWda().setBuildMode(AppleWdaSettings.BuildMode.PREINSTALLED);
+      assertThrows(IllegalArgumentException.class, preinstalled::validate);
+      preinstalled.getWda().setPrebuiltPath("/tmp/WebDriverAgentRunner-Runner.app");
+      var preinstalledOptions = new ApplePlatformStrategy().options(preinstalled);
+      assertThat(preinstalledOptions.getCapability("appium:usePreinstalledWDA")).isEqualTo(true);
+      assertThat(preinstalledOptions.getCapability("appium:prebuiltWDAPath"))
+          .isEqualTo("/tmp/WebDriverAgentRunner-Runner.app");
     }
   }
 }

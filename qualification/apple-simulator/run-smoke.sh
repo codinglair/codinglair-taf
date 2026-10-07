@@ -13,6 +13,7 @@ readonly XCUITEST_VERSION="${XCUITEST_VERSION:-10.0.0}"
 readonly TAF_VERSION="${TAF_VERSION:-1.2.0}"
 readonly CANDIDATE_REPO="$OUT/candidate-repository"
 readonly APP="$OUT/TafAppleFixture.app"
+readonly WDA_DERIVED_DATA="$OUT/wda-derived-data"
 readonly WEB_PORT="${APPLE_WEB_PORT:-8765}"
 readonly APPIUM_PORT="${APPLE_APPIUM_PORT:-4723}"
 export APPIUM_HOME="$OUT/appium-home"
@@ -181,6 +182,18 @@ npm install --no-save --prefix "$OUT/appium" "appium@$APPIUM_VERSION" \
   > "$OUT/logs/appium-install.log" 2>&1
 "$OUT/appium/node_modules/.bin/appium" driver install "xcuitest@$XCUITEST_VERSION" \
   > "$OUT/logs/xcuitest-install.log" 2>&1
+wda_project="$APPIUM_HOME/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj"
+[[ -f "$wda_project/project.pbxproj" ]] || { echo "WDA project is unavailable: $wda_project" >&2; exit 15; }
+xcodebuild build-for-testing \
+  -project "$wda_project" \
+  -scheme WebDriverAgentRunner \
+  -derivedDataPath "$WDA_DERIVED_DATA" \
+  -destination "id=$udid" \
+  "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
+  GCC_TREAT_WARNINGS_AS_ERRORS=0 \
+  COMPILER_INDEX_STORE_ENABLE=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  > "$OUT/logs/wda-prebuild.log" 2>&1
 appium_raw_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-appium.XXXXXX.log")"
 "$OUT/appium/node_modules/.bin/appium" --address 127.0.0.1 --port "$APPIUM_PORT" \
   > "$appium_raw_log" 2>&1 &
@@ -196,6 +209,7 @@ export APPLE_DEVICE_NAME="$DEVICE_NAME"
 export APPLE_DEVICE_UDID="$udid"
 export APPLE_PLATFORM_VERSION="$PLATFORM_VERSION"
 export APPLE_TEST_URL="http://127.0.0.1:$WEB_PORT/index.html"
+export APPLE_WDA_DERIVED_DATA_PATH="$WDA_DERIVED_DATA"
 
 candidate_uri="file://$CANDIDATE_REPO"
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \

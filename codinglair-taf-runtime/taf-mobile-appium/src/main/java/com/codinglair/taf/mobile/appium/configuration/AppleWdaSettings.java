@@ -137,8 +137,12 @@ public class AppleWdaSettings {
         throw new IllegalArgumentException("Apple WDA port must be 1-65535");
     if (localPort != null && localPort.equals(mjpegPort))
       throw new IllegalArgumentException("Apple WDA and MJPEG ports must differ");
-    if (getBuildMode() == BuildMode.PREBUILT && (prebuiltPath == null || prebuiltPath.isBlank()))
-      throw new IllegalArgumentException("Apple PREBUILT WDA requires a server path");
+    if (getBuildMode() == BuildMode.PREBUILT
+        && (derivedDataPath == null || derivedDataPath.isBlank()))
+      throw new IllegalArgumentException("Apple PREBUILT WDA requires a derived-data path");
+    if (getBuildMode() == BuildMode.PREINSTALLED
+        && (prebuiltPath == null || prebuiltPath.isBlank()))
+      throw new IllegalArgumentException("Apple PREINSTALLED WDA requires a prebuilt app path");
     if (getBuildMode() == BuildMode.RUNNING) AppleControllerSettings.endpoint(baseUrl);
     for (String path : new String[] {prebuiltPath, derivedDataPath})
       if (path != null && (!path.startsWith("/") || path.contains("..") || path.contains("\\")))

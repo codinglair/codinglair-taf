@@ -58,6 +58,9 @@ jobs:
           name: apple-simulator-qualification-evidence
           path: |
             target/ver-130-002/**
+            !target/ver-130-002/appium/**
+            !target/ver-130-002/appium-home/**
+            !target/ver-130-002/wda-derived-data/**
             qualification/apple-simulator/target/surefire-reports/**
             qualification/apple-simulator/target/apple-evidence/**
           if-no-files-found: error

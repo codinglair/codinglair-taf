@@ -11,7 +11,9 @@ public final class Ver130002ContractTest {
         "java-version: '25'", "node-version: '22.12.0'", "APPIUM_VERSION: '3.0.0'",
         "XCUITEST_VERSION: '10.0.0'", "permissions:\n  contents: read", "if: ${{ always() }}");
     require(workflow, "actions/upload-artifact@v4", "name: apple-simulator-qualification-evidence",
-        "target/ver-130-002/**", "qualification/apple-simulator/target/surefire-reports/**");
+        "target/ver-130-002/**", "!target/ver-130-002/appium-home/**",
+        "!target/ver-130-002/wda-derived-data/**",
+        "qualification/apple-simulator/target/surefire-reports/**");
     requireOrder(workflow, "Execute real Apple simulator smoke", "Record hosted runner metadata");
     reject(workflow, "continue-on-error", "pull_request_target");
 
@@ -22,7 +24,8 @@ public final class Ver130002ContractTest {
         "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt",
         "capture_diagnostics", "sanitize_text_file", "appium-sanitized.log",
         "appium-status-final.json", "appium-sessions-final.json", "simctl-list-final.json",
-        "tail -n 400", "local status=$?", "exit \"$status\"");
+        "tail -n 400", "local status=$?", "exit \"$status\"", "xcodebuild build-for-testing",
+        "wda-prebuild.log", "APPLE_WDA_DERIVED_DATA_PATH");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
@@ -46,7 +49,8 @@ public final class Ver130002ContractTest {
     require(configuration, "YamlPropertySourceLoader", "ClassPathResource(\"application.yml\")",
         "Cannot load Apple simulator configuration");
     String appleProperties = read("qualification/apple-simulator/src/test/resources/application.yml");
-    require(appleProperties, "command-timeout: 5m", "show-xcode-log: true");
+    require(appleProperties, "command-timeout: 5m", "build-mode: PREBUILT",
+        "derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'", "show-xcode-log: true");
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",
