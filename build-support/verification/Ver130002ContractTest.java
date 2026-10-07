@@ -10,6 +10,8 @@ public final class Ver130002ContractTest {
     require(workflow, "workflow_dispatch:", "pull_request:", "runs-on: macos-15",
         "java-version: '25'", "node-version: '22.12.0'", "APPIUM_VERSION: '3.0.0'",
         "XCUITEST_VERSION: '10.0.0'", "permissions:\n  contents: read", "if: ${{ always() }}");
+    require(workflow, "actions/upload-artifact@v4", "name: apple-simulator-qualification-evidence",
+        "target/ver-130-002/**", "qualification/apple-simulator/target/surefire-reports/**");
     requireOrder(workflow, "Execute real Apple simulator smoke", "Record hosted runner metadata");
     reject(workflow, "continue-on-error", "pull_request_target");
 
@@ -17,10 +19,14 @@ public final class Ver130002ContractTest {
     require(runner, "simctl create", "simctl bootstatus", "simctl delete", "trap cleanup",
         "clean deploy -Prelease-staging", "-parse-as-library", "driver install", "/status", "/sessions",
         "controlledFailureStillUsesNormalSessionCleanup", "candidate-artifact-sha256.txt",
-        "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt");
+        "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt",
+        "capture_diagnostics", "sanitize_text_file", "appium-sanitized.log",
+        "appium-status-final.json", "appium-sessions-final.json", "simctl-list-final.json",
+        "tail -n 400", "local status=$?", "exit \"$status\"");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
-    reject(runner, "latest", "--relaxed-security");
+    requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
+    reject(runner, "latest", "--relaxed-security", "> \"$OUT/logs/appium.log\"");
 
     String smoke = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorSmokeTest.java");
     require(smoke, "controller(AppleController.class", "nativeApplicationInteractionAndRelaunch",

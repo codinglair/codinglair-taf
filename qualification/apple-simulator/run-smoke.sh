@@ -21,10 +21,97 @@ udid=""
 appium_pid=""
 web_pid=""
 candidate_log=""
+appium_raw_log=""
+
+sanitize_text_file() {
+  local source="$1"
+  local destination="$2"
+  local sanitized_temp
+  [[ -f "$source" ]] || return 1
+  sanitized_temp="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-sanitized.XXXXXX")"
+  if ! python3 - "$source" "$sanitized_temp" <<'PY'
+import re
+import sys
+
+source, destination = sys.argv[1:]
+text = open(source, encoding="utf-8", errors="replace").read()
+
+# Appium may echo provider capabilities, HTTP headers, or credential-bearing URLs. Preserve
+# protocol flow and session IDs while removing values that can authenticate or identify users.
+sensitive_key = r"(?:authorization|proxy-authorization|cookie|set-cookie|password|passwd|token|secret|api[-_]?key|access[-_]?key|credential|username|user[-_]?name)"
+text = re.sub(
+    rf'(?i)(["\']{sensitive_key}["\']\s*[:=]\s*)(["\'][^"\']*["\']|[^,\s}}]+)',
+    r'\1"<redacted>"',
+    text,
+)
+text = re.sub(
+    rf'(?im)^({sensitive_key}\s*:\s*).+$',
+    r'\1<redacted>',
+    text,
+)
+text = re.sub(
+    r'(?i)(https?://)[^/@\s:]+:[^/@\s]+@',
+    r'\1<redacted>@',
+    text,
+)
+text = re.sub(
+    rf'(?i)([?&](?:{sensitive_key})=)[^&#\s]+',
+    r'\1<redacted>',
+    text,
+)
+open(destination, "w", encoding="utf-8").write(text)
+PY
+  then
+    rm -f "$sanitized_temp"
+    return 1
+  fi
+  mv "$sanitized_temp" "$destination"
+}
+
+capture_diagnostics() {
+  mkdir -p "$OUT/logs"
+
+  if [[ -n "$appium_pid" ]]; then
+    curl --silent --show-error --max-time 5 "http://127.0.0.1:$APPIUM_PORT/status" \
+      > "$OUT/appium-status-final.json" 2> "$OUT/logs/appium-status-final-error.log" || true
+    local sessions_raw
+    sessions_raw="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-sessions.XXXXXX.json")"
+    curl --silent --show-error --max-time 5 "http://127.0.0.1:$APPIUM_PORT/sessions" \
+      > "$sessions_raw" 2> "$OUT/logs/appium-sessions-final-error.log" || true
+    sanitize_text_file "$sessions_raw" "$OUT/appium-sessions-final.json" || true
+    rm -f "$sessions_raw"
+  fi
+
+  if [[ -n "$udid" ]]; then
+    xcrun simctl list devices > "$OUT/simctl-devices-final.txt" 2>&1 || true
+    xcrun simctl list --json > "$OUT/simctl-list-final.json" 2>&1 || true
+  fi
+
+}
+
+sanitize_appium_log() {
+  [[ -n "$appium_raw_log" && -f "$appium_raw_log" ]] || return 0
+  sanitize_text_file "$appium_raw_log" "$OUT/logs/appium-sanitized.log" || \
+    printf '%s\n' 'Appium log sanitization failed; raw log was not retained.' \
+      > "$OUT/logs/appium-sanitization-error.log"
+  rm -f "$appium_raw_log"
+  appium_raw_log=""
+}
 
 cleanup() {
   local status=$?
-  if [[ -n "$appium_pid" ]]; then kill "$appium_pid" 2>/dev/null || true; fi
+  set +e
+  capture_diagnostics
+  if [[ -n "$appium_pid" ]]; then
+    kill "$appium_pid" 2>/dev/null || true
+    wait "$appium_pid" 2>/dev/null || true
+  fi
+  sanitize_appium_log
+  if [[ "$status" -ne 0 && -f "$OUT/logs/appium-sanitized.log" ]]; then
+    printf '%s\n' '::group::Sanitized Appium failure diagnostics (last 400 lines)'
+    tail -n 400 "$OUT/logs/appium-sanitized.log"
+    printf '%s\n' '::endgroup::'
+  fi
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi
   if [[ -n "$udid" ]]; then
     xcrun simctl shutdown "$udid" 2>/dev/null || true
@@ -94,8 +181,9 @@ npm install --no-save --prefix "$OUT/appium" "appium@$APPIUM_VERSION" \
   > "$OUT/logs/appium-install.log" 2>&1
 "$OUT/appium/node_modules/.bin/appium" driver install "xcuitest@$XCUITEST_VERSION" \
   > "$OUT/logs/xcuitest-install.log" 2>&1
+appium_raw_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-appium.XXXXXX.log")"
 "$OUT/appium/node_modules/.bin/appium" --address 127.0.0.1 --port "$APPIUM_PORT" \
-  > "$OUT/logs/appium.log" 2>&1 &
+  > "$appium_raw_log" 2>&1 &
 appium_pid=$!
 
 for _ in {1..60}; do
