@@ -209,6 +209,11 @@ sanitize_appium_log() {
   sanitize_text_file "$appium_raw_log" "$OUT/logs/appium-sanitized.log" || \
     printf '%s\n' 'Appium log sanitization failed; raw log was not retained.' \
       > "$OUT/logs/appium-sanitization-error.log"
+  if [[ -f "$OUT/logs/appium-sanitized.log" ]]; then
+    grep -Ei '(/contexts|context handles|webview|webkit|remote.?debug|inspector|automation session|socket)' \
+      "$OUT/logs/appium-sanitized.log" | tail -n 500 | cut -c1-2000 \
+      > "$OUT/logs/appium-hybrid-context.log" || true
+  fi
   rm -f "$appium_raw_log"
   appium_raw_log=""
 }

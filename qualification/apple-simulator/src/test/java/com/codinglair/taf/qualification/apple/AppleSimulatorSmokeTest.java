@@ -11,7 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.test.context.ActiveProfiles;
@@ -31,6 +33,8 @@ public final class AppleSimulatorSmokeTest extends TafBaseTest {
       new AppleLocator(AppleLocator.Kind.CSS, "#web-action");
   private static final AppleLocator WEB_RESULT =
       new AppleLocator(AppleLocator.Kind.CSS, "#web-result");
+  private static final AppleLocator WEB_LOAD_STATUS =
+      new AppleLocator(AppleLocator.Kind.ACCESSIBILITY, "web-load-status");
 
   @Test
   public void nativeApplicationInteractionAndRelaunch() throws IOException {
@@ -46,6 +50,7 @@ public final class AppleSimulatorSmokeTest extends TafBaseTest {
   @Test
   public void hybridWebViewAndNativeReturn() throws IOException {
     AppleController apple = controller(AppleController.class, "hybrid");
+    awaitNativeText(apple, WEB_LOAD_STATUS, "Web loaded");
     String webView = awaitWebView(apple);
     apple.selectWebView(webView);
     try {
@@ -83,15 +88,17 @@ public final class AppleSimulatorSmokeTest extends TafBaseTest {
     throw new AssertionError("VER-130-002 controlled failure");
   }
 
-  private String awaitWebView(AppleController apple) {
+  private String awaitWebView(AppleController apple) throws IOException {
     var observed = new AtomicReference<Set<String>>(Set.of());
     var matches = new AtomicReference<List<String>>(List.of());
+    Map<Set<String>, Integer> observations = new LinkedHashMap<>();
     var result =
         AwaitableAssertion.create(
                 "fixture-webview",
                 _ -> {
                   Set<String> contexts = apple.contexts();
                   observed.set(contexts);
+                  observations.merge(contexts, 1, Integer::sum);
                   List<String> webViews =
                       contexts.stream()
                           .filter(name -> name.startsWith("WEBVIEW_"))
@@ -106,12 +113,49 @@ public final class AppleSimulatorSmokeTest extends TafBaseTest {
                 Duration.ofSeconds(30),
                 Duration.ofMillis(250))
             .await();
+    retainContextObservations(observations);
     if (result.isSuccessful()) return matches.get().getFirst();
     if (Thread.currentThread().isInterrupted())
       throw new IllegalStateException("WebView discovery interrupted", result.getErrors().getFirst());
     throw new AssertionError(
         "Fixture WebView discovery failed: %s; context count=%d"
             .formatted(result.getMessage(), observed.get().size()));
+  }
+
+  private static void awaitNativeText(
+      AppleController apple, AppleLocator locator, String expected) {
+    var observed = new AtomicReference<>("unavailable");
+    var result =
+        AwaitableAssertion.create(
+                "fixture-webview-navigation",
+                _ -> {
+                  String actual = apple.text(apple.find(locator));
+                  observed.set(actual);
+                  return expected.equals(actual);
+                },
+                Duration.ofSeconds(30),
+                Duration.ofMillis(250))
+            .await();
+    if (!result.isSuccessful())
+      throw new AssertionError(
+          "Fixture WKWebView navigation did not complete: %s; last status=%s"
+              .formatted(result.getMessage(), observed.get()));
+  }
+
+  private static void retainContextObservations(Map<Set<String>, Integer> observations)
+      throws IOException {
+    Path directory = Path.of("target", "apple-evidence", "hybrid");
+    Files.createDirectories(directory);
+    StringBuilder summary = new StringBuilder();
+    observations.forEach(
+        (contexts, count) ->
+            summary.append("polls=").append(count).append(" contexts=").append(contexts).append('\n'));
+    Files.writeString(
+        directory.resolve("context-observations.txt"),
+        summary,
+        StandardCharsets.UTF_8,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING);
   }
 
   private static void assertText(AppleController apple, AppleLocator locator, String expected) {

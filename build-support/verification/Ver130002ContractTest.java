@@ -44,7 +44,8 @@ public final class Ver130002ContractTest {
         "CoreSimulator device failed to remain booted while starting Simulator UI",
         "record_simulator_checkpoint after-simulator-ui-readiness", "APPLE_OWNED_SESSION_FILE",
         "owned-session-cleanup-response.json", "/session/$owned_session/source",
-        "invalid session id", "ownedSessionCleanupVerified=true");
+        "invalid session id", "ownedSessionCleanupVerified=true", "appium-hybrid-context.log",
+        "remote.?debug", "tail -n 500");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
@@ -64,7 +65,9 @@ public final class Ver130002ContractTest {
         "AppleSimulatorConfiguration.Initializer.class",
         "collectArtifacts(ArtifactReason.EXPLICIT)",
         "Nonempty screenshot and page source are required", "APPLE_OWNED_SESSION_FILE",
-        "apple.nativeDriver().getSessionId().toString()", "StandardOpenOption.TRUNCATE_EXISTING");
+        "apple.nativeDriver().getSessionId().toString()", "StandardOpenOption.TRUNCATE_EXISTING",
+        "WEB_LOAD_STATUS", "fixture-webview-navigation", "context-observations.txt",
+        "observations.merge(contexts, 1, Integer::sum)");
     reject(smoke, "IOSDriver", "Thread.sleep(", "SkipException");
 
     String configurationTest = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorConfigurationTest.java");
@@ -88,7 +91,9 @@ public final class Ver130002ContractTest {
 
     String fixture = read("qualification/apple-simulator/fixture/AppDelegate.swift");
     require(fixture, "accessibilityIdentifier = \"native-action\"", "WKWebView",
-        "id=\"web-action\"", "id=\"web-result\"");
+        "id=\"web-action\"", "id=\"web-result\"", "webView.isInspectable = true",
+        "WKNavigationDelegate", "accessibilityIdentifier = \"web-load-status\"",
+        "webLoadStatus.text = \"Web loaded\"");
 
     String record = read("docs/qualification/apple/VER-130-002-candidate-1.md");
     require(record, "**Hosted Apple simulator qualification:** **NOT RUN / UNVERIFIED**",

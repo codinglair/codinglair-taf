@@ -48,3 +48,11 @@ the selected UDID to remain `Booted` on every poll. Failure messages distinguish
 state loss from Simulator UI startup failure; `simulator-ui-readiness.log` records the launch and
 ready timestamps and UI PID. This prevents Appium from having to make a headless-but-booted
 simulator visible during `POST /session`.
+
+The hybrid fixture keeps its inspectable `WKWebView` as a view-controller property and publishes a
+native `web-load-status` label from `WKNavigationDelegate` callbacks. The hybrid smoke requires
+`Web loaded` before polling Appium contexts, which separates fixture navigation failure from remote
+WebKit discovery failure. Repeated identical context sets are summarized in
+`target/apple-evidence/hybrid/context-observations.txt`; bounded sanitized Appium/WebKit context
+messages are retained in `logs/appium-hybrid-context.log`. The embedded hybrid page is independent
+of `APPLE_TEST_URL`, which remains the deterministic Mobile Safari fixture URL.
