@@ -22,8 +22,59 @@ udid=""
 appium_pid=""
 web_pid=""
 wda_pid=""
+wda_supervisor_pid=""
+wda_monitor_pid=""
 candidate_log=""
 appium_raw_log=""
+
+timestamp_utc() {
+  date -u '+%Y-%m-%dT%H:%M:%SZ'
+}
+
+record_wda_checkpoint() {
+  local checkpoint="$1"
+  local status_file="$OUT/wda-status-${checkpoint}.json"
+  local status_error_file="$OUT/logs/wda-status-${checkpoint}-error.log"
+  local alive="no"
+  local reachable="no"
+  local listening="no"
+  local process_info="unavailable"
+  local port_info="unavailable"
+
+  mkdir -p "$OUT/logs"
+  if [[ -n "$wda_pid" ]] && kill -0 "$wda_pid" 2>/dev/null; then alive="yes"; fi
+  if [[ -n "$wda_pid" ]]; then
+    process_info="$(ps -p "$wda_pid" -o pid=,ppid=,stat=,etime=,command= 2>&1 || true)"
+  fi
+  if curl --fail --silent --show-error --max-time 2 "http://127.0.0.1:8100/status" \
+      > "$status_file" 2> "$status_error_file"; then
+    reachable="yes"
+    rm -f "$status_error_file"
+  fi
+  if command -v lsof > /dev/null 2>&1; then
+    port_info="$(lsof -nP -iTCP:8100 -sTCP:LISTEN 2>&1 | head -n 20 || true)"
+    if [[ -n "$port_info" ]]; then listening="yes"; fi
+  fi
+  {
+    printf '%s checkpoint=%s wdaPid=%s alive=%s statusReachable=%s port8100Listening=%s\n' \
+      "$(timestamp_utc)" "$checkpoint" "${wda_pid:-unset}" "$alive" "$reachable" "$listening"
+    printf 'process: %s\n' "$process_info"
+    printf 'port: %s\n' "$port_info"
+    if [[ "$reachable" == yes ]]; then
+      printf 'status: '
+      head -c 4000 "$status_file"
+      printf '\n'
+    fi
+  } >> "$OUT/wda-lifecycle.log"
+  return 0
+}
+
+monitor_wda() {
+  while true; do
+    record_wda_checkpoint monitor
+    sleep 5
+  done
+}
 
 sanitize_text_file() {
   local source="$1"
@@ -103,6 +154,10 @@ sanitize_appium_log() {
 cleanup() {
   local status=$?
   set +e
+  if [[ -n "$wda_monitor_pid" ]]; then
+    kill "$wda_monitor_pid" 2>/dev/null || true
+    wait "$wda_monitor_pid" 2>/dev/null || true
+  fi
   capture_diagnostics
   if [[ -n "$appium_pid" ]]; then
     kill "$appium_pid" 2>/dev/null || true
@@ -121,7 +176,9 @@ cleanup() {
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi
   if [[ -n "$wda_pid" ]]; then
     kill "$wda_pid" 2>/dev/null || true
-    wait "$wda_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$wda_supervisor_pid" ]]; then
+    wait "$wda_supervisor_pid" 2>/dev/null || true
   fi
   if [[ -n "$udid" ]]; then
     xcrun simctl shutdown "$udid" 2>/dev/null || true
@@ -203,17 +260,42 @@ xcodebuild build-for-testing \
   COMPILER_INDEX_STORE_ENABLE=NO \
   CODE_SIGNING_ALLOWED=NO \
   > "$OUT/logs/wda-prebuild.log" 2>&1
-xcodebuild test-without-building \
-  -project "$wda_project" \
-  -scheme WebDriverAgentRunner \
-  -derivedDataPath "$WDA_DERIVED_DATA" \
-  -destination "platform=iOS Simulator,id=$udid,arch=$arch" \
-  "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
-  GCC_TREAT_WARNINGS_AS_ERRORS=0 \
-  COMPILER_INDEX_STORE_ENABLE=NO \
-  CODE_SIGNING_ALLOWED=NO \
-  > "$OUT/logs/wda-launch.log" 2>&1 &
-wda_pid=$!
+wda_pid_file="$OUT/wda-xcodebuild.pid"
+(
+  set +e
+  xcodebuild test-without-building \
+    -project "$wda_project" \
+    -scheme WebDriverAgentRunner \
+    -derivedDataPath "$WDA_DERIVED_DATA" \
+    -destination "platform=iOS Simulator,id=$udid,arch=$arch" \
+    "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
+    GCC_TREAT_WARNINGS_AS_ERRORS=0 \
+    COMPILER_INDEX_STORE_ENABLE=NO \
+    CODE_SIGNING_ALLOWED=NO \
+    > "$OUT/logs/wda-launch.log" 2>&1 &
+  supervised_wda_pid=$!
+  printf '%s\n' "$supervised_wda_pid" > "$wda_pid_file"
+  wait "$supervised_wda_pid"
+  wda_exit=$?
+  {
+    printf '%s event=xcodebuild-exit wdaPid=%s exitCode=%s\n' \
+      "$(timestamp_utc)" "$supervised_wda_pid" "$wda_exit"
+    ps -p "$supervised_wda_pid" -o pid=,ppid=,stat=,etime=,command= 2>&1 || \
+      printf '%s\n' 'process: no longer present'
+    printf '%s\n' 'wda-launch.log tail (last 100 bounded lines):'
+    tail -n 100 "$OUT/logs/wda-launch.log" | cut -c1-2000
+  } >> "$OUT/wda-lifecycle.log"
+  exit "$wda_exit"
+) &
+wda_supervisor_pid=$!
+for _ in {1..50}; do
+  [[ -s "$wda_pid_file" ]] && break
+  kill -0 "$wda_supervisor_pid" 2>/dev/null || break
+  sleep 0.1
+done
+[[ -s "$wda_pid_file" ]] || { echo 'WebDriverAgent PID was not recorded' >&2; exit 16; }
+wda_pid="$(<"$wda_pid_file")"
+record_wda_checkpoint launched
 for _ in {1..180}; do
   if ! kill -0 "$wda_pid" 2>/dev/null; then
     echo 'WebDriverAgent launch exited before readiness' >&2
@@ -221,11 +303,13 @@ for _ in {1..180}; do
   fi
   if curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" \
       > "$OUT/wda-status.json"; then
+    record_wda_checkpoint ready
     break
   fi
   sleep 1
 done
 curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" > "$OUT/wda-status.json"
+record_wda_checkpoint before-appium
 appium_raw_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-appium.XXXXXX.log")"
 "$OUT/appium/node_modules/.bin/appium" --address 127.0.0.1 --port "$APPIUM_PORT" \
   > "$appium_raw_log" 2>&1 &
@@ -244,10 +328,21 @@ export APPLE_TEST_URL="http://127.0.0.1:$WEB_PORT/index.html"
 export APPLE_WDA_BASE_URL="http://127.0.0.1:8100"
 
 candidate_uri="file://$CANDIDATE_REPO"
+record_wda_checkpoint before-maven
+{
+  printf '%s checkpoint=before-maven wda-launch.log tail (last 100 bounded lines):\n' \
+    "$(timestamp_utc)"
+  tail -n 100 "$OUT/logs/wda-launch.log" | cut -c1-2000
+} >> "$OUT/wda-lifecycle.log"
+monitor_wda &
+wda_monitor_pid=$!
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
   "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
   -Dtaf.apple.live=true test \
   | tee "$OUT/logs/live-smoke.log"
+kill "$wda_monitor_pid" 2>/dev/null || true
+wait "$wda_monitor_pid" 2>/dev/null || true
+wda_monitor_pid=""
 
 set +e
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \

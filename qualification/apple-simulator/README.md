@@ -27,3 +27,10 @@ requires zero remaining Appium sessions. Its trap attempts process and simulator
 exit. Video and syslog are attempted and their controller-generated availability records are
 retained; unsupported optional video is not a smoke failure. Screenshot and page source must be
 nonempty.
+
+The runner records prelaunch, readiness, pre-Appium, pre-Maven and periodic smoke-time WDA health
+in `wda-lifecycle.log`, with bounded status, process, port-listener and launch-log evidence. A
+supervisor records the `xcodebuild test-without-building` exit code without restarting WDA or
+changing the smoke result. Appium 3.0.0 currently returns HTTP 404 for the runner's existing
+`GET /sessions` cleanup check; that separate compatibility issue is intentionally not changed by
+the WDA-lifetime diagnostics.

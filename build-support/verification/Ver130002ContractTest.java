@@ -26,11 +26,17 @@ public final class Ver130002ContractTest {
         "appium-status-final.json", "appium-sessions-final.json", "simctl-list-final.json",
         "tail -n 250", "cut -c1-2000", "local status=$?", "exit \"$status\"",
         "xcodebuild build-for-testing", "xcodebuild test-without-building",
-        "wda-prebuild.log", "wda-launch.log", "wda-status.json", "APPLE_WDA_BASE_URL");
+        "wda-prebuild.log", "wda-launch.log", "wda-status.json", "APPLE_WDA_BASE_URL",
+        "record_wda_checkpoint launched", "record_wda_checkpoint ready",
+        "record_wda_checkpoint before-appium", "record_wda_checkpoint before-maven",
+        "wda-lifecycle.log", "event=xcodebuild-exit", "exitCode=%s", "lsof -nP -iTCP:8100",
+        "monitor_wda", "sleep 5");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
     reject(runner, "latest", "--relaxed-security", "> \"$OUT/logs/appium.log\"");
+    requireOrder(runner, "record_wda_checkpoint before-appium", "appium_raw_log=\"$(mktemp");
+    requireOrder(runner, "record_wda_checkpoint before-maven", "-Dtaf.apple.live=true test");
 
     String smoke = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorSmokeTest.java");
     require(smoke, "controller(AppleController.class", "nativeApplicationInteractionAndRelaunch",
