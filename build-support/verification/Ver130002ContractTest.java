@@ -25,8 +25,8 @@ public final class Ver130002ContractTest {
         "capture_diagnostics", "sanitize_text_file", "appium-sanitized.log",
         "appium-status-final.json", "appium-sessions-final.json", "simctl-list-final.json",
         "tail -n 250", "cut -c1-2000", "local status=$?", "exit \"$status\"",
-        "xcodebuild build-for-testing",
-        "wda-prebuild.log", "APPLE_WDA_DERIVED_DATA_PATH");
+        "xcodebuild build-for-testing", "xcodebuild test-without-building",
+        "wda-prebuild.log", "wda-launch.log", "wda-status.json", "APPLE_WDA_BASE_URL");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
@@ -50,8 +50,8 @@ public final class Ver130002ContractTest {
     require(configuration, "YamlPropertySourceLoader", "ClassPathResource(\"application.yml\")",
         "Cannot load Apple simulator configuration");
     String appleProperties = read("qualification/apple-simulator/src/test/resources/application.yml");
-    require(appleProperties, "command-timeout: 5m", "build-mode: PREBUILT",
-        "derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'", "show-xcode-log: true");
+    require(appleProperties, "command-timeout: 5m", "build-mode: RUNNING",
+        "base-url: '${APPLE_WDA_BASE_URL}'", "show-xcode-log: true");
     require(appleProperties, "launch-timeout: 3m");
 
     String pom = read("qualification/apple-simulator/pom.xml");

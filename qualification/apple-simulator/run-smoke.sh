@@ -21,6 +21,7 @@ export APPIUM_HOME="$OUT/appium-home"
 udid=""
 appium_pid=""
 web_pid=""
+wda_pid=""
 candidate_log=""
 appium_raw_log=""
 
@@ -118,6 +119,10 @@ cleanup() {
     printf '%s\n' '::endgroup::'
   fi
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi
+  if [[ -n "$wda_pid" ]]; then
+    kill "$wda_pid" 2>/dev/null || true
+    wait "$wda_pid" 2>/dev/null || true
+  fi
   if [[ -n "$udid" ]]; then
     xcrun simctl shutdown "$udid" 2>/dev/null || true
     xcrun simctl delete "$udid" 2>/dev/null || true
@@ -192,12 +197,35 @@ xcodebuild build-for-testing \
   -project "$wda_project" \
   -scheme WebDriverAgentRunner \
   -derivedDataPath "$WDA_DERIVED_DATA" \
-  -destination "id=$udid" \
+  -destination "platform=iOS Simulator,id=$udid,arch=$arch" \
   "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
   GCC_TREAT_WARNINGS_AS_ERRORS=0 \
   COMPILER_INDEX_STORE_ENABLE=NO \
   CODE_SIGNING_ALLOWED=NO \
   > "$OUT/logs/wda-prebuild.log" 2>&1
+xcodebuild test-without-building \
+  -project "$wda_project" \
+  -scheme WebDriverAgentRunner \
+  -derivedDataPath "$WDA_DERIVED_DATA" \
+  -destination "platform=iOS Simulator,id=$udid,arch=$arch" \
+  "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
+  GCC_TREAT_WARNINGS_AS_ERRORS=0 \
+  COMPILER_INDEX_STORE_ENABLE=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  > "$OUT/logs/wda-launch.log" 2>&1 &
+wda_pid=$!
+for _ in {1..180}; do
+  if ! kill -0 "$wda_pid" 2>/dev/null; then
+    echo 'WebDriverAgent launch exited before readiness' >&2
+    exit 16
+  fi
+  if curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" \
+      > "$OUT/wda-status.json"; then
+    break
+  fi
+  sleep 1
+done
+curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" > "$OUT/wda-status.json"
 appium_raw_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-appium.XXXXXX.log")"
 "$OUT/appium/node_modules/.bin/appium" --address 127.0.0.1 --port "$APPIUM_PORT" \
   > "$appium_raw_log" 2>&1 &
@@ -213,7 +241,7 @@ export APPLE_DEVICE_NAME="$DEVICE_NAME"
 export APPLE_DEVICE_UDID="$udid"
 export APPLE_PLATFORM_VERSION="$PLATFORM_VERSION"
 export APPLE_TEST_URL="http://127.0.0.1:$WEB_PORT/index.html"
-export APPLE_WDA_DERIVED_DATA_PATH="$WDA_DERIVED_DATA"
+export APPLE_WDA_BASE_URL="http://127.0.0.1:8100"
 
 candidate_uri="file://$CANDIDATE_REPO"
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \

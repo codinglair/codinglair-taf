@@ -26,8 +26,8 @@ taf:
           context-timeout: 30s
           cleanup-timeout: 30s
           wda:
-            build-mode: PREBUILT
-            derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'
+            build-mode: RUNNING
+            base-url: '${APPLE_WDA_BASE_URL}'
             launch-timeout: 3m
             show-xcode-log: true
           prerequisites: &confirmed
@@ -62,8 +62,8 @@ taf:
           require-evidence: false
           command-timeout: 5m
           wda:
-            build-mode: PREBUILT
-            derived-data-path: '${APPLE_WDA_DERIVED_DATA_PATH}'
+            build-mode: RUNNING
+            base-url: '${APPLE_WDA_BASE_URL}'
             launch-timeout: 3m
             show-xcode-log: true
           prerequisites: *confirmed
