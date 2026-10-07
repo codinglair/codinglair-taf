@@ -125,6 +125,10 @@ WebDriverAgent and Appium/XCUITest. TAF may consume explicitly delegated WDA/MJP
 derived-data paths, running-WDA URLs or provider allocations. It never stores private keys,
 profiles or signing values.
 
+Set `wda.show-xcode-log: true` only when detailed Appium/Xcode build diagnostics are required.
+The default is `false`; enabled output must still pass through the configured log and evidence
+sanitization boundary.
+
 Each named controller has one session-local driver, context generation and evidence namespace.
 TAF rejects observable collisions in target identity, host WDA/MJPEG ports and derived-data
 paths, and releases only resources it reserved. Providers and operators must coordinate target,

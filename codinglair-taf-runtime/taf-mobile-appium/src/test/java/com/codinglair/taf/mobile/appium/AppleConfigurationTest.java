@@ -305,12 +305,14 @@ class AppleConfigurationTest {
     void wda() {
       var base = valid();
       base.getWda().setLocalPort(8101);
+      base.getWda().setShowXcodeLog(true);
       var named = new AppleControllerSettings();
       named.getWda().setMjpegPort(9101);
       var result = AppleControllerSettings.resolve(base, named, null);
       var options = new ApplePlatformStrategy().options(result);
       assertThat(options.getCapability("appium:wdaLocalPort")).isEqualTo(8101);
       assertThat(options.getCapability("appium:mjpegServerPort")).isEqualTo(9101);
+      assertThat(options.getCapability("appium:showXcodeLog")).isEqualTo(true);
       named.getWda().setMjpegPort(8101);
       assertThrows(
           IllegalArgumentException.class, () -> AppleControllerSettings.resolve(base, named, null));

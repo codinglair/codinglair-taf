@@ -359,7 +359,7 @@ class AppleSessionProtocolTest {
           entered = new CountDownLatch(1);
           release = new CountDownLatch(1);
           var settings = settings();
-          settings.setReadinessTimeout(Duration.ofMillis(100));
+          settings.setCommandTimeout(Duration.ofMillis(100));
           settings.setDeviceId("uncertain-target");
           var coordinator = new AppleResourceReservations();
           var controller = new DefaultAppleController("timeout", settings, null, coordinator);
@@ -373,6 +373,28 @@ class AppleSessionProtocolTest {
           assertThrows(IllegalStateException.class, () -> coordinator.acquire(settings));
           assertThat(paths).allMatch(p -> p.startsWith("POST"));
           release.countDown();
+        });
+  }
+
+  @Test
+  @DisplayName("session creation uses command timeout rather than the shorter readiness timeout")
+  void sessionCreationTimeout() {
+    assertTimeoutPreemptively(
+        Duration.ofSeconds(5),
+        () -> {
+          entered = new CountDownLatch(1);
+          release = new CountDownLatch(1);
+          var settings = settings();
+          settings.setReadinessTimeout(Duration.ofMillis(50));
+          settings.setCommandTimeout(Duration.ofSeconds(2));
+          var controller = new DefaultAppleController("slow-session", settings, null);
+          try (var scheduler = Executors.newSingleThreadScheduledExecutor()) {
+            scheduler.schedule(release::countDown, 250, TimeUnit.MILLISECONDS);
+            controller.initialize(TestContexts.context());
+            assertThat(controller.state()).isEqualTo(ControllerState.READY);
+          } finally {
+            controller.close();
+          }
         });
   }
 
@@ -488,7 +510,7 @@ class AppleSessionProtocolTest {
           release = new CountDownLatch(1);
           rejectDelete = cleanupFails;
           var settings = settings();
-          settings.setReadinessTimeout(Duration.ofMillis(100));
+          settings.setCommandTimeout(Duration.ofMillis(100));
           settings.setCleanupTimeout(Duration.ofSeconds(1));
           settings.setAllocationResource("allocation");
           var context = TestContexts.context();

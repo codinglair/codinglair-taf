@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.openqa.selenium.json.Json;
 import org.openqa.selenium.remote.http.Contents;
+import org.openqa.selenium.remote.http.HttpMethod;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.openqa.selenium.remote.http.WebSocket;
 
@@ -38,7 +39,6 @@ final class AppleHttpClient implements org.openqa.selenium.remote.http.HttpClien
   private final AppleTransportSecurity security;
   private final String sessionId;
   private final HttpClient client;
-  private final Duration timeout;
 
   AppleHttpClient(
       AppleControllerSettings settings, AppleTransportSecurity security, String sessionId) {
@@ -46,14 +46,6 @@ final class AppleHttpClient implements org.openqa.selenium.remote.http.HttpClien
     this.security = security;
     this.sessionId = sessionId;
     HttpTransportLogging.requireSafe();
-    timeout =
-        List.of(
-                settings.getReadinessTimeout(),
-                settings.getCommandTimeout(),
-                settings.getCleanupTimeout())
-            .stream()
-            .min(Duration::compareTo)
-            .orElseThrow();
     client =
         HttpClient.newBuilder()
             .connectTimeout(settings.getReadinessTimeout())
@@ -71,7 +63,8 @@ final class AppleHttpClient implements org.openqa.selenium.remote.http.HttpClien
       security.requireSettings(settings);
       var prepared = prepare(request);
       var authenticated = authenticate(prepared, values);
-      var wire = wireRequest(authenticated);
+      Duration timeout = timeoutFor(request);
+      var wire = wireRequest(authenticated, timeout);
       long deadline = System.nanoTime() + timeout.toNanos();
       connectionAttempted = true;
       var response = client.send(wire, BodyHandlers.ofInputStream());
@@ -169,7 +162,14 @@ final class AppleHttpClient implements org.openqa.selenium.remote.http.HttpClien
     payload.put("capabilities", capabilities);
   }
 
-  private HttpRequest wireRequest(AuthenticatedRequest request) {
+  private Duration timeoutFor(org.openqa.selenium.remote.http.HttpRequest request) {
+    if (request.getMethod() == HttpMethod.DELETE) return settings.getCleanupTimeout();
+    if (request.getUri().equals("/status") || request.getUri().endsWith("/status"))
+      return settings.getReadinessTimeout();
+    return settings.getCommandTimeout();
+  }
+
+  private HttpRequest wireRequest(AuthenticatedRequest request, Duration timeout) {
     var wire =
         HttpRequest.newBuilder(request.destination())
             .timeout(timeout)

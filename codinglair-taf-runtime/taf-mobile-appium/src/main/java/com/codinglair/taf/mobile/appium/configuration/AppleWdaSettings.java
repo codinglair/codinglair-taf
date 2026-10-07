@@ -95,6 +95,16 @@ public class AppleWdaSettings {
 
   private URI baseUrl;
 
+  private Boolean showXcodeLog;
+
+  public boolean getShowXcodeLog() {
+    return Boolean.TRUE.equals(showXcodeLog);
+  }
+
+  public void setShowXcodeLog(Boolean value) {
+    showXcodeLog = value;
+  }
+
   public URI getBaseUrl() {
     return baseUrl;
   }
@@ -117,6 +127,7 @@ public class AppleWdaSettings {
     result.bundleId = overlay.bundleId == null ? base.bundleId : overlay.bundleId;
     result.prebuiltPath = overlay.prebuiltPath == null ? base.prebuiltPath : overlay.prebuiltPath;
     result.baseUrl = overlay.baseUrl == null ? base.baseUrl : overlay.baseUrl;
+    result.showXcodeLog = overlay.showXcodeLog == null ? base.showXcodeLog : overlay.showXcodeLog;
     return result;
   }
 
@@ -146,6 +157,7 @@ public class AppleWdaSettings {
     if (bundleId != null) result.put("appium:updatedWDABundleId", bundleId);
     if (prebuiltPath != null) result.put("appium:prebuiltWDAPath", prebuiltPath);
     if (baseUrl != null) result.put("appium:webDriverAgentUrl", baseUrl.toString());
+    if (getShowXcodeLog()) result.put("appium:showXcodeLog", true);
     switch (getBuildMode()) {
       case PREBUILT -> result.put("appium:usePrebuiltWDA", true);
       case PREINSTALLED -> result.put("appium:usePreinstalledWDA", true);

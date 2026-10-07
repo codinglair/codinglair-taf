@@ -24,6 +24,8 @@ taf:
           require-evidence: false
           context-timeout: 30s
           cleanup-timeout: 30s
+          wda:
+            show-xcode-log: true
           prerequisites: &confirmed
             endpoint: true
             compatibility: true
