@@ -24,8 +24,12 @@ web_pid=""
 wda_pid=""
 wda_supervisor_pid=""
 wda_monitor_pid=""
+simulator_monitor_pid=""
+simulator_log_pid=""
+simulator_log_raw=""
 candidate_log=""
 appium_raw_log=""
+readonly WDA_CLEANUP_MARKER="$OUT/wda-cleanup-requested"
 
 timestamp_utc() {
   date -u '+%Y-%m-%dT%H:%M:%SZ'
@@ -74,6 +78,69 @@ monitor_wda() {
     record_wda_checkpoint monitor
     sleep 5
   done
+}
+
+record_simulator_checkpoint() {
+  local checkpoint="$1"
+  local lifecycle_log="$OUT/simulator-lifecycle.log"
+  local state_file="$OUT/simulator-state-${checkpoint}.json"
+  local device_line="unavailable"
+  local booted="no"
+  local simulator_processes="unavailable"
+  local wda_reachable="no"
+  local checkpoint_record
+
+  mkdir -p "$OUT/logs"
+  if [[ -n "$udid" ]]; then
+    device_line="$(xcrun simctl list devices 2>&1 | grep -F "$udid" | head -n 1 || true)"
+    if [[ "$device_line" == *"(Booted)"* ]]; then booted="yes"; fi
+    xcrun simctl list --json devices 2>/dev/null | python3 -c '
+import json, sys
+udid = sys.argv[1]
+data = json.load(sys.stdin)
+matches = [device for devices in data.get("devices", {}).values()
+           for device in devices if device.get("udid") == udid]
+json.dump(matches[0] if matches else {"udid": udid, "available": False}, sys.stdout, indent=2)
+' "$udid" > "$state_file" 2> "$OUT/logs/simulator-state-${checkpoint}-error.log" || true
+  fi
+  simulator_processes="$(ps -axo pid=,ppid=,stat=,etime=,command= 2>&1 \
+    | grep -E 'Simulator\.app|CoreSimulator|launchd_sim' \
+    | grep -v grep | head -n 40 || true)"
+  if curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" > /dev/null 2>&1; then
+    wda_reachable="yes"
+  fi
+  checkpoint_record="$({
+    printf '%s checkpoint=%s udid=%s booted=%s wdaReachable=%s\n' \
+      "$(timestamp_utc)" "$checkpoint" "${udid:-unset}" "$booted" "$wda_reachable"
+    printf 'device: %s\n' "$device_line"
+    printf 'simulatorProcesses:\n%s\n' "$simulator_processes"
+  })"
+  printf '%s\n' "$checkpoint_record" >> "$lifecycle_log"
+  if [[ "$checkpoint" == monitor ]]; then
+    printf '%s\n' "$checkpoint_record" >> "$OUT/simulator-runtime-monitor.log"
+  fi
+  return 0
+}
+
+monitor_simulator() {
+  while true; do
+    record_simulator_checkpoint monitor
+    sleep 5
+  done
+}
+
+stop_simulator_log_capture() {
+  if [[ -n "$simulator_log_pid" ]]; then
+    kill "$simulator_log_pid" 2>/dev/null || true
+    wait "$simulator_log_pid" 2>/dev/null || true
+    simulator_log_pid=""
+  fi
+  if [[ -n "$simulator_log_raw" && -f "$simulator_log_raw" ]]; then
+    tail -n 5000 "$simulator_log_raw" | cut -c1-2000 \
+      > "$OUT/logs/simulator-coresimulator-session.log" || true
+    rm -f "$simulator_log_raw"
+    simulator_log_raw=""
+  fi
 }
 
 sanitize_text_file() {
@@ -158,6 +225,12 @@ cleanup() {
     kill "$wda_monitor_pid" 2>/dev/null || true
     wait "$wda_monitor_pid" 2>/dev/null || true
   fi
+  if [[ -n "$simulator_monitor_pid" ]]; then
+    kill "$simulator_monitor_pid" 2>/dev/null || true
+    wait "$simulator_monitor_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$udid" ]]; then record_simulator_checkpoint cleanup-before-teardown; fi
+  stop_simulator_log_capture
   capture_diagnostics
   if [[ -n "$appium_pid" ]]; then
     kill "$appium_pid" 2>/dev/null || true
@@ -175,6 +248,8 @@ cleanup() {
   fi
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi
   if [[ -n "$wda_pid" ]]; then
+    printf '%s cleanup-requested wdaPid=%s\n' "$(timestamp_utc)" "$wda_pid" \
+      > "$WDA_CLEANUP_MARKER"
     kill "$wda_pid" 2>/dev/null || true
   fi
   if [[ -n "$wda_supervisor_pid" ]]; then
@@ -236,8 +311,19 @@ codesign --force --sign - "$APP"
 shasum -a 256 "$APP/TafAppleFixture" > "$OUT/fixture-sha256.txt"
 
 udid="$(xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$RUNTIME")"
+boot_start_epoch="$(date +%s)"
+printf '%s event=before-simctl-boot udid=%s\n' "$(timestamp_utc)" "$udid" \
+  > "$OUT/simulator-lifecycle.log"
 xcrun simctl boot "$udid"
-xcrun simctl bootstatus "$udid" -b
+printf '%s event=before-simctl-bootstatus udid=%s\n' "$(timestamp_utc)" "$udid" \
+  >> "$OUT/simulator-lifecycle.log"
+xcrun simctl bootstatus "$udid" -b 2>&1 | tee "$OUT/simulator-bootstatus.log"
+boot_end_epoch="$(date +%s)"
+printf '%s event=simctl-bootstatus-succeeded udid=%s elapsedSeconds=%s\n' \
+  "$(timestamp_utc)" "$udid" "$((boot_end_epoch - boot_start_epoch))" \
+  >> "$OUT/simulator-lifecycle.log"
+xcrun simctl list devices > "$OUT/simctl-devices-after-boot.txt"
+record_simulator_checkpoint after-bootstatus
 xcrun simctl install "$udid" "$APP"
 
 python3 -m http.server "$WEB_PORT" --bind 127.0.0.1 \
@@ -277,9 +363,11 @@ wda_pid_file="$OUT/wda-xcodebuild.pid"
   printf '%s\n' "$supervised_wda_pid" > "$wda_pid_file"
   wait "$supervised_wda_pid"
   wda_exit=$?
+  wda_termination_cause="unexpected"
+  if [[ -f "$WDA_CLEANUP_MARKER" ]]; then wda_termination_cause="cleanup-requested"; fi
   {
-    printf '%s event=xcodebuild-exit wdaPid=%s exitCode=%s\n' \
-      "$(timestamp_utc)" "$supervised_wda_pid" "$wda_exit"
+    printf '%s event=xcodebuild-exit wdaPid=%s exitCode=%s terminationCause=%s\n' \
+      "$(timestamp_utc)" "$supervised_wda_pid" "$wda_exit" "$wda_termination_cause"
     ps -p "$supervised_wda_pid" -o pid=,ppid=,stat=,etime=,command= 2>&1 || \
       printf '%s\n' 'process: no longer present'
     printf '%s\n' 'wda-launch.log tail (last 100 bounded lines):'
@@ -304,12 +392,14 @@ for _ in {1..180}; do
   if curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" \
       > "$OUT/wda-status.json"; then
     record_wda_checkpoint ready
+    record_simulator_checkpoint after-wda-readiness
     break
   fi
   sleep 1
 done
 curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" > "$OUT/wda-status.json"
 record_wda_checkpoint before-appium
+record_simulator_checkpoint before-appium
 appium_raw_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-appium.XXXXXX.log")"
 "$OUT/appium/node_modules/.bin/appium" --address 127.0.0.1 --port "$APPIUM_PORT" \
   > "$appium_raw_log" 2>&1 &
@@ -329,20 +419,36 @@ export APPLE_WDA_BASE_URL="http://127.0.0.1:8100"
 
 candidate_uri="file://$CANDIDATE_REPO"
 record_wda_checkpoint before-maven
+record_simulator_checkpoint before-maven
 {
   printf '%s checkpoint=before-maven wda-launch.log tail (last 100 bounded lines):\n' \
     "$(timestamp_utc)"
   tail -n 100 "$OUT/logs/wda-launch.log" | cut -c1-2000
 } >> "$OUT/wda-lifecycle.log"
+simulator_log_raw="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-simulator-log.XXXXXX.log")"
+log stream --style compact --level info \
+  --predicate 'process == "Simulator" OR process CONTAINS "CoreSimulator" OR process == "SpringBoard" OR process == "launchd_sim" OR eventMessage CONTAINS[c] "boot"' \
+  > "$simulator_log_raw" 2>&1 &
+simulator_log_pid=$!
 monitor_wda &
 wda_monitor_pid=$!
+monitor_simulator &
+simulator_monitor_pid=$!
+printf '%s event=maven-smoke-start udid=%s\n' "$(timestamp_utc)" "$udid" \
+  >> "$OUT/simulator-lifecycle.log"
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
   "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
   -Dtaf.apple.live=true test \
   | tee "$OUT/logs/live-smoke.log"
+printf '%s event=maven-smoke-succeeded udid=%s\n' "$(timestamp_utc)" "$udid" \
+  >> "$OUT/simulator-lifecycle.log"
 kill "$wda_monitor_pid" 2>/dev/null || true
 wait "$wda_monitor_pid" 2>/dev/null || true
 wda_monitor_pid=""
+kill "$simulator_monitor_pid" 2>/dev/null || true
+wait "$simulator_monitor_pid" 2>/dev/null || true
+simulator_monitor_pid=""
+stop_simulator_log_capture
 
 set +e
 "$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \

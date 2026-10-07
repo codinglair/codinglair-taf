@@ -30,13 +30,22 @@ public final class Ver130002ContractTest {
         "record_wda_checkpoint launched", "record_wda_checkpoint ready",
         "record_wda_checkpoint before-appium", "record_wda_checkpoint before-maven",
         "wda-lifecycle.log", "event=xcodebuild-exit", "exitCode=%s", "lsof -nP -iTCP:8100",
-        "monitor_wda", "sleep 5");
+        "terminationCause=%s", "WDA_CLEANUP_MARKER", "monitor_wda", "sleep 5",
+        "simulator-lifecycle.log", "simulator-bootstatus.log", "elapsedSeconds=%s",
+        "record_simulator_checkpoint after-wda-readiness",
+        "record_simulator_checkpoint before-appium", "record_simulator_checkpoint before-maven",
+        "simulator-runtime-monitor.log", "monitor_simulator", "log stream --style compact",
+        "simulator-coresimulator-session.log", "record_simulator_checkpoint cleanup-before-teardown",
+        "event=maven-smoke-start");
     requireOrder(runner, "candidate_log=\"$(mktemp", "clean deploy -Prelease-staging");
     requireOrder(runner, "clean deploy -Prelease-staging", "xcodebuild -version");
     requireOrder(runner, "capture_diagnostics", "kill \"$appium_pid\"");
     reject(runner, "latest", "--relaxed-security", "> \"$OUT/logs/appium.log\"");
     requireOrder(runner, "record_wda_checkpoint before-appium", "appium_raw_log=\"$(mktemp");
     requireOrder(runner, "record_wda_checkpoint before-maven", "-Dtaf.apple.live=true test");
+    requireOrder(runner, "event=before-simctl-boot", "xcrun simctl boot \"$udid\"");
+    requireOrder(runner, "record_simulator_checkpoint before-appium", "appium_raw_log=\"$(mktemp");
+    requireOrder(runner, "record_simulator_checkpoint before-maven", "-Dtaf.apple.live=true test");
 
     String smoke = read("qualification/apple-simulator/src/test/java/com/codinglair/taf/qualification/apple/AppleSimulatorSmokeTest.java");
     require(smoke, "controller(AppleController.class", "nativeApplicationInteractionAndRelaunch",

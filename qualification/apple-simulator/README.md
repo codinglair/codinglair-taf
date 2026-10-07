@@ -34,3 +34,10 @@ supervisor records the `xcodebuild test-without-building` exit code without rest
 changing the smoke result. Appium 3.0.0 currently returns HTTP 404 for the runner's existing
 `GET /sessions` cleanup check; that separate compatibility issue is intentionally not changed by
 the WDA-lifetime diagnostics.
+
+Simulator diagnostics retain the original `simctl bootstatus -b` output and elapsed time, then
+record CoreSimulator state, the relevant device JSON, Simulator/CoreSimulator process state and WDA
+reachability after boot, after WDA readiness, before Appium, before Maven and every five seconds
+during the primary session attempt. A bounded macOS unified-log capture covers that session attempt.
+These observations do not sleep, reboot, restart or otherwise alter the simulator. WDA termination
+evidence labels cleanup-requested termination separately from an unexpected process exit.
