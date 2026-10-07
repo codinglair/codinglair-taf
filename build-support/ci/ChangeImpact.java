@@ -65,7 +65,7 @@ final class ChangeImpact {
         paths.stream()
             .map(path -> moduleFor(path, repository))
             .flatMap(Optional::stream)
-            .filter(ChangeImpact::isStandaloneExample)
+            .filter(ChangeImpact::isStandaloneConsumer)
             .distinct()
             .sorted()
             .toList();
@@ -204,11 +204,11 @@ final class ChangeImpact {
   }
 
   private static boolean isStandaloneBuild(String module) {
-    return module.startsWith("release/consumer-smoke/") || isStandaloneExample(module);
+    return module.startsWith("release/consumer-smoke/") || isStandaloneConsumer(module);
   }
 
-  private static boolean isStandaloneExample(String module) {
-    return module.startsWith("examples/");
+  private static boolean isStandaloneConsumer(String module) {
+    return module.startsWith("examples/") || module.equals("qualification/apple-simulator");
   }
 
   private static Optional<String> moduleFor(String path, Path repository) {

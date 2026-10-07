@@ -84,6 +84,7 @@ public class AppleAutoConfiguration {
                         .diagnostics()
                         .entrySet()
                         .stream()
+                        .filter(entry -> !entry.getKey().equals("session"))
                         .map(
                             entry ->
                                 new PreflightDiagnostic(

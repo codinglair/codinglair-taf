@@ -12,6 +12,7 @@ import com.codinglair.taf.mobile.appium.configuration.AppleAuthentication.Mechan
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings.AppReference;
 import com.codinglair.taf.mobile.appium.configuration.AppleControllerSettings.ReferenceKind;
+import com.codinglair.taf.mobile.appium.configuration.AppleWdaSettings;
 import com.codinglair.taf.mobile.appium.configuration.AppleWdaSettings.BuildMode;
 import com.codinglair.taf.mobile.appium.platform.ApplePlatformStrategy;
 import java.net.URI;
@@ -106,6 +107,20 @@ class AppleConfigurationTest {
       assertThat(new ApplePlatformStrategy().options(settings).getCapability("appium:app"))
           .isEqualTo(value);
     }
+
+    @Test
+    @DisplayName("maps exact additional Web Inspector application identifiers for hybrid sessions")
+    void hybridWebviewBundleIds() {
+      var settings = valid();
+      settings.setExecutionMode(MobileExecutionMode.HYBRID);
+      settings.setAdditionalWebviewBundleIds(List.of("process-TafAppleFixture"));
+
+      assertThat(
+              new ApplePlatformStrategy()
+                  .options(settings)
+                  .getCapability("appium:additionalWebviewBundleIds"))
+          .isEqualTo(List.of("process-TafAppleFixture"));
+    }
   }
 
   static Stream<Arguments> routes() {
@@ -139,6 +154,11 @@ class AppleConfigurationTest {
         s -> s.setReadinessTimeout(Duration.ZERO),
         s -> s.setCleanupTimeout(Duration.ofSeconds(-1)),
         s -> s.setContextTimeout(Duration.ofMinutes(11)),
+        s -> s.setAdditionalWebviewBundleIds(List.of("process-TafAppleFixture")),
+        s -> {
+          s.setExecutionMode(MobileExecutionMode.HYBRID);
+          s.setAdditionalWebviewBundleIds(List.of(" "));
+        },
         s -> s.getWda().setLocalPort(0),
         s -> s.getWda().setMjpegPort(65536),
         s -> s.getWda().setDerivedDataPath("C:/client/path"),
@@ -238,15 +258,19 @@ class AppleConfigurationTest {
     void precedence() {
       var base = valid();
       base.setAutoAcceptAlerts(true);
+      base.setExecutionMode(MobileExecutionMode.HYBRID);
+      base.setAdditionalWebviewBundleIds(List.of("process-BaseFixture"));
       var named = new AppleControllerSettings();
       named.setDeviceName("named");
       named.setAutoAcceptAlerts(false);
+      named.setAdditionalWebviewBundleIds(List.of("process-TafAppleFixture"));
       var job = new AppleControllerSettings();
       job.setDeviceName("job");
       var result = AppleControllerSettings.resolve(base, named, job);
       assertThat(result.getDeviceName()).isEqualTo("job");
       assertThat(result.getAutoAcceptAlerts()).isFalse();
       assertThat(result.getBundleId()).isEqualTo("com.example.fixture");
+      assertThat(result.getAdditionalWebviewBundleIds()).containsExactly("process-TafAppleFixture");
       assertThat(base.getDeviceName()).isEqualTo("fixture");
       assertThat(named.getDeviceName()).isEqualTo("named");
     }
@@ -305,15 +329,41 @@ class AppleConfigurationTest {
     void wda() {
       var base = valid();
       base.getWda().setLocalPort(8101);
+      base.getWda().setShowXcodeLog(true);
+      base.getWda().setLaunchTimeout(Duration.ofMinutes(3));
       var named = new AppleControllerSettings();
       named.getWda().setMjpegPort(9101);
       var result = AppleControllerSettings.resolve(base, named, null);
       var options = new ApplePlatformStrategy().options(result);
       assertThat(options.getCapability("appium:wdaLocalPort")).isEqualTo(8101);
       assertThat(options.getCapability("appium:mjpegServerPort")).isEqualTo(9101);
+      assertThat(options.getCapability("appium:showXcodeLog")).isEqualTo(true);
+      assertThat(options.getCapability("appium:wdaLaunchTimeout")).isEqualTo(180_000L);
       named.getWda().setMjpegPort(8101);
       assertThrows(
           IllegalArgumentException.class, () -> AppleControllerSettings.resolve(base, named, null));
+    }
+
+    @Test
+    @DisplayName("prebuilt WDA consumes derived data while preinstalled WDA consumes an app path")
+    void wdaBuildModes() {
+      var prebuilt = valid();
+      prebuilt.getWda().setBuildMode(AppleWdaSettings.BuildMode.PREBUILT);
+      assertThrows(IllegalArgumentException.class, prebuilt::validate);
+      prebuilt.getWda().setDerivedDataPath("/tmp/wda-derived-data");
+      var prebuiltOptions = new ApplePlatformStrategy().options(prebuilt);
+      assertThat(prebuiltOptions.getCapability("appium:usePrebuiltWDA")).isEqualTo(true);
+      assertThat(prebuiltOptions.getCapability("appium:derivedDataPath"))
+          .isEqualTo("/tmp/wda-derived-data");
+
+      var preinstalled = valid();
+      preinstalled.getWda().setBuildMode(AppleWdaSettings.BuildMode.PREINSTALLED);
+      assertThrows(IllegalArgumentException.class, preinstalled::validate);
+      preinstalled.getWda().setPrebuiltPath("/tmp/WebDriverAgentRunner-Runner.app");
+      var preinstalledOptions = new ApplePlatformStrategy().options(preinstalled);
+      assertThat(preinstalledOptions.getCapability("appium:usePreinstalledWDA")).isEqualTo(true);
+      assertThat(preinstalledOptions.getCapability("appium:prebuiltWDAPath"))
+          .isEqualTo("/tmp/WebDriverAgentRunner-Runner.app");
     }
   }
 }
