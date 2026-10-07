@@ -13,7 +13,9 @@ public final class Ver130002ContractTest {
     require(workflow, "actions/upload-artifact@v4", "name: apple-simulator-qualification-evidence",
         "target/ver-130-002/**", "!target/ver-130-002/appium-home/**",
         "!target/ver-130-002/wda-derived-data/**",
-        "qualification/apple-simulator/target/surefire-reports/**");
+        "qualification/apple-simulator/target/surefire-reports/**", "Install and verify ffmpeg",
+        "brew install ffmpeg", "command -v ffmpeg", "ffmpeg -version");
+    requireOrder(workflow, "Install and verify ffmpeg", "Execute real Apple simulator smoke");
     requireOrder(workflow, "Execute real Apple simulator smoke", "Record hosted runner metadata");
     reject(workflow, "continue-on-error", "pull_request_target");
 

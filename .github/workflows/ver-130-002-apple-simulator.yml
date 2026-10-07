@@ -37,6 +37,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
+      - name: Install and verify ffmpeg
+        shell: bash
+        run: |
+          brew install ffmpeg
+          command -v ffmpeg
+          ffmpeg -version
       - name: Execute real Apple simulator smoke
         shell: bash
         run: bash qualification/apple-simulator/run-smoke.sh
