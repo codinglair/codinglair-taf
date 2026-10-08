@@ -36,7 +36,8 @@ public final class Ver130001ContractTest {
     reject(gate, "liveAppleQualification = 'PASSED'");
 
     String consumerPom = read("examples/apple-appium-consumer/pom.xml");
-    require(consumerPom, "taf-candidate", "${taf.candidate.repository}");
+    require(consumerPom, "${taf.version}", "taf-candidate", "${taf.candidate.repository}");
+    reject(consumerPom, "<taf.version>1.2.0</taf.version>");
     require(read("release/consumer-smoke/mobile-appium/pom.xml"), "taf-mobile-appium", "@taf.version@");
     System.out.println("VER-130-001 local gate structural contract passed");
   }

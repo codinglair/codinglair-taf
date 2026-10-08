@@ -8,7 +8,8 @@ with `-Dtaf.version=<version>`. The Apple increment targets release 1.3.0.
 From the repository root, verify offline against installed candidate artifacts:
 
 ```powershell
-.\mvnw.cmd -o -f examples/apple-appium-consumer/pom.xml verify
+$tafVersion = .\mvnw.cmd -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout
+.\mvnw.cmd -o -f examples/apple-appium-consumer/pom.xml "-Dtaf.version=$tafVersion" verify
 ```
 
 From a standalone copy, use `mvn verify` with your approved Maven settings/repository.
@@ -41,13 +42,13 @@ Configure provider selection/authentication explicitly in the YAML when using a 
 Run technical TestNG interaction (replace the configuration for other selections):
 
 ```powershell
-.\mvnw.cmd -f examples/apple-appium-consumer/pom.xml '-Dexample.configuration=capabilities/mobile-hybrid.yml' '-Dsurefire.suiteXmlFiles=src/test/resources/testng-apple.xml' test
+.\mvnw.cmd -f examples/apple-appium-consumer/pom.xml '-Dtaf.version=<version>' '-Dexample.configuration=capabilities/mobile-hybrid.yml' '-Dsurefire.suiteXmlFiles=src/test/resources/testng-apple.xml' test
 ```
 
 Run the independent curated Cucumber interaction:
 
 ```powershell
-.\mvnw.cmd -f examples/apple-appium-consumer/pom.xml '-Dexample.configuration=capabilities/mobile-safari.yml' '-Dtest=AppleBehaviorRunner' test
+.\mvnw.cmd -f examples/apple-appium-consumer/pom.xml '-Dtaf.version=<version>' '-Dexample.configuration=capabilities/mobile-safari.yml' '-Dtest=AppleBehaviorRunner' test
 ```
 
 Both reuse `InteractionTask` and session-local `AppleScreen`. TestNG inherits `TafBaseTest`;
