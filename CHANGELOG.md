@@ -2,42 +2,27 @@
 
 All notable user-visible changes to Codinglair TAF will be documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project intends to use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published releases.
 
-## Unreleased
+## [1.3.0] - 2026-10-08
 
 ### Added
 
-- First-class Apple Appium/XCUITest support in the existing mobile module and starter, including
-  iPhone/iPad selection, native, hybrid, and Safari modes, local/remote/provider-compatible
-  endpoints, topology-aware preflight, conditional evidence, MCP discovery, and generated
-  consumer projects.
-- A hosted macOS simulator qualification lane for the selected iPhone 16 / iOS 18.5 / Xcode 16.4
-  tuple, with native, hybrid, Safari, evidence, controlled-failure, and owned-cleanup checks.
+- First-class Apple Appium/XCUITest support in the existing mobile module and starter, including iPhone/iPad selection, native, hybrid, and Safari modes, local/remote/provider-compatible endpoints, topology-aware preflight, conditional evidence, MCP discovery, and generated consumer projects.
+- A hosted macOS simulator qualification lane for the selected iPhone 16 / iOS 18.5 / Xcode 16.4 tuple, with native, hybrid, Safari, evidence, controlled-failure, and owned-cleanup checks.
 
 ### Changed
 
-- The centrally managed Spring Boot BOM is upgraded from 4.1.0 to 4.1.1, aligning all Spring
-  Framework modules on 7.0.9 without an individual `spring-webmvc` override.
-- Mobile blueprints now accept explicit iOS/iPadOS selections while preserving the legacy Android
-  default and the existing starter/module dependency graph.
-- Apple configuration and operations use typed, named, session-owned controllers and the shared
-  lifecycle, reporting, redaction, artifact, readiness, and environment-provider contracts.
+- The centrally managed Spring Boot BOM is upgraded from 4.1.0 to 4.1.1, aligning all Spring Framework modules on 7.0.9 without an individual `spring-webmvc` override.
+- Mobile blueprints now accept explicit iOS/iPadOS selections while preserving the legacy Android default and the existing starter/module dependency graph.
+- Apple configuration and operations use typed, named, session-owned controllers and the shared lifecycle, reporting, redaction, artifact, readiness, and environment-provider contracts.
 
 ### Security
 
-- The Spring Boot 4.1.1 dependency refresh replaces the Spring Framework 7.0.8 artifacts reported
-  in the control-plane vulnerability scan. The rebuilt image SBOM contains the aligned 7.0.9
-  Framework modules, and the existing Critical-severity Trivy gate passes without suppression.
-- Apple endpoints, application resources, downloads, redirects, authentication, and evidence are
-  governed by resource authorization, destination/trust checks, secret references, bounded
-  transport, and shared redaction. Resolved credentials never enter configuration or MCP payloads.
+- The Spring Boot 4.1.1 dependency refresh replaces the Spring Framework 7.0.8 artifacts reported in the control-plane vulnerability scan. The rebuilt image SBOM contains the aligned 7.0.9 Framework modules, and the existing Critical-severity Trivy gate passes without suppression.
+- Apple endpoints, application resources, downloads, redirects, authentication, and evidence are governed by resource authorization, destination/trust checks, secret references, bounded transport, and shared redaction. Resolved credentials never enter configuration or MCP payloads.
 
 ### Known limitations
 
-- The passing hosted qualification covers one local-host iPhone simulator tuple. It does not
-  certify physical devices, iPad hardware, remote customer hosts, named cloud providers, or other
-  Xcode/iOS combinations; logs and video remain conditional artifacts.
-- Candidate capabilities and local qualification evidence do not claim published Maven artifacts,
-  a published MCP image, or completed release promotion.
+- The passing hosted qualification covers one local-host iPhone simulator tuple. It does not certify physical devices, iPad hardware, remote customer hosts, named cloud providers, or other Xcode/iOS combinations; logs and video remain conditional artifacts.
 
 ## [`1.2.0`] - 2026-09-20
 
