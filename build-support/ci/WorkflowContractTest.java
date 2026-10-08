@@ -54,7 +54,8 @@ final class WorkflowContractTest {
         "standalone_builds='${{ needs.change-impact.outputs.standalone_builds }}'",
         "goal=install",
         "./mvnw $MAVEN_ARGS -pl \"$modules\" -am \"$goal\"",
-        "./mvnw $MAVEN_ARGS -f \"$build/pom.xml\" verify");
+        "TAF_VERSION=\"$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)\"",
+        "./mvnw $MAVEN_ARGS -f \"$build/pom.xml\" -Dtaf.version=\"$TAF_VERSION\" verify");
     require(yaml, "name: Documentation version");
     require(yaml, "java build-support/scripts/SyncDocVersion.java --check");
     require(yaml, "- documentation-version");

@@ -142,9 +142,10 @@ jobs:
             ./mvnw $MAVEN_ARGS "$goal"
           fi
           if [[ -n "$standalone_builds" ]]; then
+            TAF_VERSION="$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)"
             IFS=',' read -ra builds <<< "$standalone_builds"
             for build in "${builds[@]}"; do
-              ./mvnw $MAVEN_ARGS -f "$build/pom.xml" verify
+              ./mvnw $MAVEN_ARGS -f "$build/pom.xml" -Dtaf.version="$TAF_VERSION" verify
             done
           fi
       - name: Publish failed integration and contract reports

@@ -19,7 +19,8 @@ Published consumers must use the released <!-- taf-version -->`1.3.0` BOM and mo
 checked-in Maven Wrapper are required.
 ```powershell
 .\mvnw.cmd -pl codinglair-taf-starter-mobile,codinglair-taf-runtime/codinglair-taf-runner-cucumber -am install
-.\mvnw.cmd -o -f examples/apple-appium-consumer/pom.xml verify
+$tafVersion = .\mvnw.cmd -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout
+.\mvnw.cmd -o -f examples/apple-appium-consumer/pom.xml "-Dtaf.version=$tafVersion" verify
 ```
 
 For a published release, a clean external project imports the BOM and starter:
