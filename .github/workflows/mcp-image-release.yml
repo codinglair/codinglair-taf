@@ -5,10 +5,6 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      version:
-        description: Immutable semantic version to publish
-        required: true
-        default: '1.2.0'
       publish_latest:
         description: Also point latest at the same manifest digest
         required: true
@@ -44,17 +40,28 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-          INPUT_VERSION: ${{ inputs.version }}
           INPUT_LATEST: ${{ inputs.publish_latest }}
         run: |
-          version="$INPUT_VERSION"
+          maven_revision="$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)"
+          if [[ ! "$maven_revision" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error title=Invalid Maven revision::Expected a semantic version, resolved '$maven_revision'."
+            exit 1
+          fi
+
+          version="$maven_revision"
           publish_latest="$INPUT_LATEST"
           if [[ "$EVENT_NAME" == release ]]; then
             version="${RELEASE_TAG#v}"
             publish_latest=true
+            if [[ "$version" != "$maven_revision" ]]; then
+              echo "::error title=Release version mismatch::Release tag resolves to '$version', but Maven revision is '$maven_revision'."
+              exit 1
+            fi
           fi
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          [[ "$version" == 1.2.0 ]]
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error title=Invalid release version::Expected a semantic version, resolved '$version'."
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "publish_latest=$publish_latest" >> "$GITHUB_OUTPUT"
       - name: Build tag list
