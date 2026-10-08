@@ -22,6 +22,8 @@ public final class Ver130002ContractTest {
     String runner = read("qualification/apple-simulator/run-smoke.sh");
     require(runner, "simctl create", "simctl bootstatus", "simctl delete", "trap cleanup",
         "clean deploy -Prelease-staging", "-parse-as-library", "driver install", "/status",
+        "TAF_VERSION=\"${TAF_VERSION:-$(\"$ROOT/mvnw\"",
+        "help:evaluate -Dexpression=revision -q -DforceStdout",
         "controlledFailureStillUsesNormalSessionCleanup", "candidate-artifact-sha256.txt",
         "command -v python3", "mktemp", "cleanup.txt", "compatibility-manifest.txt",
         "capture_diagnostics", "sanitize_text_file", "appium-sanitized.log",
@@ -90,9 +92,12 @@ public final class Ver130002ContractTest {
 
     String pom = read("qualification/apple-simulator/pom.xml");
     require(pom, "<artifactId>codinglair-taf-bom</artifactId>",
-        "<artifactId>codinglair-taf-starter-mobile</artifactId>", "${taf.candidate.repository}",
+        "<artifactId>codinglair-taf-starter-mobile</artifactId>", "${taf.version}",
+        "${taf.candidate.repository}",
         "<name>taf.apple.live</name>", "<skipTests>true</skipTests>");
-    reject(pom, "<parent>");
+    reject(pom, "<parent>", "<taf.version>1.2.0</taf.version>");
+    reject(workflow, "TAF_VERSION: '1.2.0'");
+    reject(runner, "TAF_VERSION=\"${TAF_VERSION:-1.2.0}\"");
 
     String fixture = read("qualification/apple-simulator/fixture/AppDelegate.swift");
     require(fixture, "accessibilityIdentifier = \"native-action\"", "WKWebView",
@@ -110,7 +115,7 @@ public final class Ver130002ContractTest {
   private static String read(String relative) throws Exception {
     Path path = ROOT.resolve(relative);
     if (!Files.isRegularFile(path)) throw new AssertionError("Missing required file: " + relative);
-    return Files.readString(path);
+    return Files.readString(path).replace("\r\n", "\n");
   }
 
   private static void require(String text, String... values) {

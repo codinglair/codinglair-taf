@@ -135,9 +135,7 @@ jobs:
           goal=verify
           if [[ -n "$standalone_builds" ]]; then
             goal=install
-            if [[ ",$modules," != *",codinglair-taf-bom,"* ]]; then
-              modules="${modules:+$modules,}codinglair-taf-bom"
-            fi
+            modules="$(java build-support/ci/StandaloneCandidateModules.java --modules="$modules" --standalone-builds="$standalone_builds")"
           fi
           if [[ -n "$modules" ]]; then
             ./mvnw $MAVEN_ARGS -pl "$modules" -am "$goal"
