@@ -101,10 +101,41 @@ public final class ContainerSupplyChainContractTest {
             && publication.contains("codinglair/codinglair-taf-mcp:latest"),
         "release and optional latest tags are incomplete");
     require(
+        !publication.matches("(?s).*\\n\\s+version:\\s*\\n\\s+description: Immutable semantic version.*")
+            && !publication.matches("(?s).*default: ['\"]\\d+\\.\\d+\\.\\d+['\"].*")
+            && !publication.matches("(?s).*\\$version\" == \\d+\\.\\d+\\.\\d+.*"),
+        "manual publication must not maintain a separate TAF release version");
+    require(
+        publication.contains(
+                "./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout")
+            && publication.contains("version=\"$maven_revision\""),
+        "manual publication must resolve its version from the Maven revision");
+    require(
+        publication.contains("RELEASE_TAG: ${{ github.event.release.tag_name }}")
+            && publication.contains("version=\"${RELEASE_TAG#v}\""),
+        "release publication must derive its version from the release tag");
+    require(
+        publication.contains("[[ \"$version\" != \"$maven_revision\" ]]")
+            && publication.contains("Release version mismatch")
+            && publication.contains("Release tag resolves to '$version'")
+            && publication.contains("Maven revision is '$maven_revision'"),
+        "release tag and Maven revision equality must fail with both values");
+    require(
+        count(publication, "=~ ^[0-9]+\\.[0-9]+\\.[0-9]+$") >= 2,
+        "Maven revision and publication version must be semantic versions");
+    require(
+        publication.contains("environment: dockerhub-release"),
+        "protected Docker Hub release environment must remain enabled");
+    require(
         publication.contains("platforms: linux/amd64,linux/arm64")
             && publication.contains("provenance: mode=max")
             && publication.contains("sbom: true"),
         "multi-architecture attestations are incomplete");
+    require(
+        publication.contains("VERSION=${{ steps.release.outputs.version }}")
+            && publication.contains("REVISION=${{ github.sha }}")
+            && publication.contains("CREATED=${{ github.event.repository.updated_at }}"),
+        "published image metadata must retain version, revision, and creation time");
     require(
         publication.contains("cosign sign --yes")
             && publication.contains("latest_digest")
