@@ -32,7 +32,7 @@ result does not invalidate that hosted result.
 
 1. **The checked-in candidate is not versioned 1.3.0.** The root `pom.xml` authoritative
    `<revision>` is `1.2.0`. `java build-support/scripts/SyncDocVersion.java --check` passes only
-   because every `<!-- taf-version -->` marker is consistently synchronized to that 1.2.0
+   because every `taf-version` marker is consistently synchronized to that 1.2.0
    revision. Release ownership must change the root revision to 1.3.0, allow the repository hook or
    synchronization script to update marked Markdown, review/stage those changes, and produce a new
    candidate identity.

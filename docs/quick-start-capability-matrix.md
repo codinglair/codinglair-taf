@@ -1,6 +1,6 @@
 # DOC-001 Release Capability and Documentation Matrix
 
-This inventory describes the public Codinglair TAF <!-- taf-version -->`1.2.0` contract. “Released” means
+This inventory describes the public Codinglair TAF <!-- taf-version -->`1.3.0` contract. “Released” means
 BOM-managed and publishable; it does not mean a complete DOC-001 consumer example exists. MCP uses
 governed project/job workflows and does not expose each Runtime controller as a low-level tool.
 
@@ -10,7 +10,7 @@ governed project/job workflows and does not expose each Runtime controller as a 
 | `codinglair-taf-starter-api` | 1.2.0 starter | REST plus shared foundation; explicit `taf.api.rest.enabled` | Future scaffold selection | POM aggregator; lazy context smoke covered |
 | `codinglair-taf-starter-database` | 1.2.0 starter | JDBC plus shared foundation; explicit `taf.database.enabled`; consumer selects driver | Future scaffold selection | POM aggregator; lazy context smoke covered |
 | `codinglair-taf-starter-messaging` | 1.2.0 starter | Provider-neutral SPI | Scaffold selection requires provider | No concrete provider; use a provider starter for operations |
-| `codinglair-taf-starter-mobile` | 1.2.0 starter | Android/Appium/UiAutomator2 plus shared foundation; explicit `taf.mobile.android.enabled` | Future scaffold selection | POM aggregator; no device, app, credential, or machine path embedded |
+| `codinglair-taf-starter-mobile` | Current starter | Android/UiAutomator2 and Apple/XCUITest plus shared foundation; explicit per-platform activation | Apple-aware scaffold selection; passive discovery and governed execution | POM aggregator; Android remains the legacy default; no device, app, credential, or machine path embedded |
 | `codinglair-taf-starter-messaging-kafka` | 1.2.0 provider starter | Generic messaging plus Kafka | Provider selection | Explicit activation; optional Testcontainers exclusion |
 | `codinglair-taf-starter-messaging-rabbitmq` | 1.2.0 provider starter | Generic messaging plus RabbitMQ | Provider selection | Explicit activation; optional Testcontainers exclusion |
 | `codinglair-taf-starter-messaging-jms` | 1.2.0 provider starter | Generic messaging plus consumer-selected JMS client | Provider selection | Consumer supplies `ConnectionFactory` |
@@ -24,7 +24,7 @@ governed project/job workflows and does not expose each Runtime controller as a 
 | `taf-file` | Optional capability | [README](../codinglair-taf-runtime/taf-file/README.md) | No raw filesystem tool | Root/size bounds; golden scenario is a gap |
 | `taf-web-playwright` | Optional capability | [SauceDemo](../demos/playwright-sauce-demo/README.md) | Execute project tests | Browser opt-in; no raw browser tool |
 | `taf-mobile-core` | Provider SPI | Selected through provider | No device tool | Not independently useful |
-| `taf-mobile-appium` | Optional capability | [README](../codinglair-taf-runtime/taf-mobile-appium/README.md) | Execute project tests | Device opt-in; golden scenario is a gap |
+| `taf-mobile-appium` | Optional capability | [README](../codinglair-taf-runtime/taf-mobile-appium/README.md), [Apple guide](reference/apple-appium-consumer-guide.md), and [standalone consumer](../examples/apple-appium-consumer/README.md) | Discover/validate Apple selection and execute governed project tests | Android regression and standalone Apple consumer pass; hosted native/hybrid/Safari simulator qualification passed for the recorded tuple; physical devices and named providers remain unverified |
 | `taf-api-rest` | Optional capability | [README](../codinglair-taf-runtime/taf-api-rest/README.md) | Execute Java tests | WireMock tests; clean CRUD/negative example is a gap |
 | `taf-api-soap` | Optional capability | [README](../codinglair-taf-runtime/taf-api-soap/README.md) | Execute Java tests | Clean fault/auth example is a gap |
 | `taf-virtualization-wiremock` | Optional provider | [README](../codinglair-taf-runtime/taf-virtualization-wiremock/README.md) | No raw mock tool | Test-only; golden scenario is a gap |

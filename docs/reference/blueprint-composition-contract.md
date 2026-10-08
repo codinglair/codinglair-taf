@@ -95,7 +95,9 @@ Fields are bounded, sanitized, contain no secret values, and diagnostics sort by
 | `SCF_UNRESOLVED_TOKEN` | Rendered content retains a blueprint placeholder | Provide the missing normalized value or repair the contribution. |
 
 Examples: `MESSAGING` without `providers.messaging` fails before mutation with
-`SCF_INCOMPLETE_SELECTION`; `{MOBILE, platform:IOS, family:IPAD}` fails with `SCF_UNSUPPORTED_SELECTION`; common and
+`SCF_INCOMPLETE_SELECTION`; `{MOBILE, platform:IOS}` without an explicit Apple family fails with
+`SCF_INCOMPLETE_SELECTION`, while `{MOBILE, platform:IOS, family:IPAD}` is a supported Apple
+selection; common and
 Web both creating `src/test/resources/application.yaml` fails with `SCF_PATH_COLLISION`; Web
 setting `/taf/web/playwright/enabled=true` while another contribution sets it to `false` fails with
 `SCF_CONFIG_COLLISION`. All four return zero writes.
@@ -189,8 +191,10 @@ mutate the executable blueprint.
 - FR-SCF-007 is prepared by manifest references and contribution ownership; concrete examples and
   preflight hooks are delivered by SCF-120-003.
 - FR-SCF-008 and ADR-027 are enforced by canonical normalization, stable ordering, declared merges,
-  collision detection, bounded metadata, Android defaulting, and explicit unsupported-iOS failure.
+  collision detection, bounded metadata, Android defaulting, and validated Apple family/mode
+  selection. The historical `SCF_UNSUPPORTED_IOS` diagnostic applies only to 1.2.0 clients.
 
-This is an additive 1.2.0 contract. It does not alter the published consumer descriptor 1.0 or any
+The base contract was additive in 1.2.0; the Apple increment extends its mobile selection without
+altering the published consumer descriptor 1.0 or any
 1.1.0 Java/configuration contract. The legacy Playwright generator remains usable until its later
 migration; its behavior is inventoried, not reinterpreted here.

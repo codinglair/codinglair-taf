@@ -15,7 +15,7 @@ parent or internal test-fixture dependency. From the repository root, first inst
 candidate artifacts, then verify the consumer without opening a driver:
 
 Repository-local verification uses the candidate version declared by the root Maven POM.
-Published consumers must use the released <!-- taf-version -->`1.2.0` BOM and mobile starter. Java 25 and the
+Published consumers must use the released <!-- taf-version -->`1.3.0` BOM and mobile starter. Java 25 and the
 checked-in Maven Wrapper are required.
 ```powershell
 .\mvnw.cmd -pl codinglair-taf-starter-mobile,codinglair-taf-runtime/codinglair-taf-runner-cucumber -am install

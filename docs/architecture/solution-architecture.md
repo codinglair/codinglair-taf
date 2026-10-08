@@ -1,4 +1,4 @@
-# Codinglair TAF <!-- taf-version -->`1.2.0` public solution architecture
+# Codinglair TAF <!-- taf-version -->`1.3.0` public solution architecture
 
 ## Scope
 
@@ -61,9 +61,9 @@ observability, data
 migration, test-definition providers, and environment providers. Conditional auto-configuration
 keeps unrelated technologies inactive and absent.
 
-## Apple mobile architecture for <!-- taf-version -->`1.2.0`
+## Apple mobile architecture for <!-- taf-version -->`1.3.0`
 
-The <!-- taf-version -->`1.2.0` Apple increment extends the existing `taf-mobile-appium` module and
+The <!-- taf-version -->`1.3.0` Apple increment extends the existing `taf-mobile-appium` module and
 `codinglair-taf-starter-mobile`; it does not introduce an Apple-only dependency graph or change
 the Android default. A shared immutable manifest describes iPhone/iPad, native/hybrid/Safari,
 simulator/physical and local/remote/provider-compatible selections. Platform strategies preserve

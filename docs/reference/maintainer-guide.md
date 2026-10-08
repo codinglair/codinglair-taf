@@ -20,6 +20,22 @@ Install the repository-managed pre-commit hook with
 changes Markdown, it aborts the commit so the changes can be reviewed and staged. CI rejects
 unsynchronized documentation.
 
+For every release increment, create and retain an all-document impact inventory before content
+readiness review. Cover root `CHANGELOG.md` and `README.md`, capability matrices, public indices,
+module/example/blueprint guides, overlapping contracts, operations, schemas/manifests with
+user-facing descriptions, workflow usage comments, and affected package/API documentation.
+Disposition every surface as updated, reviewed-current, historical-preserved,
+generated-source-updated, or excluded with a reason; a passing link or keyword check is not proof
+of semantic completeness. Preserve immutable handoffs, reviews, qualification records, dated
+release notes, and historical versions. Add navigation or a superseding current record instead of
+rewriting their outcomes.
+
+Only current artifact-version values carry `taf-version` markers. Target release labels, dated
+release history, executed qualification tuples, dependency/tool versions, and immutable artifact
+identities are literal historical facts and must not be marker-managed. Candidate content
+readiness is independent of the release owner's later version promotion and publication steps;
+provenance checks must still bind built artifacts and image metadata to their actual inputs.
+
 Also run:
 
 ```text
