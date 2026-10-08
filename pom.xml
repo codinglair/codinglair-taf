@@ -39,9 +39,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Dependency versions - pinned in BOM below -->
-        <spring.boot.version>4.1.0</spring.boot.version>
+        <spring.boot.version>4.1.1</spring.boot.version>
         <spring.ai.version>2.0.1</spring.ai.version>
-        <!-- Spring Boot 4.1.0 manages Tomcat 11.0.22, which is affected by the
+        <!-- Spring Boot 4.1.1 manages Tomcat 11.0.24, which is affected by the
         August 2026 authentication and authorization advisories fixed in 11.0.25. -->
         <tomcat.version>11.0.25</tomcat.version>
 
@@ -138,8 +138,8 @@
     <!-- Reactor BOM for dependency management -->
     <dependencyManagement>
         <dependencies>
-            <!-- Override the vulnerable Tomcat 11.0.22 versions imported from Spring Boot
-            4.1.0. Keep every embedded component aligned to the patched release. -->
+            <!-- Override the vulnerable Tomcat 11.0.24 versions imported from Spring Boot
+            4.1.1. Keep every embedded component aligned to the patched release. -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
                 <artifactId>tomcat-embed-core</artifactId>

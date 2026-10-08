@@ -15,6 +15,8 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 
 ### Changed
 
+- The centrally managed Spring Boot BOM is upgraded from 4.1.0 to 4.1.1, aligning all Spring
+  Framework modules on 7.0.9 without an individual `spring-webmvc` override.
 - Mobile blueprints now accept explicit iOS/iPadOS selections while preserving the legacy Android
   default and the existing starter/module dependency graph.
 - Apple configuration and operations use typed, named, session-owned controllers and the shared
@@ -22,6 +24,9 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 
 ### Security
 
+- The Spring Boot 4.1.1 dependency refresh replaces the Spring Framework 7.0.8 artifacts reported
+  in the control-plane vulnerability scan. The rebuilt image SBOM contains the aligned 7.0.9
+  Framework modules, and the existing Critical-severity Trivy gate passes without suppression.
 - Apple endpoints, application resources, downloads, redirects, authentication, and evidence are
   governed by resource authorization, destination/trust checks, secret references, bounded
   transport, and shared redaction. Resolved credentials never enter configuration or MCP payloads.
