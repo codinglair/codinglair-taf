@@ -53,6 +53,8 @@ final class WorkflowContractTest {
         affectedVerification,
         "standalone_builds='${{ needs.change-impact.outputs.standalone_builds }}'",
         "goal=install",
+        "if [[ \",$modules,\" != *\",codinglair-taf-bom,\"* ]]; then",
+        "modules=\"${modules:+$modules,}codinglair-taf-bom\"",
         "./mvnw $MAVEN_ARGS -pl \"$modules\" -am \"$goal\"",
         "TAF_VERSION=\"$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)\"",
         "./mvnw $MAVEN_ARGS -f \"$build/pom.xml\" -Dtaf.version=\"$TAF_VERSION\" verify");
