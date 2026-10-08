@@ -13,6 +13,12 @@ public final class AppleDocumentationTest {
       Path.of("docs", "reference", "apple-appium-compatibility-1.3.0.md");
   private static final Path ARCHITECTURE =
       Path.of("docs", "architecture", "solution-architecture.md");
+  private static final Path CAPABILITY_MATRIX =
+      Path.of("docs", "quick-start-capability-matrix.md");
+  private static final Path BLUEPRINT_CONTRACT =
+      Path.of("docs", "reference", "blueprint-composition-contract.md");
+  private static final Path RELEASE_OPERATIONS =
+      Path.of("docs", "operations", "nightly-and-release-verification.md");
   private static final Pattern LOCAL_LINK =
       Pattern.compile("\\[[^]]+](\\((?!https?://|#)([^)#]+)(?:#[^)]+)?\\))");
 
@@ -22,6 +28,9 @@ public final class AppleDocumentationTest {
     var guide = Files.readString(GUIDE);
     var record = Files.readString(RECORD);
     var architecture = Files.readString(ARCHITECTURE);
+    var capabilityMatrix = Files.readString(CAPABILITY_MATRIX);
+    var blueprintContract = Files.readString(BLUEPRINT_CONTRACT);
+    var releaseOperations = Files.readString(RELEASE_OPERATIONS);
     var failures = new ArrayList<String>();
 
     requireAll(
@@ -56,7 +65,14 @@ public final class AppleDocumentationTest {
         "VER-130-002",
         "NOT RUN",
         "UNVERIFIED",
-        "No provider certification");
+        "No remote/provider certification");
+    requireAll(
+        record,
+        failures,
+        "Hosted-observed",
+        "Candidate 2 passed native, hybrid, Safari",
+        "Physical-device, iPad",
+        "UNVERIFIED");
     requireAll(
         architecture,
         failures,
@@ -65,6 +81,26 @@ public final class AppleDocumentationTest {
         "mobile.apple",
         "partially supersedes ADR-013",
         "Generic Appium-compatible endpoint support");
+    requireAll(
+        capabilityMatrix,
+        failures,
+        "Android/UiAutomator2 and Apple/XCUITest",
+        "hosted native/hybrid/Safari simulator qualification passed");
+    requireAll(
+        blueprintContract,
+        failures,
+        "family:IPAD}` is a supported Apple",
+        "historical `SCF_UNSUPPORTED_IOS` diagnostic applies only to 1.2.0 clients");
+    rejectAll(
+        blueprintContract,
+        failures,
+        "family:IPAD}` fails with `SCF_UNSUPPORTED_SELECTION`",
+        "explicit unsupported-iOS failure");
+    requireAll(
+        releaseOperations,
+        failures,
+        "VER-130-002 Apple Simulator Qualification",
+        "pending hosted CI is not an implementation or documentation-review prerequisite");
 
     checkSource("examples/apple-appium-consumer/pom.xml", "codinglair-taf-starter-mobile", failures);
     for (var file :
@@ -82,6 +118,12 @@ public final class AppleDocumentationTest {
   private static void requireAll(String text, List<String> failures, String... required) {
     for (var value : required) {
       if (!text.contains(value)) failures.add("missing required documentation text: " + value);
+    }
+  }
+
+  private static void rejectAll(String text, List<String> failures, String... staleValues) {
+    for (var value : staleValues) {
+      if (text.contains(value)) failures.add("stale documentation text remains: " + value);
     }
   }
 

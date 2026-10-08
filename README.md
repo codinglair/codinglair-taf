@@ -40,7 +40,7 @@ in this release.
 | Data | JDBC assertions, versioned CSV/JSON/YAML test definitions, MongoDB definition provider, JDBC and MongoDB migrations |
 | Messaging | Adapter-neutral Kafka, RabbitMQ, and JMS/EMS-compatible adapters; independently usable AWS EventBridge and SQS controllers with LocalStack qualification |
 | Files | Bounded structured-file validation with path and workspace controls |
-| Mobile | Native Android automation through Appium and UiAutomator2; emulator and authorized physical-device modes |
+| Mobile | Android/UiAutomator2 and Apple/XCUITest through Appium; typed native, hybrid, and Safari selections; simulator, authorized physical-device, and external-provider modes |
 | Virtualization | WireMock-backed service virtualization provider |
 | Observability | Log, metric, and trace assertions with bounded evidence |
 | Runners | Independent TestNG and Cucumber lifecycle integrations |
@@ -94,6 +94,8 @@ Its default tests are deterministic; live profiles require authorized external p
 - [Runtime and configuration](docs/reference/runtime-and-configuration.md)
 - [TestNG and Cucumber separation](docs/reference/testng-cucumber-separation.md)
 - [Android and Appium setup](docs/reference/android-appium-setup.md)
+- [Apple Appium consumer guide](docs/reference/apple-appium-consumer-guide.md)
+- [Apple operations and platform differences](docs/reference/apple-appium-operations.md)
 - [MCP and security](docs/reference/mcp-and-security.md)
 - [Operations and troubleshooting](docs/reference/operations-and-troubleshooting.md)
 - [Extension SPI guide](docs/reference/extension-spi.md)

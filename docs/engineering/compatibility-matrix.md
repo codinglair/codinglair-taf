@@ -11,7 +11,7 @@ exists.
 | --- | --- | --- |
 | JDK | Java 25 | Compilation, tests, and released bytecode |
 | Maven | Checked-in Maven Wrapper | Supported build entry point |
-| Spring Boot | 4.1.0 BOM | Runtime and transport composition |
+| Spring Boot | 4.1.1 BOM | Runtime and transport composition; manages aligned Spring Framework 7.0.9 modules |
 | Spring AI | 2.0.1 BOM | MCP transport layer only; not a Runtime dependency |
 | CI operating system | Ubuntu 24.04 | Release verification target |
 | Development operating system | Windows 11 or supported Linux | Maven Wrapper development and focused verification |
