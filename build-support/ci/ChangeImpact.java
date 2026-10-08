@@ -37,6 +37,7 @@ final class ChangeImpact {
   record Result(
       List<String> paths,
       List<String> modules,
+      List<String> standaloneBuilds,
       boolean integration,
       boolean crossModule,
       boolean browser,
@@ -57,6 +58,14 @@ final class ChangeImpact {
             .map(path -> moduleFor(path, repository))
             .flatMap(Optional::stream)
             .filter(module -> !isStandaloneBuild(module))
+            .distinct()
+            .sorted()
+            .toList();
+    List<String> standaloneBuilds =
+        paths.stream()
+            .map(path -> moduleFor(path, repository))
+            .flatMap(Optional::stream)
+            .filter(ChangeImpact::isStandaloneConsumer)
             .distinct()
             .sorted()
             .toList();
@@ -106,6 +115,7 @@ final class ChangeImpact {
     return new Result(
         List.copyOf(paths),
         modules,
+        standaloneBuilds,
         global || productChange,
         runtimeOrMcp,
         browser,
@@ -183,6 +193,7 @@ final class ChangeImpact {
         || path.startsWith("codinglair-taf-reporting-allure/")
         || path.startsWith("codinglair-taf-bom/")
         || path.startsWith("release/consumer-smoke/")
+        || path.startsWith("examples/")
         || path.startsWith("demos/");
   }
 
@@ -193,7 +204,11 @@ final class ChangeImpact {
   }
 
   private static boolean isStandaloneBuild(String module) {
-    return module.startsWith("release/consumer-smoke/");
+    return module.startsWith("release/consumer-smoke/") || isStandaloneConsumer(module);
+  }
+
+  private static boolean isStandaloneConsumer(String module) {
+    return module.startsWith("examples/") || module.equals("qualification/apple-simulator");
   }
 
   private static Optional<String> moduleFor(String path, Path repository) {
@@ -224,6 +239,7 @@ final class ChangeImpact {
     List<String> output =
         List.of(
             "maven_modules=" + String.join(",", result.modules()),
+            "standalone_builds=" + String.join(",", result.standaloneBuilds()),
             "integration=" + result.integration(),
             "cross_module=" + result.crossModule(),
             "browser=" + result.browser(),

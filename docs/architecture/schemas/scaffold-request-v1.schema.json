@@ -83,15 +83,159 @@
         "platform": {
           "enum": [
             "ANDROID",
-            "IOS"
+            "IOS",
+            "IPADOS",
+            "APPLE"
           ]
         },
         "automationName": {
           "enum": [
-            "UIAUTOMATOR2"
+            "UIAUTOMATOR2",
+            "XCUITEST"
+          ]
+        },
+        "family": {
+          "enum": [
+            "IPHONE",
+            "IPAD"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "NATIVE",
+            "HYBRID",
+            "SAFARI"
+          ]
+        },
+        "deviceKind": {
+          "enum": [
+            "SIMULATOR",
+            "PHYSICAL"
+          ]
+        },
+        "topology": {
+          "enum": [
+            "LOCAL_HOST",
+            "REMOTE_HOST",
+            "PROVIDER"
+          ]
+        },
+        "applicationMode": {
+          "enum": [
+            "PREINSTALLED",
+            "PACKAGED"
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"platform": {"const": "APPLE"}}},
+          "then": {"required": ["family"]}
+        },
+        {
+          "if": {
+            "properties": {
+              "platform": {
+                "const": "ANDROID"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "automationName": {
+                "const": "UIAUTOMATOR2"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "family"
+                  ]
+                },
+                {
+                  "required": [
+                    "mode"
+                  ]
+                },
+                {
+                  "required": [
+                    "deviceKind"
+                  ]
+                },
+                {
+                  "required": [
+                    "topology"
+                  ]
+                },
+                {
+                  "required": [
+                    "applicationMode"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "properties": {
+              "automationName": {
+                "const": "XCUITEST"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "platform": {
+                "const": "IOS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "family": {
+                "const": "IPHONE"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "platform": {
+                "const": "IPADOS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "family": {
+                "const": "IPAD"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "SAFARI"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "applicationMode"
+              ]
+            }
+          }
+        }
+      ]
     },
     "runner": {
       "enum": [

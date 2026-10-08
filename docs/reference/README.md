@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.2.0` reference
+# Codinglair TAF <!-- taf-version -->`1.3.0` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.2.0`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.0`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 
@@ -10,6 +10,8 @@ your work.
 | New contributor | [Installation and prerequisites](installation-and-prerequisites.md) |
 | Test author | [TestNG and Cucumber separation](testng-cucumber-separation.md) |
 | Mobile engineer | [Android and Appium setup](android-appium-setup.md) |
+| Apple mobile engineer | [Apple Appium 1.3.0 quick start, configuration, and troubleshooting](apple-appium-consumer-guide.md) |
+| Release verifier | [Apple Appium 1.3.0 compatibility and limitations record](apple-appium-compatibility-1.3.0.md) |
 | MCP client or operator | [MCP contracts, security, approvals, and audit](mcp-and-security.md) |
 | MCP image operator | [MCP image and runtime profile contract](mcp-image-runtime-contract.md) |
 | Platform operator | [CI/CD, Kind, release, and troubleshooting](operations-and-troubleshooting.md) |
@@ -43,7 +45,7 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `codinglair-taf-starter-api` | 1.2.0 API dependency contract; POM implementation follows |
 | `codinglair-taf-starter-database` | 1.2.0 database dependency contract; POM implementation follows |
 | `codinglair-taf-starter-messaging` | 1.2.0 provider-neutral messaging contract; POM implementation follows |
-| `codinglair-taf-starter-mobile` | 1.2.0 Android/Appium dependency contract; POM implementation follows |
+| `codinglair-taf-starter-mobile` | Current Android/UiAutomator2 and Apple/XCUITest dependency contract; Android remains the legacy default |
 | `codinglair-taf-starter-messaging-kafka` | 1.2.0 Kafka dependency contract; POM implementation follows |
 | `codinglair-taf-starter-messaging-rabbitmq` | 1.2.0 RabbitMQ dependency contract; POM implementation follows |
 | `codinglair-taf-starter-messaging-jms` | 1.2.0 JMS dependency contract; POM implementation follows |

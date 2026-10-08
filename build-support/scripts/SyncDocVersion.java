@@ -43,47 +43,58 @@ public final class SyncDocVersion {
   static int run(boolean write) throws Exception {
     Path root = repositoryRoot();
     String revision = rootRevision(root);
-    List<Inspection> inspections = new ArrayList<>();
-    List<String> failures = new ArrayList<>();
-
-    for (Path path : markdownFiles(root)) {
-      Inspection inspection = inspect(path, root, revision);
-      inspections.add(inspection);
-      for (Problem problem : inspection.problems()) {
-        if (!write || problem.fatalOnWrite()) {
-          failures.add(problem.message());
-        }
-      }
-    }
+    List<Inspection> inspections = inspectMarkdownFiles(root, revision);
+    List<String> failures = validationFailures(inspections, write);
 
     if (!failures.isEmpty()) {
-      System.err.println("Documentation version validation failed:");
-      failures.forEach(failure -> System.err.println("  " + failure));
-      if (failures.stream().anyMatch(failure -> failure.contains("marked version"))) {
-        System.err.println("Run: " + FIX_COMMAND);
-      }
+      reportFailures(failures);
       return 1;
     }
 
     if (write) {
-      int changed = 0;
-      for (Inspection inspection : inspections) {
-        if (inspection.replacements() > 0 && !inspection.original().equals(inspection.updated())) {
-          byte[] content = encodeUtf8(inspection.updated(), inspection.hasBom());
-          Files.write(
-              inspection.path(),
-              content,
-              StandardOpenOption.WRITE,
-              StandardOpenOption.TRUNCATE_EXISTING);
-          System.out.println("Updated " + root.relativize(inspection.path()).toString().replace('\\', '/'));
-          changed++;
-        }
-      }
+      int changed = rewriteChangedFiles(root, inspections);
       System.out.println("Updated " + changed + " Markdown file(s).");
     } else {
       System.out.println("Documentation versions match root revision " + revision + ".");
     }
     return 0;
+  }
+
+  private static List<Inspection> inspectMarkdownFiles(Path root, String revision) throws Exception {
+    List<Inspection> inspections = new ArrayList<>();
+    for (Path path : markdownFiles(root)) inspections.add(inspect(path, root, revision));
+    return inspections;
+  }
+
+  private static List<String> validationFailures(List<Inspection> inspections, boolean write) {
+    List<String> failures = new ArrayList<>();
+    for (Inspection inspection : inspections) {
+      for (Problem problem : inspection.problems()) {
+        if (!write || problem.fatalOnWrite()) failures.add(problem.message());
+      }
+    }
+    return failures;
+  }
+
+  private static void reportFailures(List<String> failures) {
+    System.err.println("Documentation version validation failed:");
+    failures.forEach(failure -> System.err.println("  " + failure));
+    if (failures.stream().anyMatch(failure -> failure.contains("marked version"))) {
+      System.err.println("Run: " + FIX_COMMAND);
+    }
+  }
+
+  private static int rewriteChangedFiles(Path root, List<Inspection> inspections) throws IOException {
+    int changed = 0;
+    for (Inspection inspection : inspections) {
+      if (inspection.replacements() == 0 || inspection.original().equals(inspection.updated())) continue;
+      byte[] content = encodeUtf8(inspection.updated(), inspection.hasBom());
+      Files.write(
+          inspection.path(), content, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+      System.out.println("Updated " + root.relativize(inspection.path()).toString().replace('\\', '/'));
+      changed++;
+    }
+    return changed;
   }
 
   private static Path repositoryRoot() throws IOException, InterruptedException {
@@ -207,12 +218,17 @@ public final class SyncDocVersion {
     }
     updated.append(text, cursor, text.length());
 
+    findPlaceholderProblems(text, relative, problems);
+    return new Inspection(path, text, hasBom, updated.toString(), problems, replacements);
+  }
+
+  private static void findPlaceholderProblems(
+      String text, String relative, List<Problem> problems) {
     Matcher placeholder = REVISION_PLACEHOLDER.matcher(text);
     while (placeholder.find()) {
       problems.add(new Problem(relative + ":" + lineNumber(text, placeholder.start())
           + ": unresolved @revision@ placeholder", true));
     }
-    return new Inspection(path, text, hasBom, updated.toString(), problems, replacements);
   }
 
   private static int lineNumber(String text, int offset) {

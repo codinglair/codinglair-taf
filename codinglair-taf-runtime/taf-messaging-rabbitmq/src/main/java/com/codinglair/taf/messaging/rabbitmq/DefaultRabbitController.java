@@ -152,21 +152,13 @@ final class DefaultRabbitController implements RabbitController {
             throw new InterruptedException("RabbitMQ consumption interrupted");
           GetResponse delivery = channel.basicGet(query.destination(), false);
           if (delivery == null) {
-            Thread.sleep(
-                Math.min(
-                    10, Math.max(1, Duration.ofNanos(deadline - System.nanoTime()).toMillis())));
+            Thread.sleep(boundedWait(deadline));
             continue;
           }
           MessageRecord candidate = fromNative(query.destination(), delivery);
           if (query.selector().matches(candidate)) {
-            dispose(channel, delivery.getEnvelope().getDeliveryTag(), acknowledgment);
-            remember(
-                "consume",
-                query.destination(),
-                delivery.getEnvelope().getExchange(),
-                delivery.getEnvelope().getRoutingKey(),
-                acknowledgment.name());
-            return ConsumptionResult.matched(candidate, elapsed(started));
+            return completeMatchedDelivery(
+                channel, delivery, candidate, query.destination(), acknowledgment, started);
           }
           channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
           buffer(query.destination(), candidate);
@@ -179,6 +171,28 @@ final class DefaultRabbitController implements RabbitController {
         throw failure("consume", "verify queue, broker availability, and timeout", failure);
       }
     }
+  }
+
+  private ConsumptionResult completeMatchedDelivery(
+      Channel channel,
+      GetResponse delivery,
+      MessageRecord candidate,
+      String destination,
+      RabbitAcknowledgment acknowledgment,
+      long started)
+      throws IOException {
+    dispose(channel, delivery.getEnvelope().getDeliveryTag(), acknowledgment);
+    remember(
+        "consume",
+        destination,
+        delivery.getEnvelope().getExchange(),
+        delivery.getEnvelope().getRoutingKey(),
+        acknowledgment.name());
+    return ConsumptionResult.matched(candidate, elapsed(started));
+  }
+
+  private static long boundedWait(long deadline) {
+    return Math.min(10, Math.max(1, Duration.ofNanos(deadline - System.nanoTime()).toMillis()));
   }
 
   @Override

@@ -35,6 +35,7 @@ COPY --from=builder --chown=10001:10001 /source/taf-mcp-server/taf-mcp-transport
 COPY --chown=10001:10001 containers/mcp/taf-mcp /opt/taf/bin/taf-mcp
 COPY --chown=10001:10001 LICENSE /opt/taf/LICENSE
 COPY --chown=10001:10001 taf-mcp-server/taf-mcp-contracts/src/main/resources/META-INF/taf/mcp/catalog/v1/image-compatibility.json /opt/taf/image-compatibility.json
+COPY --chown=10001:10001 taf-mcp-server/taf-mcp-contracts/src/main/resources/META-INF/taf/mcp/catalog/v1/capabilities.json /opt/taf/capabilities.json
 RUN sed -i 's/\r$//' /opt/taf/bin/taf-mcp && chmod 0555 /opt/taf/bin/taf-mcp
 USER 10001:10001
 WORKDIR /workspace

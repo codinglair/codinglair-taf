@@ -1,18 +1,22 @@
-# name|changes (status:path; rename old->new)|modules|integration|cross_module|browser|appium|aws
-documentation only|M:docs/README.md||false|false|false|false|false
-playwright module|M:codinglair-taf-runtime/taf-web-playwright/src/main/java/example.java|codinglair-taf-runtime/taf-web-playwright|true|true|true|false|false
-mobile module|M:codinglair-taf-runtime/taf-mobile-appium/src/test/java/example.java|codinglair-taf-runtime/taf-mobile-appium|true|true|false|true|false
-root build|M:pom.xml||true|true|true|true|true
-Windows separators|M:taf-mcp-server\taf-mcp-tools\pom.xml|taf-mcp-server/taf-mcp-tools|true|true|false|false|false
-deleted mobile file|D:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Deleted.java|codinglair-taf-runtime/taf-mobile-appium|true|true|false|true|false
-mobile rename out|R100:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Old.java->docs/Old.java|codinglair-taf-runtime/taf-mobile-appium|true|true|false|true|false
-mobile rename in|R087:docs/New.java->codinglair-taf-runtime/taf-mobile-appium/src/main/java/New.java|codinglair-taf-runtime/taf-mobile-appium|true|true|false|true|false
-deleted root build|D:pom.xml||true|true|true|true|true
-compose asset|M:containers/android-emulator/compose.yaml||false|false|false|true|false
-shared runtime core|M:codinglair-taf-runtime/codinglair-taf-runtime-core/src/main/java/Core.java|codinglair-taf-runtime/codinglair-taf-runtime-core|true|true|false|true|false
-MOB-003 approval contract|M:docs/decisions/MOB-003-reference-qualification-approval.md||false|false|false|true|false
-MOB-003 evidence contract|M:docs/assignments/MOB-003-handoff.md||false|false|false|true|false
-Android emulator approval policy|M:docs/operations/android-emulator-image-approval-policy.md||false|false|false|true|false
-standalone release consumer|M:release/consumer-smoke/mcp-http/pom.xml||true|true|false|false|false
-reactor and standalone builds|M:codinglair-taf-bom/pom.xml;M:release/consumer-smoke/runtime-core/pom.xml|codinglair-taf-bom|true|true|false|false|true
-AWS module|M:codinglair-taf-runtime/taf-messaging-aws/src/main/java/example.java|codinglair-taf-runtime/taf-messaging-aws|true|true|false|false|true
+# name|changes (status:path; rename old->new)|modules|standalone_builds|integration|cross_module|browser|appium|aws
+documentation only|M:docs/README.md|||false|false|false|false|false
+playwright module|M:codinglair-taf-runtime/taf-web-playwright/src/main/java/example.java|codinglair-taf-runtime/taf-web-playwright||true|true|true|false|false
+mobile module|M:codinglair-taf-runtime/taf-mobile-appium/src/test/java/example.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
+root build|M:pom.xml|||true|true|true|true|true
+Windows separators|M:taf-mcp-server\taf-mcp-tools\pom.xml|taf-mcp-server/taf-mcp-tools||true|true|false|false|false
+deleted mobile file|D:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Deleted.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
+mobile rename out|R100:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Old.java->docs/Old.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
+mobile rename in|R087:docs/New.java->codinglair-taf-runtime/taf-mobile-appium/src/main/java/New.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
+deleted root build|D:pom.xml|||true|true|true|true|true
+compose asset|M:containers/android-emulator/compose.yaml|||false|false|false|true|false
+shared runtime core|M:codinglair-taf-runtime/codinglair-taf-runtime-core/src/main/java/Core.java|codinglair-taf-runtime/codinglair-taf-runtime-core||true|true|false|true|false
+MOB-003 approval contract|M:docs/decisions/MOB-003-reference-qualification-approval.md|||false|false|false|true|false
+MOB-003 evidence contract|M:docs/assignments/MOB-003-handoff.md|||false|false|false|true|false
+Android emulator approval policy|M:docs/operations/android-emulator-image-approval-policy.md|||false|false|false|true|false
+standalone release consumer|M:release/consumer-smoke/mcp-http/pom.xml|||true|true|false|false|false
+reactor and standalone builds|M:codinglair-taf-bom/pom.xml;M:release/consumer-smoke/runtime-core/pom.xml|codinglair-taf-bom||true|true|false|false|true
+standalone example|M:examples/apple-appium-consumer/pom.xml||examples/apple-appium-consumer|true|false|false|false|false
+standalone Apple qualification|M:qualification/apple-simulator/pom.xml||qualification/apple-simulator|false|false|false|false|false
+mobile module and standalone Apple qualification|M:codinglair-taf-runtime/taf-mobile-appium/src/main/java/example.java;M:qualification/apple-simulator/pom.xml|codinglair-taf-runtime/taf-mobile-appium|qualification/apple-simulator|true|true|false|true|false
+reactor and standalone example|M:codinglair-taf-starter-mobile/pom.xml;M:examples/apple-appium-consumer/src/test/java/Example.java|codinglair-taf-starter-mobile|examples/apple-appium-consumer|true|false|false|false|false
+AWS module|M:codinglair-taf-runtime/taf-messaging-aws/src/main/java/example.java|codinglair-taf-runtime/taf-messaging-aws||true|true|false|false|true

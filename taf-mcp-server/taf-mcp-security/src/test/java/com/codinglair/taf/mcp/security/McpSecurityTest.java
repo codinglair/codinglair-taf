@@ -273,6 +273,55 @@ class McpSecurityTest {
       assertThat(result.status()).isEqualTo(EnforcementResult.Status.ALLOWED);
       assertThat(sideEffects).hasValue(1);
     }
+
+    @Test
+    @DisplayName("audits successful enforcement in invocation decision completion order")
+    void successfulAuditOrder() {
+      var fixture =
+          fixture(
+              List.of(
+                  rule("read", PolicyRule.Effect.ALLOW, Set.of("developer"), Set.of("*"), false)));
+
+      var result =
+          fixture.service.enforce(
+              request(Transport.INTERNAL, context("report"), null), () -> Map.of("status", "ok"));
+
+      assertThat(result.status()).isEqualTo(EnforcementResult.Status.ALLOWED);
+      assertThat(fixture.audit.events())
+          .extracting(AuditEvent::type)
+          .containsExactly("tool.invoked", "authorization.decided", "tool.completed");
+      assertThat(fixture.audit.events().getLast().details())
+          .containsEntry("result", Map.of("status", "ok"));
+    }
+
+    @Test
+    @DisplayName("preserves interruption and audits a sanitized failure")
+    void interruptedExecutionPreservesInterrupt() {
+      var fixture =
+          fixture(
+              List.of(
+                  rule("read", PolicyRule.Effect.ALLOW, Set.of("developer"), Set.of("*"), false)));
+
+      var result =
+          fixture.service.enforce(
+              request(Transport.INTERNAL, context("report"), null),
+              () -> {
+                throw new InterruptedException("sensitive detail");
+              });
+
+      try {
+        assertThat(result.status()).isEqualTo(EnforcementResult.Status.FAILED);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        assertThat(fixture.audit.events())
+            .extracting(AuditEvent::type)
+            .containsExactly("tool.invoked", "authorization.decided", "tool.failed");
+        assertThat(fixture.audit.events().getLast().details())
+            .containsEntry("failure", "interrupted")
+            .doesNotContainValue("sensitive detail");
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 
   @Nested

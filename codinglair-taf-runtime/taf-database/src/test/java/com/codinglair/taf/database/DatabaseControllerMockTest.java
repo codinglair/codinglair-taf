@@ -2,10 +2,12 @@ package com.codinglair.taf.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.codinglair.taf.runtime.core.TestSession;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,6 +63,69 @@ class DatabaseControllerMockTest {
       assertThat(closed).isTrue();
       assertThat(nativeConnection.isClosed()).isTrue();
     }
+
+    @Test
+    @DisplayName("attempts every native connection and suppresses later close failures")
+    void aggregatesNativeConnectionFailures() {
+      AtomicInteger opens = new AtomicInteger();
+      AtomicInteger closeAttempts = new AtomicInteger();
+      DefaultDatabaseController controller =
+          controller(
+              DatabaseAccess.READ_WRITE,
+              (descriptor, session) ->
+                  opens.getAndIncrement() == 0
+                      ? validConnection()
+                      : failingCloseConnection(closeAttempts));
+      TestSession session = TestSession.create();
+      session.getControllerRegistry().register(DatabaseController.class, "orders", controller);
+      DatabaseController selected = session.getController(DatabaseController.class, "orders");
+      selected.nativeConnection();
+      selected.nativeConnection();
+
+      DatabaseException failure = catchThrowableOfType(DatabaseException.class, controller::close);
+
+      assertThat(closeAttempts).hasValue(2);
+      assertThat(failure.getCause()).isInstanceOf(SQLException.class);
+      assertThat(failure.getCause().getSuppressed()).hasSize(1);
+      controller.close();
+    }
+  }
+
+  @Nested
+  @DisplayName("transactions")
+  class Transactions {
+    @Test
+    @DisplayName("preserves the work failure and suppresses a rollback failure")
+    void suppressesRollbackFailure() {
+      AtomicInteger opens = new AtomicInteger();
+      DefaultDatabaseController controller =
+          controller(
+              DatabaseAccess.READ_WRITE,
+              (descriptor, session) ->
+                  opens.getAndIncrement() == 0 ? validConnection() : failingRollbackConnection());
+      try (TestSession session = TestSession.create()) {
+        session.getControllerRegistry().register(DatabaseController.class, "orders", controller);
+        DatabaseController selected = session.getController(DatabaseController.class, "orders");
+
+        IllegalStateException failure =
+            catchThrowableOfType(
+                IllegalStateException.class,
+                () ->
+                    selected.transaction(
+                        transaction -> {
+                          throw new IllegalStateException("work failed");
+                        }));
+
+        assertThat(failure).hasMessage("work failed");
+        assertThat(failure.getSuppressed())
+            .singleElement()
+            .satisfies(
+                suppressed ->
+                    assertThat(suppressed)
+                        .isInstanceOf(SQLException.class)
+                        .hasMessage("rollback failed"));
+      }
+    }
   }
 
   private static DefaultDatabaseController controller(
@@ -106,6 +171,36 @@ class DatabaseControllerMockTest {
                 });
   }
 
+  private static Connection failingCloseConnection(AtomicInteger closeAttempts) {
+    return connection(
+        (method, args) -> {
+          if (method.equals("close")) {
+            closeAttempts.incrementAndGet();
+            throw new SQLException("close failed");
+          }
+          return null;
+        });
+  }
+
+  private static Connection failingRollbackConnection() {
+    return connection(
+        (method, args) -> {
+          if (method.equals("rollback")) throw new SQLException("rollback failed");
+          return null;
+        });
+  }
+
+  private static Connection connection(ConnectionCall call) {
+    return (Connection)
+        Proxy.newProxyInstance(
+            Connection.class.getClassLoader(),
+            new Class<?>[] {Connection.class},
+            (proxy, method, args) -> {
+              Object result = call.invoke(method.getName(), args);
+              return result == null ? defaultValue(method.getReturnType()) : result;
+            });
+  }
+
   private static Object defaultValue(Class<?> type) {
     if (!type.isPrimitive()) return null;
     if (type == boolean.class) return false;
@@ -117,5 +212,10 @@ class DatabaseControllerMockTest {
     if (type == byte.class) return (byte) 0;
     if (type == char.class) return '\0';
     return null;
+  }
+
+  @FunctionalInterface
+  private interface ConnectionCall {
+    Object invoke(String method, Object[] arguments) throws SQLException;
   }
 }

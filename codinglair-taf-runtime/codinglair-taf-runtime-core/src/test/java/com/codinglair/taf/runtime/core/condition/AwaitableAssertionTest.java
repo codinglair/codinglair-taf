@@ -3,6 +3,7 @@ package com.codinglair.taf.runtime.core.condition;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,6 +52,31 @@ class AwaitableAssertionTest {
   class SuccessTests {
 
     @Test
+    @DisplayName("await evaluates supplier once and preserves observed value order")
+    void await_evaluatesSupplierOnceAndPreservesObservedValueOrder() {
+      AtomicInteger supplierCalls = new AtomicInteger();
+      AtomicInteger predicateCalls = new AtomicInteger();
+      AwaitableAssertion assertion =
+          AwaitableAssertion.create(
+              "frequency",
+              value -> predicateCalls.incrementAndGet() == 3,
+              Duration.ofSeconds(1),
+              Duration.ZERO);
+
+      AwaitableAssertion.AwaitableAssertionResult result =
+          assertion.await(
+              () -> {
+                supplierCalls.incrementAndGet();
+                return "observed";
+              });
+
+      assertEquals(1, supplierCalls.get());
+      assertEquals(3, predicateCalls.get());
+      assertEquals(3, result.getPollCount());
+      assertEquals(List.of("observed", "observed"), assertion.getObservedValues());
+    }
+
+    @Test
     @DisplayName("await_succeeds_immediately")
     void await_succeeds_immediately() {
       AwaitableAssertion assertion =
@@ -61,6 +87,7 @@ class AwaitableAssertionTest {
       assertEquals(AwaitableAssertion.Status.SUCCESS, result.getStatus());
       assertNotNull(result.getLastObservedValue());
       assertEquals("ready", result.getLastObservedValue());
+      assertNull(assertion.getLastObservedValue());
       assertTrue(result.isSuccessful());
     }
 
@@ -143,6 +170,34 @@ class AwaitableAssertionTest {
   @Nested
   @DisplayName("Failure Cases")
   class FailureTests {
+
+    @Test
+    @DisplayName("await restores interruption and returns the original interruption")
+    void await_restoresInterruptionAndReturnsOriginalInterruption() throws Exception {
+      AtomicInteger interrupted = new AtomicInteger();
+      Thread thread =
+          Thread.ofPlatform()
+              .start(
+                  () -> {
+                    AwaitableAssertion assertion =
+                        AwaitableAssertion.create(
+                            "interrupted",
+                            value -> false,
+                            Duration.ofSeconds(5),
+                            Duration.ofSeconds(1));
+                    Thread.currentThread().interrupt();
+                    AwaitableAssertion.AwaitableAssertionResult result = assertion.await(() -> 1);
+                    if (Thread.currentThread().isInterrupted()
+                        && result.getErrors().getFirst() instanceof InterruptedException) {
+                      interrupted.incrementAndGet();
+                    }
+                  });
+
+      thread.join(5000);
+
+      assertFalse(thread.isAlive());
+      assertEquals(1, interrupted.get());
+    }
 
     @Test
     @DisplayName("await_fails_onException")

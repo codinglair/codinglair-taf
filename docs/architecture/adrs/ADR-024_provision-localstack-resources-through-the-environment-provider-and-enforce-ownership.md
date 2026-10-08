@@ -1,29 +1,39 @@
-# ADR 024 Provision LocalStack Resources Through the Environment Provider and Enforce Ownership
+# ADR-024: Provision LocalStack Resources Through the Environment Provider and Enforce Ownership
 
-- Status: Accepted
-- Date: 2026-09-09
-- Target release: codinglair-taf 1.1.0
+**Source:** Inherited decision text from SAD 1.12 as carried into SAD 1.13. Historical status/date/owners are not supplied here.
 
-## Context
+#### Context
 
-LocalStack provides local EventBridge and SQS behavior and can support future AWS capabilities. Controllers must not own infrastructure lifecycle or delete resources supplied by operators, Kind, AWS, or infrastructure as code.
+LocalStack enables local qualification of EventBridge and SQS and may support additional AWS services later. Treating LocalStack as controller-owned infrastructure would couple service operations to provisioning and could allow cleanup to affect externally managed resources. The existing architecture already separates environment provisioning from controller execution.
 
-## Decision
+#### Decision
 
-A LocalStack AWS environment provider will support a Testcontainers-managed container and a declared external endpoint. Managed provisioning will record typed resource descriptors in an immutable ownership manifest. The manifest identifies resource type, logical and physical identifiers, owner session or run, creation source, cleanup policy, and dependency order.
+• Implement a LocalStack AWS environment provider that can use a Testcontainers-managed LocalStack container or connect to a declared external LocalStack endpoint.
 
-`EPHEMERAL` mode may create and clean test-owned buses, rules, queues, DLQs, queue policies, targets, and redrive policies. `EXTERNAL` mode requires configured resources and performs non-mutating preflight by default. Controllers may use resources in both modes but cannot provision or destroy them implicitly. Cleanup operates only on test-owned manifest entries and follows reverse dependency order.
+• Represent provisioned AWS resources with typed resource descriptors and an immutable ownership manifest containing resource type, logical name, physical identifier, owner session or run, creation source, cleanup policy, and dependency order.
 
-Future services will contribute provisioning, readiness, diagnostics, and cleanup through an `AwsServiceEnvironmentContributor` SPI. LocalStack remains an environment implementation, not the framework's AWS abstraction. A versioned compatibility profile will document supported behavior and material differences from AWS.
+• Support EPHEMERAL test-owned mode and EXTERNAL operator-owned mode. Controllers may use resources in either mode but may not create or destroy them implicitly.
 
-## Consequences
+• Allow the environment provider in EPHEMERAL mode to create event buses, rules, SQS queues, dead-letter queues, queue policies, targets, and redrive policies. Clean up only resources recorded as test-owned, in reverse dependency order.
 
-- Provisioning remains separate from controller execution.
-- Future LocalStack-supported services can reuse lifecycle, endpoint, ownership, and diagnostic infrastructure.
-- Cleanup tests must prove that external resources survive success and failure paths.
-- Exact SDK and emulator patch versions remain release-managed pins.
+• In EXTERNAL mode, require configured resource identifiers and authorization, perform non-mutating preflight checks by default, and prohibit implicit resource creation, policy changes, purge operations, and deletion.
 
-## Alternatives Considered
+• Model AWS services through an extensible AwsServiceEnvironmentContributor SPI. Each future service contributes provisioning, readiness, diagnostics, and cleanup behavior without changing controller or TestSession contracts.
 
-- Controller-managed provisioning was rejected because it violates separation and ownership controls.
-- LocalStack-specific controller APIs were rejected because they prevent portable execution against AWS.
+• Maintain a documented LocalStack compatibility profile and run representative authorized-AWS qualification when emulator differences affect a supported behavior.
+
+#### Consequences
+
+• LocalStack remains a replaceable environment implementation instead of becoming the AWS abstraction.
+
+• Future AWS capabilities can reuse container lifecycle, endpoint publication, ownership, and diagnostics.
+
+• Provisioning code must maintain dependency-aware cleanup and prove that external resources survive success and failure paths.
+
+• Exact LocalStack and AWS SDK patch versions remain release-managed pins rather than architecture constants.
+
+#### Alternatives Considered
+
+• Controller-managed provisioning was rejected because it mixes test interaction with infrastructure lifecycle and violates operator ownership.
+
+• LocalStack-specific controller APIs were rejected because they would prevent transparent execution against authorized AWS endpoints.

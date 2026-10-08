@@ -99,17 +99,7 @@ public final class AllureSingleFilePublisher {
     try {
       staging = Files.createTempDirectory(root, ".taf-allure-single-file-");
       generatorLog = staging.resolveSibling(staging.getFileName() + ".log");
-      Path generated =
-          generator.generate(
-              new SingleFileReportGenerator.GenerationRequest(
-                  results, staging, properties.getExecutable(), properties.getTimeout()));
-      validateGenerated(generated);
-      Path target = targetDirectory.resolve(reportName + "_" + timestamp + ".html");
-      moveWithoutOverwrite(generated, target);
-      validateGenerated(target);
-      Path resolved = target.toAbsolutePath().normalize();
-      LOGGER.log(System.Logger.Level.INFO, "Published Allure single-file report: {0}", resolved);
-      return resolved;
+      return generateAndPublish(results, staging, targetDirectory, timestamp);
     } catch (AllureSingleFilePublicationException failure) {
       throw failure;
     } catch (IOException failure) {
@@ -126,6 +116,21 @@ public final class AllureSingleFilePublisher {
       deleteGeneratedPath(generatorLog);
       deleteIfEmpty(targetDirectory);
     }
+  }
+
+  private Path generateAndPublish(
+      Path results, Path staging, Path targetDirectory, String timestamp) throws IOException {
+    Path generated =
+        generator.generate(
+            new SingleFileReportGenerator.GenerationRequest(
+                results, staging, properties.getExecutable(), properties.getTimeout()));
+    validateGenerated(generated);
+    Path target = targetDirectory.resolve(reportName + "_" + timestamp + ".html");
+    moveWithoutOverwrite(generated, target);
+    validateGenerated(target);
+    Path resolved = target.toAbsolutePath().normalize();
+    LOGGER.log(System.Logger.Level.INFO, "Published Allure single-file report: {0}", resolved);
+    return resolved;
   }
 
   private static String validate(AllureSingleFileProperties properties) {

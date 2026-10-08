@@ -1,0 +1,24 @@
+taf:
+  mobile:
+    apple:
+      enabled: true
+      controllers:
+        primary:
+          platform: '${APPLE_PLATFORM:ios}'
+          device-family: '${APPLE_FAMILY:IPHONE}'
+          automation-name: XCUITest
+          execution-mode: HYBRID
+          device-kind: '${APPLE_DEVICE_KIND:SIMULATOR}'
+          topology: '${APPLE_TOPOLOGY:REMOTE_HOST}'
+          server-url: '${APPLE_SERVER_URL:http://127.0.0.1:4723}'
+          device-name: '${APPLE_DEVICE_NAME:consumer-target}'
+          device-id: '${APPLE_DEVICE_ID:UNRESOLVED}'
+          application-mode: PREINSTALLED
+          bundle-id: '${APPLE_BUNDLE_ID:UNRESOLVED}'
+example:
+  interaction:
+    accessibility-id: '${APPLE_ACCESSIBILITY_ID:}'
+    expected-text: '${APPLE_EXPECTED_TEXT:}'
+    webview: '${APPLE_WEBVIEW:}'
+    url: '${APPLE_TEST_URL:}'
+    css-selector: '${APPLE_CSS_SELECTOR:}'

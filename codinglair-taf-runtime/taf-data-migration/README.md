@@ -23,6 +23,6 @@ shared targets additionally require an application-owned `MigrationAuthorization
 alone cannot authorize them. Production targets are denied by the default authorization bean and
 must never be authorized without a separately approved environment policy.
 
-Compatibility baseline: Java 25, Spring Boot 4.1.0, Flyway 11.14.1, PostgreSQL JDBC 42.7.7,
+Compatibility baseline: Java 25, Spring Boot 4.1.1, Flyway 11.14.1, PostgreSQL JDBC 42.7.7,
 PostgreSQL 17, and Testcontainers 2.0.5. Flyway Community is Apache-2.0; it is isolated to this
 optional adapter. The PostgreSQL database adapter is required by Flyway 11 for PostgreSQL support.

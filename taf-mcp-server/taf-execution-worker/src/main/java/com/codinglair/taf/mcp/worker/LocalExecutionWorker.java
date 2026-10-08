@@ -1,6 +1,8 @@
 package com.codinglair.taf.mcp.worker;
 
 import com.codinglair.taf.mcp.security.ResponseRedactor;
+import com.codinglair.taf.runtime.core.security.ResourceAccess;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -12,9 +14,11 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +30,7 @@ public final class LocalExecutionWorker {
   private final ArtifactStore artifacts;
   private final ResponseRedactor redactor;
   private final Clock clock;
+  private final Map<String, Set<ResourceAccess>> workflowResources;
 
   public LocalExecutionWorker(
       Map<String, WorkerCommand> commands,
@@ -34,12 +39,29 @@ public final class LocalExecutionWorker {
       ArtifactStore artifacts,
       ResponseRedactor redactor,
       Clock clock) {
+    this(commands, limits, executionRoot, artifacts, redactor, clock, Map.of());
+  }
+
+  /** Administrator-owned resource declarations, never inferred from untrusted job input. */
+  public LocalExecutionWorker(
+      Map<String, WorkerCommand> commands,
+      WorkerLimits limits,
+      Path executionRoot,
+      ArtifactStore artifacts,
+      ResponseRedactor redactor,
+      Clock clock,
+      Map<String, Set<ResourceAccess>> workflowResources) {
     this.commands = Map.copyOf(commands);
     this.limits = Objects.requireNonNull(limits, "limits");
     this.workspaces = new WorkspacePreparer(executionRoot, limits);
     this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
     this.redactor = Objects.requireNonNull(redactor, "redactor");
     this.clock = Objects.requireNonNull(clock, "clock");
+    var resources = new HashMap<String, Set<ResourceAccess>>();
+    workflowResources.forEach((name, values) -> resources.put(name, Set.copyOf(values)));
+    if (!commands.keySet().containsAll(resources.keySet()))
+      throw new IllegalArgumentException("Unknown resource-protected workflow");
+    this.workflowResources = Map.copyOf(resources);
     if (!this.commands.keySet().stream()
         .allMatch(name -> name.equals(this.commands.get(name).workflow()))) {
       throw new IllegalArgumentException("Command allowlist keys must match workflow names");
@@ -47,17 +69,16 @@ public final class LocalExecutionWorker {
   }
 
   public WorkerResult execute(WorkerRequest request, CancellationToken cancellation) {
+    return execute(request, cancellation, _ -> false);
+  }
+
+  /** Supply the caller-bound MCP enforcement adapter; absence of resource grants is a denial. */
+  public WorkerResult execute(
+      WorkerRequest request, CancellationToken cancellation, ResourceAuthorizer authorizer) {
     Objects.requireNonNull(request, "request");
     Objects.requireNonNull(cancellation, "cancellation");
-    var command = commands.get(request.workflow());
-    if (command == null) {
-      throw new WorkerExecutionException("WORKFLOW_DENIED", "Workflow is not allowlisted");
-    }
-    if (request.timeout().isZero()
-        || request.timeout().isNegative()
-        || request.timeout().compareTo(limits.maximumTimeout()) > 0) {
-      throw new WorkerExecutionException("TIMEOUT_LIMIT", "Timeout exceeds administrative limit");
-    }
+    var command = authorize(request, authorizer);
+    validateTimeout(request.timeout());
     Path workspace = null;
     Process process = null;
     var started = clock.instant();
@@ -71,44 +92,36 @@ public final class LocalExecutionWorker {
               .start();
       var runningProcess = process;
       try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-        var drain =
-            executor.submit(
-                () -> {
-                  try {
-                    output.drain(runningProcess.getInputStream());
-                  } catch (IOException error) {
-                    throw new UncheckedIOException(error);
-                  }
-                });
-        var deadline = System.nanoTime() + request.timeout().toNanos();
-        WorkerStatus status = null;
-        while (process.isAlive()) {
-          if (cancellation.cancellationRequested()) {
-            status = WorkerStatus.CANCELLED;
-            terminateTree(process);
-            break;
+        try {
+          var drain =
+              executor.submit(
+                  () -> {
+                    try {
+                      output.drain(runningProcess.getInputStream());
+                    } catch (IOException error) {
+                      throw new UncheckedIOException(error);
+                    }
+                  });
+          var deadline = System.nanoTime() + request.timeout().toNanos();
+          var status = awaitCompletion(process, cancellation, deadline);
+          drain.get(10, TimeUnit.SECONDS);
+          var exit = process.isAlive() ? -1 : process.exitValue();
+          if (status == null) {
+            status = exit == 0 ? WorkerStatus.SUCCEEDED : WorkerStatus.FAILED;
           }
-          if (System.nanoTime() >= deadline) {
-            status = WorkerStatus.TIMED_OUT;
-            terminateTree(process);
-            break;
-          }
-          process.waitFor(25, TimeUnit.MILLISECONDS);
+          var manifest = collectArtifacts(request, workspace);
+          return new WorkerResult(
+              WorkerProtocol.VERSION,
+              status,
+              exit,
+              output.sanitized(redactor),
+              output.truncated(),
+              Duration.between(started, clock.instant()),
+              manifest);
+        } catch (InterruptedException error) {
+          terminateTree(process);
+          throw error;
         }
-        drain.get(10, TimeUnit.SECONDS);
-        var exit = process.isAlive() ? -1 : process.exitValue();
-        if (status == null) {
-          status = exit == 0 ? WorkerStatus.SUCCEEDED : WorkerStatus.FAILED;
-        }
-        var manifest = collectArtifacts(request, workspace);
-        return new WorkerResult(
-            WorkerProtocol.VERSION,
-            status,
-            exit,
-            output.sanitized(redactor),
-            output.truncated(),
-            Duration.between(started, clock.instant()),
-            manifest);
       }
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
@@ -131,6 +144,43 @@ public final class LocalExecutionWorker {
         throw new UncheckedIOException("Worker workspace cleanup failed", error);
       }
     }
+  }
+
+  private WorkerCommand authorize(WorkerRequest request, ResourceAuthorizer authorizer) {
+    var command = commands.get(request.workflow());
+    if (command == null) {
+      throw new WorkerExecutionException("WORKFLOW_DENIED", "Workflow is not allowlisted");
+    }
+    for (var resource : workflowResources.getOrDefault(request.workflow(), Set.of())) {
+      if (!authorizer.permits(resource)) {
+        throw new WorkerExecutionException("RESOURCE_DENIED", "Workflow resource access denied");
+      }
+    }
+    return command;
+  }
+
+  private void validateTimeout(Duration timeout) {
+    if (timeout.isZero()
+        || timeout.isNegative()
+        || timeout.compareTo(limits.maximumTimeout()) > 0) {
+      throw new WorkerExecutionException("TIMEOUT_LIMIT", "Timeout exceeds administrative limit");
+    }
+  }
+
+  private static WorkerStatus awaitCompletion(
+      Process process, CancellationToken cancellation, long deadline) throws InterruptedException {
+    while (process.isAlive()) {
+      if (cancellation.cancellationRequested()) {
+        terminateTree(process);
+        return WorkerStatus.CANCELLED;
+      }
+      if (System.nanoTime() >= deadline) {
+        terminateTree(process);
+        return WorkerStatus.TIMED_OUT;
+      }
+      process.waitFor(25, TimeUnit.MILLISECONDS);
+    }
+    return null;
   }
 
   private java.util.List<ArtifactManifestEntry> collectArtifacts(

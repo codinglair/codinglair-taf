@@ -51,12 +51,9 @@ final class HttpAdmissionFilter extends OncePerRequestFilter {
         return;
       }
       String session = request.getHeader(SESSION_HEADER);
-      if (session != null && !session.isBlank() && !sessions.contains(session)) {
-        if (sessions.size() >= limits.getMaxSessions()) {
-          reject(response, 429);
-          return;
-        }
-        sessions.add(session);
+      if (!admitSession(session)) {
+        reject(response, 429);
+        return;
       }
       response.setHeader(
           "X-TAF-Request-Deadline-Millis",
@@ -66,6 +63,17 @@ final class HttpAdmissionFilter extends OncePerRequestFilter {
     } finally {
       requests.release();
     }
+  }
+
+  private boolean admitSession(String session) {
+    if (session == null || session.isBlank() || sessions.contains(session)) {
+      return true;
+    }
+    if (sessions.size() >= limits.getMaxSessions()) {
+      return false;
+    }
+    sessions.add(session);
+    return true;
   }
 
   private boolean allowRate(String key) {

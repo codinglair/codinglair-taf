@@ -32,12 +32,26 @@ public final class QuickStartDocumentationTest {
     String allDocumentation = String.join(System.lineSeparator(), text, matrix, dependencies,
         deployment, architecture);
     List<String> failures = new ArrayList<>();
+    checkRequiredTopics(allDocumentation, failures);
+    checkQuickStartContent(text, failures);
+    checkStarters(text, dependencies, starterManifest, failures);
+    checkReferenceGuides(snippetManifest, dependencies, deployment, architecture, failures);
+    checkGoldenSourcesAndBom(matrix, failures);
+    checkMarkdownStructure(allDocumentation, failures);
+    if (!failures.isEmpty()) throw new AssertionError(String.join(System.lineSeparator(), failures));
+    System.out.println("DOC-120-001 documentation contract passed: snippets, versions, consistency, and links");
+  }
+
+  private static void checkRequiredTopics(String allDocumentation, List<String> failures) {
     for (String required : List.of(
         "Java 25", "TestNG", "Cucumber", "Playwright", "REST", "DatabaseController",
         "EventBridge", "SQS", "STDIO", "Streamable HTTP", "secret://", "revision", "F2B",
         "MCP")) {
       if (!allDocumentation.contains(required)) failures.add("missing required topic: " + required);
     }
+  }
+
+  private static void checkQuickStartContent(String text, List<String> failures) {
     for (String heading : List.of(
         "## 2. Prerequisites and SUT information", "## 3. Create a clean consumer project",
         "## 6. TestNG and Cucumber", "### 6.1 TestNG for technical verification",
@@ -54,6 +68,10 @@ public final class QuickStartDocumentationTest {
         "DB_PASSWORD:change_me", "supersecret123", "org.webtools.browser.BrowserInstall")) {
       if (text.contains(forbidden)) failures.add("stale or unsafe example: " + forbidden);
     }
+  }
+
+  private static void checkStarters(
+      String text, String dependencies, String starterManifest, List<String> failures) {
     for (String starter : List.of(
         "codinglair-taf-starter-web", "codinglair-taf-starter-api",
         "codinglair-taf-starter-database", "codinglair-taf-starter-messaging",
@@ -67,6 +85,14 @@ public final class QuickStartDocumentationTest {
         failures.add("starter missing from consumer guidance: " + starter);
       }
     }
+  }
+
+  private static void checkReferenceGuides(
+      String snippetManifest,
+      String dependencies,
+      String deployment,
+      String architecture,
+      List<String> failures) {
     for (String required : List.of(
         "\"targetRelease\": \"1.2.0\"", "docs/quick-start.md",
         "docs/reference/consumer-dependencies.md", "docs/operations/mcp-container-deployment.md",
@@ -91,6 +117,10 @@ public final class QuickStartDocumentationTest {
         "Docker", "Kubernetes")) {
       if (!architecture.contains(required)) failures.add("public architecture missing: " + required);
     }
+  }
+
+  private static void checkGoldenSourcesAndBom(String matrix, List<String> failures)
+      throws IOException {
     for (Path source : List.of(
         Path.of("demos", "playwright-sauce-demo", "pom.xml"),
         Path.of("docs", "examples", "quick-start-pom.xml"),
@@ -113,6 +143,10 @@ public final class QuickStartDocumentationTest {
         failures.add("BOM artifact missing from capability matrix: " + artifact);
       }
     }
+  }
+
+  private static void checkMarkdownStructure(String allDocumentation, List<String> failures)
+      throws IOException {
     long fences = allDocumentation.lines().filter(line -> line.startsWith("```")).count();
     if (fences % 2 != 0) failures.add("unbalanced Markdown code fences: " + fences);
     for (Path document : List.of(DOCUMENT, MATRIX, DEPENDENCIES, MCP_DEPLOYMENT, ARCHITECTURE)) {
@@ -122,7 +156,5 @@ public final class QuickStartDocumentationTest {
         if (!Files.exists(target)) failures.add("broken local link in " + document + ": " + matcher.group(2));
       }
     }
-    if (!failures.isEmpty()) throw new AssertionError(String.join(System.lineSeparator(), failures));
-    System.out.println("DOC-120-001 documentation contract passed: snippets, versions, consistency, and links");
   }
 }

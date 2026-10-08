@@ -118,117 +118,94 @@ public class AwaitableAssertion {
    */
   @TafDescription("Wait for assertion to become true within timeout with value and context")
   public AwaitableAssertionResult await(Supplier<Object> valueProvider, String context) {
-    Instant start = Instant.now();
     Object value = valueProvider != null ? valueProvider.get() : null;
 
     while (true) {
       try {
-        Instant now = Instant.now();
-        Duration elapsed = Duration.between(startTime, now);
+        if (Duration.between(startTime, Instant.now()).compareTo(timeout) >= 0)
+          return timeoutResult(value);
 
-        if (elapsed.compareTo(timeout) >= 0) {
-          // Timeout occurred
-          endTime = Instant.now();
-          status = Status.TIMEOUT;
-          // Track the last observed value from the polling loop
-          lastObservedValue =
-              observedValues.isEmpty() ? value : observedValues.get(observedValues.size() - 1);
-          pollCount =
-              pollInterval.toMillis() > 0
-                  ? (int)
-                          ((endTime.toEpochMilli() - startTime.toEpochMilli())
-                              / pollInterval.toMillis())
-                      + 1
-                  : 1;
-          String message =
-              "Assertion timed out after "
-                  + pollCount
-                  + " polls. Last observed value: "
-                  + lastObservedValue;
-          return new AwaitableAssertionResult(
-              assertionKey,
-              Status.TIMEOUT,
-              startTime,
-              endTime,
-              lastObservedValue,
-              pollCount,
-              message,
-              errors);
-        }
+        if (predicate.test(value)) return successResult(value);
 
-        if (value != null && predicate.test(value)) {
-          endTime = Instant.now();
-          status = Status.SUCCESS;
-          pollCount++;
-          String message = "Assertion succeeded after " + pollCount + " polls. Value: " + value;
-          return new AwaitableAssertionResult(
-              assertionKey, Status.SUCCESS, startTime, endTime, value, pollCount, message, errors);
-        } else if (value == null && predicate.test(null)) {
-          // Predicate provides the value to check (e.g., checking a condition directly)
-          endTime = Instant.now();
-          status = Status.SUCCESS;
-          pollCount++;
-          String message = "Assertion succeeded after " + pollCount + " polls. Value: null";
-          return new AwaitableAssertionResult(
-              assertionKey, Status.SUCCESS, startTime, endTime, null, pollCount, message, errors);
-        }
-
-        // Polling interval
         if (pollInterval.toMillis() > 0) {
           try {
             Thread.sleep(pollInterval.toMillis());
           } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            endTime = Instant.now();
-            status = Status.FAILED;
-            // Track the last observed value before failure
-            lastObservedValue =
-                observedValues.isEmpty() ? value : observedValues.get(observedValues.size() - 1);
-            errors.add(e);
-            pollCount++;
-            String message =
-                "Assertion interrupted after "
-                    + pollCount
-                    + " polls. "
-                    + (observedValues.isEmpty()
-                        ? "No value observed."
-                        : "Last observed value: " + lastObservedValue);
-            return new AwaitableAssertionResult(
-                assertionKey,
-                Status.FAILED,
-                startTime,
-                endTime,
-                lastObservedValue,
-                pollCount,
-                message,
-                errors);
+            return interruptedResult(value, e);
           }
         }
 
         observedValues.add(value);
         pollCount++;
 
-      } catch (Exception e) {
-        errors.add(e);
-        endTime = Instant.now();
-        status = Status.FAILED;
-        // Track the last observed value before failure
-        lastObservedValue =
-            observedValues.isEmpty() ? value : observedValues.get(observedValues.size() - 1);
-        pollCount++;
-        String message =
-            "Assertion failed with exception: " + e.getClass().getName() + ": " + e.getMessage();
-        return new AwaitableAssertionResult(
-            assertionKey,
-            Status.FAILED,
-            startTime,
-            endTime,
-            lastObservedValue,
-            pollCount,
-            message,
-            errors);
+      } catch (Exception failure) {
+        return failureResult(value, failure);
       }
     }
+  }
+
+  private AwaitableAssertionResult successResult(Object value) {
+    endTime = Instant.now();
+    status = Status.SUCCESS;
+    pollCount++;
+    return result(value, "Assertion succeeded after " + pollCount + " polls. Value: " + value);
+  }
+
+  private AwaitableAssertionResult timeoutResult(Object value) {
+    endTime = Instant.now();
+    status = Status.TIMEOUT;
+    lastObservedValue = lastObserved(value);
+    pollCount =
+        pollInterval.toMillis() > 0
+            ? (int) ((endTime.toEpochMilli() - startTime.toEpochMilli()) / pollInterval.toMillis())
+                + 1
+            : 1;
+    return result(
+        lastObservedValue,
+        "Assertion timed out after "
+            + pollCount
+            + " polls. Last observed value: "
+            + lastObservedValue);
+  }
+
+  private AwaitableAssertionResult interruptedResult(Object value, InterruptedException failure) {
+    Thread.currentThread().interrupt();
+    endTime = Instant.now();
+    status = Status.FAILED;
+    lastObservedValue = lastObserved(value);
+    errors.add(failure);
+    pollCount++;
+    return result(
+        lastObservedValue,
+        "Assertion interrupted after "
+            + pollCount
+            + " polls. "
+            + (observedValues.isEmpty()
+                ? "No value observed."
+                : "Last observed value: " + lastObservedValue));
+  }
+
+  private AwaitableAssertionResult failureResult(Object value, Exception failure) {
+    errors.add(failure);
+    endTime = Instant.now();
+    status = Status.FAILED;
+    lastObservedValue = lastObserved(value);
+    pollCount++;
+    return result(
+        lastObservedValue,
+        "Assertion failed with exception: "
+            + failure.getClass().getName()
+            + ": "
+            + failure.getMessage());
+  }
+
+  private Object lastObserved(Object value) {
+    return observedValues.isEmpty() ? value : observedValues.getLast();
+  }
+
+  private AwaitableAssertionResult result(Object resultValue, String message) {
+    return new AwaitableAssertionResult(
+        assertionKey, status, startTime, endTime, resultValue, pollCount, message, errors);
   }
 
   /**

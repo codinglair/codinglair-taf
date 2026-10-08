@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       maven_modules: ${{ steps.classify.outputs.maven_modules }}
+      standalone_builds: ${{ steps.classify.outputs.standalone_builds }}
       integration: ${{ steps.classify.outputs.integration }}
       cross_module: ${{ steps.classify.outputs.cross_module }}
       browser: ${{ steps.classify.outputs.browser }}
@@ -130,10 +131,23 @@ jobs:
       - name: Verify affected Maven modules
         run: |
           modules='${{ needs.change-impact.outputs.maven_modules }}'
+          standalone_builds='${{ needs.change-impact.outputs.standalone_builds }}'
+          goal=verify
+          if [[ -n "$standalone_builds" ]]; then
+            goal=install
+            modules="$(java build-support/ci/StandaloneCandidateModules.java --modules="$modules" --standalone-builds="$standalone_builds")"
+          fi
           if [[ -n "$modules" ]]; then
-            ./mvnw $MAVEN_ARGS -pl "$modules" -am verify
+            ./mvnw $MAVEN_ARGS -pl "$modules" -am "$goal"
           else
-            ./mvnw $MAVEN_ARGS verify
+            ./mvnw $MAVEN_ARGS "$goal"
+          fi
+          if [[ -n "$standalone_builds" ]]; then
+            TAF_VERSION="$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)"
+            IFS=',' read -ra builds <<< "$standalone_builds"
+            for build in "${builds[@]}"; do
+              ./mvnw $MAVEN_ARGS -f "$build/pom.xml" -Dtaf.version="$TAF_VERSION" verify
+            done
           fi
       - name: Publish failed integration and contract reports
         if: ${{ failure() }}

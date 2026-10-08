@@ -25,7 +25,27 @@ final class ImagePolicyTest {
       throw new AssertionError("Structured output did not retain guest classification");
     String secretOutput = ImagePolicy.structured(ImagePolicy.evaluate("token=canary-value"));
     if (secretOutput.contains("canary-value")) throw new AssertionError("Secret-like value leaked to output");
-    System.out.println("Executed 20 image-policy scenarios");
+    assertCompleteFailureAccumulation(loadFixture(fixtures, "pass-guest.properties"));
+    System.out.println("Executed 21 image-policy scenarios");
+  }
+
+  private static void assertCompleteFailureAccumulation(String validEvidence) {
+    String invalidEvidence = validEvidence
+        .replace("image.scannedDigest=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "image.scannedDigest=invalid")
+        .replace("artifact.0.sha256=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "artifact.0.sha256=invalid")
+        .replace("license.0.disposition=ALLOWED", "license.0.disposition=PROHIBITED");
+    var decision = ImagePolicy.evaluate(invalidEvidence);
+    for (String expected : List.of(
+        "Invalid or missing image.scannedDigest",
+        "Scanned image digest does not match",
+        "Invalid or missing artifact.0.sha256",
+        "License 0 has non-approved disposition PROHIBITED")) {
+      if (decision.reasons().stream().noneMatch(reason -> reason.contains(expected))) {
+        throw new AssertionError("Missing accumulated reason " + expected + ": " + decision.reasons());
+      }
+    }
   }
 
   private static void assertResult(Path fixtures, String fixture, boolean expected) throws Exception {

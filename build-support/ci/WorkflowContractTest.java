@@ -46,6 +46,18 @@ final class WorkflowContractTest {
     require(yaml, "uses: ./.github/workflows/secret-scanning.yml");
     require(yaml, "uses: ./.github/workflows/aws-capability.yml");
     require(yaml, "aws: ${{ steps.classify.outputs.aws }}");
+    require(yaml, "standalone_builds: ${{ steps.classify.outputs.standalone_builds }}");
+    String affectedVerification =
+        job(yaml, "  affected-verification:", "  cross-module-smoke:");
+    requireInOrder(
+        affectedVerification,
+        "standalone_builds='${{ needs.change-impact.outputs.standalone_builds }}'",
+        "goal=install",
+        "modules=\"$(java build-support/ci/StandaloneCandidateModules.java --modules=\"$modules\" --standalone-builds=\"$standalone_builds\")\"",
+        "./mvnw $MAVEN_ARGS -pl \"$modules\" -am \"$goal\"",
+        "TAF_VERSION=\"$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)\"",
+        "./mvnw $MAVEN_ARGS -f \"$build/pom.xml\" -Dtaf.version=\"$TAF_VERSION\" verify");
+    verifyStandaloneCandidateSelection();
     require(yaml, "name: Documentation version");
     require(yaml, "java build-support/scripts/SyncDocVersion.java --check");
     require(yaml, "- documentation-version");
@@ -128,6 +140,60 @@ final class WorkflowContractTest {
       throw new AssertionError("Workflow contains a prohibited privilege boundary");
     }
     System.out.println("GitHub PR workflow structural contract passed.");
+  }
+
+  private static void verifyStandaloneCandidateSelection() throws Exception {
+    Process process =
+        new ProcessBuilder(
+                "java",
+                "build-support/ci/StandaloneCandidateModules.java",
+                "--modules=",
+                "--standalone-builds=qualification/apple-simulator")
+            .redirectErrorStream(true)
+            .start();
+    String output = new String(process.getInputStream().readAllBytes()).strip();
+    int exitCode = process.waitFor();
+    if (exitCode != 0) {
+      throw new AssertionError("Standalone candidate selection failed: " + output);
+    }
+    String expected = "codinglair-taf-bom,codinglair-taf-starter-mobile";
+    if (!output.equals(expected)) {
+      throw new AssertionError(
+          "Empty-module Apple simulator selection must be " + expected + " but was " + output);
+    }
+    verifyCandidateReactor(output);
+  }
+
+  private static void verifyCandidateReactor(String modules) throws Exception {
+    String wrapper =
+        System.getProperty("os.name").startsWith("Windows") ? ".\\mvnw.cmd" : "./mvnw";
+    List<String> command =
+        List.of(
+            wrapper,
+            "-B",
+            "-ntp",
+            "-Dstyle.color=never",
+            "-pl",
+            modules,
+            "-am",
+            "validate");
+    Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+    String output = new String(process.getInputStream().readAllBytes());
+    int exitCode = process.waitFor();
+    if (exitCode != 0) {
+      throw new AssertionError("Candidate reactor validation failed: " + output);
+    }
+    for (String project :
+        List.of(
+            "Codinglair TAF Community BOM",
+            "TAF Runtime Core",
+            "TAF Mobile Core",
+            "TAF Mobile Appium",
+            "Codinglair TAF Mobile Starter")) {
+      if (!output.contains(project)) {
+        throw new AssertionError("Candidate reactor is missing " + project + ": " + output);
+      }
+    }
   }
 
   private static void validateBasicYamlStructure(List<String> lines) {

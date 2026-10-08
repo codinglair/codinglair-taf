@@ -27,83 +27,93 @@ final class EnvironmentConsumerPreflightContributor
   @Override
   public List<PreflightDiagnostic> inspect() {
     List<PreflightDiagnostic> failures = new ArrayList<>();
-    configuration
-        .getCapabilities()
-        .forEach(
-            (name, instance) -> {
-              if (!instance.isEnabled()) return;
-              instance
-                  .getRequiredValues()
-                  .forEach(
-                      (field, value) -> {
-                        if (unresolved(value))
-                          failures.add(
-                              failure(
-                                  name,
-                                  instance,
-                                  field,
-                                  "required value is unresolved",
-                                  "Set the required value for the active environment profile"));
-                      });
-              instance
-                  .getSecretReferences()
-                  .forEach(
-                      (field, reference) -> {
-                        if (unresolved(reference) || !secrets.isAvailable(reference)) {
-                          failures.add(
-                              failure(
-                                  name,
-                                  instance,
-                                  field,
-                                  "secret reference is unavailable",
-                                  "Configure the referenced secret in the authorized execution environment"));
-                        }
-                      });
-              instance.getRequires().stream()
-                  .filter(required -> !enabled(required))
-                  .forEach(
-                      required ->
-                          failures.add(
-                              failure(
-                                  name,
-                                  instance,
-                                  "requires",
-                                  "required capability selection is absent",
-                                  "Enable the required capability instance '" + required + "'")));
-              instance.getIncompatibleWith().stream()
-                  .filter(this::enabled)
-                  .forEach(
-                      incompatible ->
-                          failures.add(
-                              failure(
-                                  name,
-                                  instance,
-                                  "incompatible-with",
-                                  "incompatible capabilities are selected",
-                                  "Disable either '" + name + "' or '" + incompatible + "'")));
-            });
+    configuration.getCapabilities().forEach((name, instance) -> validate(name, instance, failures));
     for (int index = 0; index < contributors.size(); index++) {
       ConsumerPreflightContributor contributor = contributors.get(index);
       for (var entry : configuration.getCapabilities().entrySet()) {
-        var instance = entry.getValue();
-        if (!instance.isEnabled()
-            || !java.util.Objects.equals(instance.getType(), contributor.capabilityType()))
-          continue;
-        try {
-          List.copyOf(contributor.check(entry.getKey(), instance, configuration)).stream()
-              .filter(EnvironmentConsumerPreflightContributor::blocksExecution)
-              .map(EnvironmentConsumerPreflightContributor::diagnostic)
-              .forEach(failures::add);
-        } catch (RuntimeException failure) {
-          failures.add(
-              new PreflightDiagnostic(
-                  "dependency." + entry.getKey() + "." + index,
-                  "Dependency readiness check failed",
-                  "Inspect the dependency configuration and sanitized provider diagnostics"));
-        }
+        inspectContributor(index, contributor, entry, failures);
       }
     }
     return List.copyOf(failures);
+  }
+
+  private void validate(
+      String name,
+      ConsumerConfigurationProperties.CapabilityInstance instance,
+      List<PreflightDiagnostic> failures) {
+    if (!instance.isEnabled()) return;
+    instance
+        .getRequiredValues()
+        .forEach(
+            (field, value) -> {
+              if (unresolved(value)) {
+                failures.add(
+                    failure(
+                        name,
+                        instance,
+                        field,
+                        "required value is unresolved",
+                        "Set the required value for the active environment profile"));
+              }
+            });
+    instance
+        .getSecretReferences()
+        .forEach(
+            (field, reference) -> {
+              if (unresolved(reference) || !secrets.isAvailable(reference)) {
+                failures.add(
+                    failure(
+                        name,
+                        instance,
+                        field,
+                        "secret reference is unavailable",
+                        "Configure the referenced secret in the authorized execution environment"));
+              }
+            });
+    instance.getRequires().stream()
+        .filter(required -> !enabled(required))
+        .forEach(
+            required ->
+                failures.add(
+                    failure(
+                        name,
+                        instance,
+                        "requires",
+                        "required capability selection is absent",
+                        "Enable the required capability instance '" + required + "'")));
+    instance.getIncompatibleWith().stream()
+        .filter(this::enabled)
+        .forEach(
+            incompatible ->
+                failures.add(
+                    failure(
+                        name,
+                        instance,
+                        "incompatible-with",
+                        "incompatible capabilities are selected",
+                        "Disable either '" + name + "' or '" + incompatible + "'")));
+  }
+
+  private void inspectContributor(
+      int index,
+      ConsumerPreflightContributor contributor,
+      Map.Entry<String, ConsumerConfigurationProperties.CapabilityInstance> entry,
+      List<PreflightDiagnostic> failures) {
+    var instance = entry.getValue();
+    if (!instance.isEnabled()
+        || !java.util.Objects.equals(instance.getType(), contributor.capabilityType())) return;
+    try {
+      List.copyOf(contributor.check(entry.getKey(), instance, configuration)).stream()
+          .filter(EnvironmentConsumerPreflightContributor::blocksExecution)
+          .map(EnvironmentConsumerPreflightContributor::diagnostic)
+          .forEach(failures::add);
+    } catch (RuntimeException failure) {
+      failures.add(
+          new PreflightDiagnostic(
+              "dependency." + entry.getKey() + "." + index,
+              "Dependency readiness check failed",
+              "Inspect the dependency configuration and sanitized provider diagnostics"));
+    }
   }
 
   private boolean enabled(String name) {

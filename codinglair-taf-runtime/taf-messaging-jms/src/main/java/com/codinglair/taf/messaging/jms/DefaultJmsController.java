@@ -167,28 +167,7 @@ final class DefaultJmsController implements JmsController {
                 ? context.createConsumer(nativeDestination, normalize(selector))
                 : context.createDurableConsumer(
                     (Topic) nativeDestination, durableName, normalize(selector), false)) {
-          while (elapsed(started).compareTo(query.timeout()) < 0) {
-            if (Thread.currentThread().isInterrupted()) throw interrupted();
-            long remaining = Math.max(1, query.timeout().minus(elapsed(started)).toMillis());
-            Message message = consumer.receive(Math.min(remaining, 100));
-            if (message == null) continue;
-            MessageRecord record = fromNative(destination, message);
-            if (query.selector().matches(record)) {
-              remember(
-                  durableName == null ? "consume" : "consume-durable", destination, durableName);
-              return ConsumptionResult.matched(record, elapsed(started));
-            }
-            Deque<MessageRecord> records =
-                buffered.computeIfAbsent(
-                    destinationKey(destination, durableName), ignored -> new ArrayDeque<>());
-            if (records.size() >= settings.getMaximumEvidenceRecords())
-              throw failure(
-                  "buffer unmatched message",
-                  "narrow the selector or increase maximum-evidence-records",
-                  null);
-            records.addLast(record);
-          }
-          return ConsumptionResult.noMatch(elapsed(started));
+          return poll(consumer, destination, durableName, query, started);
         }
       } catch (JMSRuntimeException | JMSException failure) {
         if (Thread.currentThread().isInterrupted()) throw interrupted();
@@ -198,6 +177,40 @@ final class DefaultJmsController implements JmsController {
             failure);
       }
     }
+  }
+
+  private ConsumptionResult poll(
+      JMSConsumer consumer,
+      JmsDestination destination,
+      String durableName,
+      MessageQuery query,
+      long started)
+      throws JMSException, InterruptedException {
+    while (elapsed(started).compareTo(query.timeout()) < 0) {
+      if (Thread.currentThread().isInterrupted()) throw interrupted();
+      long remaining = Math.max(1, query.timeout().minus(elapsed(started)).toMillis());
+      Message message = consumer.receive(Math.min(remaining, 100));
+      if (message == null) continue;
+      MessageRecord record = fromNative(destination, message);
+      if (query.selector().matches(record)) {
+        remember(durableName == null ? "consume" : "consume-durable", destination, durableName);
+        return ConsumptionResult.matched(record, elapsed(started));
+      }
+      buffer(destination, durableName, record);
+    }
+    return ConsumptionResult.noMatch(elapsed(started));
+  }
+
+  private void buffer(JmsDestination destination, String durableName, MessageRecord record) {
+    Deque<MessageRecord> records =
+        buffered.computeIfAbsent(
+            destinationKey(destination, durableName), ignored -> new ArrayDeque<>());
+    if (records.size() >= settings.getMaximumEvidenceRecords())
+      throw failure(
+          "buffer unmatched message",
+          "narrow the selector or increase maximum-evidence-records",
+          null);
+    records.addLast(record);
   }
 
   @Override

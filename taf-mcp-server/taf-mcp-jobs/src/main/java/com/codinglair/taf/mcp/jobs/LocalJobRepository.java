@@ -217,30 +217,7 @@ public final class LocalJobRepository implements JobRepository {
       temporary = Files.createTempFile(root, job.id().value() + "-", ".tmp");
       try (var output =
           new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)))) {
-        output.writeInt(MAGIC);
-        output.writeInt(FORMAT_VERSION);
-        output.writeUTF(job.id().value());
-        output.writeUTF(job.operation());
-        output.writeUTF(job.state().name());
-        output.writeInt(job.progressPercent());
-        output.writeLong(job.version());
-        output.writeLong(job.createdAt().toEpochMilli());
-        output.writeLong(job.updatedAt().toEpochMilli());
-        output.writeBoolean(job.safeCheckpoint().isPresent());
-        if (job.safeCheckpoint().isPresent()) output.writeUTF(job.safeCheckpoint().orElseThrow());
-        writeMap(output, job.payload());
-        output.writeInt(job.resultReferences().size());
-        for (JobReference reference : job.resultReferences()) {
-          output.writeUTF(reference.uri());
-          output.writeUTF(reference.mediaType());
-        }
-        output.writeInt(job.events().size());
-        for (JobEvent event : job.events()) {
-          output.writeLong(event.sequence());
-          output.writeLong(event.occurredAt().toEpochMilli());
-          output.writeUTF(event.kind());
-          output.writeUTF(event.message());
-        }
+        encode(output, job);
       }
       move(temporary, path);
     } catch (IOException failure) {
@@ -253,6 +230,33 @@ public final class LocalJobRepository implements JobRepository {
           // A failed cleanup is secondary to the persistence result and contains no job data.
         }
       }
+    }
+  }
+
+  private static void encode(DataOutputStream output, Job job) throws IOException {
+    output.writeInt(MAGIC);
+    output.writeInt(FORMAT_VERSION);
+    output.writeUTF(job.id().value());
+    output.writeUTF(job.operation());
+    output.writeUTF(job.state().name());
+    output.writeInt(job.progressPercent());
+    output.writeLong(job.version());
+    output.writeLong(job.createdAt().toEpochMilli());
+    output.writeLong(job.updatedAt().toEpochMilli());
+    output.writeBoolean(job.safeCheckpoint().isPresent());
+    if (job.safeCheckpoint().isPresent()) output.writeUTF(job.safeCheckpoint().orElseThrow());
+    writeMap(output, job.payload());
+    output.writeInt(job.resultReferences().size());
+    for (JobReference reference : job.resultReferences()) {
+      output.writeUTF(reference.uri());
+      output.writeUTF(reference.mediaType());
+    }
+    output.writeInt(job.events().size());
+    for (JobEvent event : job.events()) {
+      output.writeLong(event.sequence());
+      output.writeLong(event.occurredAt().toEpochMilli());
+      output.writeUTF(event.kind());
+      output.writeUTF(event.message());
     }
   }
 

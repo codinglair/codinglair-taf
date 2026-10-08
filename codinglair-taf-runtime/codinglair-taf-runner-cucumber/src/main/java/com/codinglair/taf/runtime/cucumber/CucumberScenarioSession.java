@@ -70,23 +70,27 @@ public final class CucumberScenarioSession implements AutoCloseable {
           .getControllerRegistry()
           .enableReporting(new ReportingActionInterceptor(currentReporting));
     } catch (Throwable failure) {
-      TestSession partial = session;
-      session = null;
-      if (partial != null) {
-        try {
-          lifecycle.close(invocation, InvocationOutcome.setupFailed(failure));
-        } catch (Throwable cleanup) {
-          failure.addSuppressed(cleanup);
-        }
-      }
-      reporting.scope.fail(message(failure));
-      finishReporting(partial);
-      currentReporting.unbind();
-      reporting = null;
-      this.scenario = null;
-      invocation = null;
+      cleanupFailedStart(failure);
       throwUnchecked(failure);
     }
+  }
+
+  private void cleanupFailedStart(Throwable failure) {
+    TestSession partial = session;
+    session = null;
+    if (partial != null) {
+      try {
+        lifecycle.close(invocation, InvocationOutcome.setupFailed(failure));
+      } catch (Throwable cleanup) {
+        failure.addSuppressed(cleanup);
+      }
+    }
+    reporting.scope.fail(message(failure));
+    finishReporting(partial);
+    currentReporting.unbind();
+    reporting = null;
+    scenario = null;
+    invocation = null;
   }
 
   /** Returns all effective feature/scenario tags reported by Cucumber. */
@@ -165,19 +169,22 @@ public final class CucumberScenarioSession implements AutoCloseable {
       } catch (Throwable current) {
         failure = current;
       } finally {
-        if (reporting != null) {
-          if (failure == null && completedScenario.getStatus() == Status.PASSED)
-            reporting.scope.pass();
-          else
-            reporting.scope.fail(
-                failure == null ? completedScenario.getStatus().name() : message(failure));
-          finishReporting(active);
-          reporting = null;
-        }
+        completeReporting(active, completedScenario, failure);
         currentReporting.unbind();
       }
       if (failure != null) throwUnchecked(failure);
     }
+  }
+
+  private void completeReporting(
+      TestSession completedSession, Scenario completedScenario, Throwable failure) {
+    if (reporting == null) return;
+    if (failure == null && completedScenario.getStatus() == Status.PASSED) reporting.scope.pass();
+    else
+      reporting.scope.fail(
+          failure == null ? completedScenario.getStatus().name() : message(failure));
+    finishReporting(completedSession);
+    reporting = null;
   }
 
   private static InvocationOutcome outcome(Scenario scenario) {

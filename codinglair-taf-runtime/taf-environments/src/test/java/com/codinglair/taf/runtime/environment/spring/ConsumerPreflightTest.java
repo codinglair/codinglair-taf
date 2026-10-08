@@ -49,6 +49,14 @@ class ConsumerPreflightTest {
             failure -> {
               assertThat(failure.result().checks()).hasSize(5);
               assertThat(failure.result().status()).isEqualTo(EnvironmentStatus.MISCONFIGURED);
+              assertThat(failure.result().checks())
+                  .extracting(PreflightCheckResult::checkId)
+                  .containsExactly(
+                      "configuration.storefront.base-url",
+                      "configuration.storefront.password",
+                      "configuration.storefront.requires",
+                      "configuration.storefront.incompatible-with",
+                      "dependency.storefront");
               assertThat(failure.getMessage())
                   .contains("storefront", "base-url", "ci", "dependency.storefront")
                   .doesNotContain("STOREFRONT_PASSWORD");

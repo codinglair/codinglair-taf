@@ -1,5 +1,6 @@
 package com.codinglair.taf.mcp.tools;
 
+import com.codinglair.taf.mobile.ApplePlatformManifest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -164,17 +165,7 @@ public final class BlueprintCompositionEngine {
     }
     MessagingProvider messaging = enumValue(MessagingProvider.class, provider);
     if (provider != null && messaging == null) unsupported(diagnostics, "messaging provider");
-    var platformToken = token(request.mobilePlatform());
-    var automationToken = token(request.mobileAutomationName());
-    MobilePlatform platform = enumValue(MobilePlatform.class, platformToken);
-    if (capabilities.contains(Capability.MOBILE)) {
-      platform = normalizeMobilePlatform(platformToken, platform, diagnostics);
-      if (automationToken != null && !"UIAUTOMATOR2".equals(automationToken)) {
-        unsupported(diagnostics, "mobile automation name");
-      }
-    } else if (platformToken != null || automationToken != null) {
-      unsupported(diagnostics, "mobile options without MOBILE");
-    }
+    var mobile = normalizeMobileSelection(request, capabilities, diagnostics);
     Runner runner = defaulted(Runner.class, request.runner(), Runner.TESTNG, diagnostics);
     Reporting reporting =
         defaulted(Reporting.class, request.reporting(), Reporting.ALLURE, diagnostics);
@@ -195,12 +186,78 @@ public final class BlueprintCompositionEngine {
         List.copyOf(capabilities),
         Optional.ofNullable(messaging),
         capabilities.contains(Capability.MOBILE)
-            ? Optional.of(MobilePlatform.ANDROID)
+            ? Optional.of(mobile.platform())
             : Optional.empty(),
-        capabilities.contains(Capability.MOBILE) ? Optional.of("UIAUTOMATOR2") : Optional.empty(),
+        capabilities.contains(Capability.MOBILE)
+            ? Optional.of(mobile.automation())
+            : Optional.empty(),
         runner,
         reporting,
-        definitions);
+        definitions,
+        mobile.family(),
+        mobile.mode(),
+        mobile.deviceKind(),
+        mobile.topology(),
+        mobile.applicationMode());
+  }
+
+  private static MobileSelection normalizeMobileSelection(
+      Request request, List<Capability> capabilities, List<Diagnostic> diagnostics) {
+    String platformToken = token(request.mobilePlatform());
+    String automation = token(request.mobileAutomationName());
+    MobilePlatform platform = enumValue(MobilePlatform.class, platformToken);
+    String family = token(request.mobileFamily());
+    String mode = token(request.mobileMode());
+    String deviceKind = token(request.mobileDeviceKind());
+    String topology = token(request.mobileTopology());
+    String applicationMode = token(request.mobileApplicationMode());
+    if (!capabilities.contains(Capability.MOBILE)) {
+      if (platformToken != null
+          || automation != null
+          || family != null
+          || mode != null
+          || deviceKind != null
+          || topology != null
+          || applicationMode != null) {
+        unsupported(diagnostics, "mobile options without MOBILE");
+      }
+      return new MobileSelection(
+          platform, automation, family, mode, deviceKind, topology, applicationMode);
+    }
+
+    platform = normalizeMobilePlatform(platformToken, platform, family, diagnostics);
+    String expectedAutomation = platform == MobilePlatform.ANDROID ? "UIAUTOMATOR2" : "XCUITEST";
+    if (automation != null && !expectedAutomation.equals(automation)) {
+      unsupported(diagnostics, "mobile automation name");
+    }
+    automation = expectedAutomation;
+    if (platform == MobilePlatform.ANDROID) {
+      if (family != null
+          || mode != null
+          || deviceKind != null
+          || topology != null
+          || applicationMode != null) {
+        unsupported(diagnostics, "Apple options with Android");
+      }
+      return new MobileSelection(
+          platform, automation, family, mode, deviceKind, topology, applicationMode);
+    }
+
+    try {
+      var apple =
+          ApplePlatformManifest.validate(
+              platform.name(), family, mode, deviceKind, topology, applicationMode, automation);
+      family = apple.family().name();
+      mode = apple.mode();
+      deviceKind = apple.targetKind();
+      topology = apple.topology();
+      applicationMode = apple.applicationMode();
+      automation = apple.automationName().toUpperCase(Locale.ROOT);
+    } catch (IllegalArgumentException failure) {
+      unsupported(diagnostics, failure.getMessage());
+    }
+    return new MobileSelection(
+        platform, automation, family, mode, deviceKind, topology, applicationMode);
   }
 
   private static List<Contribution> select(
@@ -208,6 +265,7 @@ public final class BlueprintCompositionEngine {
     var selected =
         available.stream()
             .filter(c -> c.selector().matches(request))
+            .map(contribution -> adaptSelectedContribution(contribution, request))
             .sorted(Comparator.comparingInt(Contribution::order).thenComparing(Contribution::id))
             .toList();
     if (selected.stream().filter(c -> c.kind() == Kind.COMMON).count() != 1) {
@@ -238,6 +296,23 @@ public final class BlueprintCompositionEngine {
       }
     }
     return selected;
+  }
+
+  private static Contribution adaptSelectedContribution(
+      Contribution contribution, NormalizedRequest request) {
+    if (contribution.selector().capability() != Capability.MOBILE
+        || request.mobilePlatform().orElse(MobilePlatform.ANDROID) == MobilePlatform.ANDROID) {
+      return contribution;
+    }
+    return new Contribution(
+        contribution.id(),
+        contribution.blueprintVersion(),
+        contribution.kind(),
+        contribution.selector(),
+        contribution.order(),
+        contribution.manifestIds(),
+        MobileBlueprintAssets.assets(request),
+        contribution.configurationClaims());
   }
 
   private static void validateContributions(
@@ -299,6 +374,7 @@ public final class BlueprintCompositionEngine {
       List<Diagnostic> diagnostics) {
     var writes = new LinkedHashMap<String, PlannedWrite>();
     var folded = new TreeSet<String>();
+    var destinationRoot = destination.toAbsolutePath().normalize();
     var tokens =
         Map.of(
             "__GROUP_ID__", request.groupId(),
@@ -310,66 +386,75 @@ public final class BlueprintCompositionEngine {
             "__TAF_REPORTING_DEPENDENCIES__", reportingDependencyDeclarations(request.reporting()));
     for (var contribution : selected) {
       for (var asset : contribution.assets()) {
-        String path = replace(asset.path(), tokens).replace('\\', '/');
-        String content = replace(asset.content(), tokens).replace("\r\n", "\n").replace('\r', '\n');
-        if (!safePath(path) || TOKEN.matcher(path).find()) {
-          diagnostics.add(
-              error(
-                  "SCF_PATH_INVALID",
-                  Phase.PATH,
-                  contribution.id(),
-                  path,
-                  null,
-                  "target path is unsafe",
-                  "Use a normalized relative path below the destination."));
-          continue;
-        }
-        if (TOKEN.matcher(content).find()) {
-          diagnostics.add(
-              error(
-                  "SCF_UNRESOLVED_TOKEN",
-                  Phase.RENDER,
-                  contribution.id(),
-                  path,
-                  null,
-                  "rendered content contains an unresolved token",
-                  "Provide the value or repair the contribution."));
-          continue;
-        }
-        String fold = path.toLowerCase(Locale.ROOT);
-        if (writes.containsKey(path) || !folded.add(fold)) {
-          diagnostics.add(
-              error(
-                  "SCF_PATH_COLLISION",
-                  Phase.PATH,
-                  contribution.id(),
-                  path,
-                  null,
-                  "multiple contributions own the same target",
-                  "Assign the target to one contribution."));
-          continue;
-        }
-        Path target = destination.toAbsolutePath().normalize().resolve(path).normalize();
-        if (!target.startsWith(destination.toAbsolutePath().normalize())
-            || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-          diagnostics.add(
-              error(
-                  "SCF_PATH_COLLISION",
-                  Phase.PATH,
-                  contribution.id(),
-                  path,
-                  null,
-                  "target already exists or escapes the destination",
-                  "Choose an empty destination."));
-          continue;
-        }
-        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-        writes.put(
-            path,
-            new PlannedWrite(Path.of(path), bytes, sha256(bytes), asset.dependencyMetadata()));
+        renderAsset(contribution, asset, tokens, destinationRoot, writes, folded, diagnostics);
       }
     }
     return List.copyOf(writes.values());
+  }
+
+  private static void renderAsset(
+      Contribution contribution,
+      Asset asset,
+      Map<String, String> tokens,
+      Path destinationRoot,
+      Map<String, PlannedWrite> writes,
+      TreeSet<String> folded,
+      List<Diagnostic> diagnostics) {
+    String path = replace(asset.path(), tokens).replace('\\', '/');
+    String content = replace(asset.content(), tokens).replace("\r\n", "\n").replace('\r', '\n');
+    if (!safePath(path) || TOKEN.matcher(path).find()) {
+      diagnostics.add(
+          error(
+              "SCF_PATH_INVALID",
+              Phase.PATH,
+              contribution.id(),
+              path,
+              null,
+              "target path is unsafe",
+              "Use a normalized relative path below the destination."));
+      return;
+    }
+    if (TOKEN.matcher(content).find()) {
+      diagnostics.add(
+          error(
+              "SCF_UNRESOLVED_TOKEN",
+              Phase.RENDER,
+              contribution.id(),
+              path,
+              null,
+              "rendered content contains an unresolved token",
+              "Provide the value or repair the contribution."));
+      return;
+    }
+    String fold = path.toLowerCase(Locale.ROOT);
+    if (writes.containsKey(path) || !folded.add(fold)) {
+      diagnostics.add(
+          error(
+              "SCF_PATH_COLLISION",
+              Phase.PATH,
+              contribution.id(),
+              path,
+              null,
+              "multiple contributions own the same target",
+              "Assign the target to one contribution."));
+      return;
+    }
+    Path target = destinationRoot.resolve(path).normalize();
+    if (!target.startsWith(destinationRoot) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+      diagnostics.add(
+          error(
+              "SCF_PATH_COLLISION",
+              Phase.PATH,
+              contribution.id(),
+              path,
+              null,
+              "target already exists or escapes the destination",
+              "Choose an empty destination."));
+      return;
+    }
+    byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+    writes.put(
+        path, new PlannedWrite(Path.of(path), bytes, sha256(bytes), asset.dependencyMetadata()));
   }
 
   private static String dependencyDeclarations(List<Dependency> dependencies) {
@@ -380,10 +465,13 @@ public final class BlueprintCompositionEngine {
                 <dependency>
                   <groupId>%s</groupId>
                   <artifactId>%s</artifactId>
-                  <type>pom</type>
+                  <type>%s</type>
                 </dependency>
                 """
-                    .formatted(dependency.groupId(), dependency.artifactId())
+                    .formatted(
+                        dependency.groupId(),
+                        dependency.artifactId(),
+                        dependency.artifactId().contains("starter") ? "pom" : "jar")
                     .indent(4)
                     .stripTrailing())
         .reduce((left, right) -> left + "\n" + right)
@@ -414,11 +502,7 @@ public final class BlueprintCompositionEngine {
     for (var contribution : selected) {
       for (var claim : contribution.configurationClaims()) {
         for (var existing : claims) {
-          if (existing.claim.document().equals(claim.document())
-              && overlaps(existing.claim.pointer(), claim.pointer())
-              && !(existing.claim.rule() == MergeRule.REQUIRE_EQUAL
-                  && claim.rule() == MergeRule.REQUIRE_EQUAL
-                  && Objects.equals(existing.claim.canonicalValue(), claim.canonicalValue()))) {
+          if (claimsOverlapIncompatibly(existing.claim, claim)) {
             diagnostics.add(
                 error(
                     "SCF_CONFIG_COLLISION",
@@ -433,6 +517,17 @@ public final class BlueprintCompositionEngine {
         claims.add(new ClaimOwner(contribution.id(), claim));
       }
     }
+  }
+
+  private static boolean claimsOverlapIncompatibly(
+      ConfigurationClaim existing, ConfigurationClaim candidate) {
+    boolean equalValuesRequired =
+        existing.rule() == MergeRule.REQUIRE_EQUAL
+            && candidate.rule() == MergeRule.REQUIRE_EQUAL
+            && Objects.equals(existing.canonicalValue(), candidate.canonicalValue());
+    return existing.document().equals(candidate.document())
+        && overlaps(existing.pointer(), candidate.pointer())
+        && !equalValuesRequired;
   }
 
   private static boolean overlaps(String left, String right) {
@@ -468,21 +563,19 @@ public final class BlueprintCompositionEngine {
   }
 
   private static MobilePlatform normalizeMobilePlatform(
-      String token, MobilePlatform platform, List<Diagnostic> diagnostics) {
+      String token, MobilePlatform platform, String family, List<Diagnostic> diagnostics) {
     return switch (platform) {
       case ANDROID -> MobilePlatform.ANDROID;
-      case IOS -> {
-        diagnostics.add(
-            error(
-                "SCF_UNSUPPORTED_IOS",
-                Phase.SELECTION,
-                null,
-                null,
-                null,
-                "iOS is not implemented in blueprint 1.0",
-                "Select Android/UiAutomator2."));
-        yield MobilePlatform.IOS;
-      }
+      case IOS, IPADOS -> platform;
+      case APPLE ->
+          switch (family) {
+            case "IPHONE" -> MobilePlatform.IOS;
+            case "IPAD" -> MobilePlatform.IPADOS;
+            case null, default -> {
+              unsupported(diagnostics, "Apple selection requires IPHONE or IPAD family");
+              yield MobilePlatform.IOS;
+            }
+          };
       case null -> {
         if (token != null) unsupported(diagnostics, "mobile platform");
         yield MobilePlatform.ANDROID;
@@ -624,7 +717,9 @@ public final class BlueprintCompositionEngine {
 
   public enum MobilePlatform {
     ANDROID,
-    IOS
+    IOS,
+    IPADOS,
+    APPLE
   }
 
   public enum Runner {
@@ -689,7 +784,78 @@ public final class BlueprintCompositionEngine {
       String mobileAutomationName,
       String runner,
       String reporting,
-      String testDefinitions) {
+      String testDefinitions,
+      String mobileFamily,
+      String mobileMode,
+      String mobileDeviceKind,
+      String mobileTopology,
+      String mobileApplicationMode) {
+    public Request(
+        String groupId,
+        String artifactId,
+        String basePackage,
+        String tafVersion,
+        List<String> capabilities,
+        String messagingProvider,
+        String mobilePlatform,
+        String mobileAutomationName,
+        String runner,
+        String reporting,
+        String testDefinitions,
+        String mobileFamily,
+        String mobileMode,
+        String mobileDeviceKind,
+        String mobileTopology) {
+      this(
+          groupId,
+          artifactId,
+          basePackage,
+          tafVersion,
+          capabilities,
+          messagingProvider,
+          mobilePlatform,
+          mobileAutomationName,
+          runner,
+          reporting,
+          testDefinitions,
+          mobileFamily,
+          mobileMode,
+          mobileDeviceKind,
+          mobileTopology,
+          null);
+    }
+
+    public Request(
+        String groupId,
+        String artifactId,
+        String basePackage,
+        String tafVersion,
+        List<String> capabilities,
+        String messagingProvider,
+        String mobilePlatform,
+        String mobileAutomationName,
+        String runner,
+        String reporting,
+        String testDefinitions) {
+      this(
+          groupId,
+          artifactId,
+          basePackage,
+          tafVersion,
+          capabilities,
+          messagingProvider,
+          mobilePlatform,
+          mobileAutomationName,
+          runner,
+          reporting,
+          testDefinitions,
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
+
     public Request {
       capabilities = capabilities == null ? null : List.copyOf(capabilities);
     }
@@ -708,7 +874,47 @@ public final class BlueprintCompositionEngine {
       Optional<String> mobileAutomationName,
       Runner runner,
       Reporting reporting,
-      TestDefinitions testDefinitions) {
+      TestDefinitions testDefinitions,
+      String mobileFamily,
+      String mobileMode,
+      String mobileDeviceKind,
+      String mobileTopology,
+      String mobileApplicationMode) {
+    public NormalizedRequest(
+        String schemaVersion,
+        String blueprintVersion,
+        String groupId,
+        String artifactId,
+        String basePackage,
+        String tafVersion,
+        List<Capability> capabilities,
+        Optional<MessagingProvider> messagingProvider,
+        Optional<MobilePlatform> mobilePlatform,
+        Optional<String> mobileAutomationName,
+        Runner runner,
+        Reporting reporting,
+        TestDefinitions testDefinitions) {
+      this(
+          schemaVersion,
+          blueprintVersion,
+          groupId,
+          artifactId,
+          basePackage,
+          tafVersion,
+          capabilities,
+          messagingProvider,
+          mobilePlatform,
+          mobileAutomationName,
+          runner,
+          reporting,
+          testDefinitions,
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
+
     public NormalizedRequest {
       capabilities = List.copyOf(capabilities);
       messagingProvider = Objects.requireNonNull(messagingProvider);
@@ -833,6 +1039,15 @@ public final class BlueprintCompositionEngine {
   }
 
   public record WriteResult(WriteStatus status, String message) {}
+
+  private record MobileSelection(
+      MobilePlatform platform,
+      String automation,
+      String family,
+      String mode,
+      String deviceKind,
+      String topology,
+      String applicationMode) {}
 
   private record ClaimOwner(String contributionId, ConfigurationClaim claim) {}
 }

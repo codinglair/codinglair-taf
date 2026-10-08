@@ -1,15 +1,10 @@
-# ADR-012: Start the control plane as a modular monolith with isolated execution workers
+# ADR-012: Start the Control Plane as a Modular Monolith with Isolated Execution Workers
 
-**Status:** Accepted  
-**Date:** 2026-07-24  
-**Decision owners:** Product Owner and Solution Architecture  
-**Scope:** Codinglair TAF product family
+**Source:** Inherited decision text from SAD 1.12 as carried into SAD 1.13. Historical status/date/owners are not supplied here.
 
-## Context
+**Context** The initial product does not require distributed execution and should avoid premature microservice operational cost. However, generated-code compilation, browsers, containers, and customer tests form a strong trust and resource boundary.
 
-The initial product does not require distributed execution and should avoid premature microservice operational cost. However, generated-code compilation, browsers, containers, and customer tests form a strong trust and resource boundary.
-
-## Decision
+**Decision**
 
 - Deploy the control plane initially as a modular Spring Boot application where practical.
 - Enforce internal module boundaries that allow later service extraction.
@@ -17,28 +12,9 @@ The initial product does not require distributed execution and should avoid prem
 - Apply constrained workspace, process identity, quotas, allowlists, cancellation, and artifact return at the worker boundary.
 - Keep job, approval, audit, model, ingestion, and artifact contracts location independent.
 
-## Consequences
+**Consequences**
 
 - Initial deployment remains manageable.
 - Risky execution is isolated early.
 - Later extraction is possible without redesigning external contracts.
 - Worker lifecycle and secure transport add complexity from the beginning.
-
-## Alternatives considered
-
-- Microservices from day one — rejected as unnecessary operational complexity.
-- Run generated code inside the API/MCP process — rejected as an unacceptable trust and stability risk.
-
-## Compliance and verification
-
-- Architecture and dependency tests shall enforce machine-verifiable boundaries.
-- The applicable implementation assignments shall include unit, integration, contract, security, and compatibility tests.
-- Public contract or schema changes shall update the Legacy Contract Compatibility Matrix and migration guidance.
-- Deviations require a superseding ADR or an explicitly approved amendment.
-
-## Related documents
-
-- Test Automation Framework and Quality Intelligence Platform BRD v1.0
-- Codinglair TAF and Quality Intelligence SAD v1.0
-- Codinglair TAF Engineering and DevOps Implementation Plan v1.0
-- Legacy Contract Compatibility Matrix, when created

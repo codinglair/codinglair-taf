@@ -1,12 +1,15 @@
 package com.codinglair.taf.mobile.appium;
 
+import com.codinglair.taf.mobile.appium.platform.AndroidPlatformStrategy;
 import com.codinglair.taf.runtime.core.autoconfigure.TafRuntimeAutoConfiguration;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionConfigurer;
 import com.codinglair.taf.runtime.core.preflight.ConsumerPreflightContributor;
 import com.codinglair.taf.runtime.core.preflight.PreflightDiagnostic;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import io.appium.java_client.android.AndroidDriver;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -23,10 +26,14 @@ import org.springframework.context.annotation.Bean;
 public class AndroidAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
-  AndroidControllerFactory androidControllerFactory(AndroidProperties properties) {
+  AndroidControllerFactory androidControllerFactory(
+      AndroidProperties properties, ObjectProvider<ResourceAuthorizer> authorizers) {
     return name ->
         new DefaultAndroidController(
-            name, properties.settings(name), AppiumAndroidSessionFactory.standard());
+            name,
+            properties.settings(name),
+            settings ->
+                new AndroidPlatformStrategy().create(settings, authorizers.getIfAvailable()));
   }
 
   @Bean

@@ -1,0 +1,559 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+readonly OUT="${APPLE_EVIDENCE_DIR:-$ROOT/target/ver-130-002}"
+readonly DEVICE_NAME="${APPLE_DEVICE_NAME:-TAF VER-130-002 iPhone}"
+readonly DEVICE_TYPE="${APPLE_DEVICE_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPhone-16}"
+readonly RUNTIME="${APPLE_RUNTIME:-com.apple.CoreSimulator.SimRuntime.iOS-18-5}"
+readonly PLATFORM_VERSION="${APPLE_PLATFORM_VERSION:-18.5}"
+readonly XCODE_PATH="${APPLE_XCODE_PATH:-/Applications/Xcode_16.4.app/Contents/Developer}"
+readonly APPIUM_VERSION="${APPIUM_VERSION:-3.0.0}"
+readonly XCUITEST_VERSION="${XCUITEST_VERSION:-10.0.0}"
+readonly TAF_VERSION="${TAF_VERSION:-$("$ROOT/mvnw" -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)}"
+readonly CANDIDATE_REPO="$OUT/candidate-repository"
+readonly APP="$OUT/TafAppleFixture.app"
+readonly WDA_DERIVED_DATA="$OUT/wda-derived-data"
+readonly SIMULATOR_APP="$XCODE_PATH/Applications/Simulator.app"
+readonly WEB_PORT="${APPLE_WEB_PORT:-8765}"
+readonly APPIUM_PORT="${APPLE_APPIUM_PORT:-4723}"
+export APPIUM_HOME="$OUT/appium-home"
+
+udid=""
+appium_pid=""
+web_pid=""
+wda_pid=""
+wda_supervisor_pid=""
+wda_monitor_pid=""
+simulator_monitor_pid=""
+simulator_log_pid=""
+simulator_log_raw=""
+candidate_log=""
+appium_raw_log=""
+readonly WDA_CLEANUP_MARKER="$OUT/wda-cleanup-requested"
+
+timestamp_utc() {
+  date -u '+%Y-%m-%dT%H:%M:%SZ'
+}
+
+record_wda_checkpoint() {
+  local checkpoint="$1"
+  local status_file="$OUT/wda-status-${checkpoint}.json"
+  local status_error_file="$OUT/logs/wda-status-${checkpoint}-error.log"
+  local alive="no"
+  local reachable="no"
+  local listening="no"
+  local process_info="unavailable"
+  local port_info="unavailable"
+
+  mkdir -p "$OUT/logs"
+  if [[ -n "$wda_pid" ]] && kill -0 "$wda_pid" 2>/dev/null; then alive="yes"; fi
+  if [[ -n "$wda_pid" ]]; then
+    process_info="$(ps -p "$wda_pid" -o pid=,ppid=,stat=,etime=,command= 2>&1 || true)"
+  fi
+  if curl --fail --silent --show-error --max-time 2 "http://127.0.0.1:8100/status" \
+      > "$status_file" 2> "$status_error_file"; then
+    reachable="yes"
+    rm -f "$status_error_file"
+  fi
+  if command -v lsof > /dev/null 2>&1; then
+    port_info="$(lsof -nP -iTCP:8100 -sTCP:LISTEN 2>&1 | head -n 20 || true)"
+    if [[ -n "$port_info" ]]; then listening="yes"; fi
+  fi
+  {
+    printf '%s checkpoint=%s wdaPid=%s alive=%s statusReachable=%s port8100Listening=%s\n' \
+      "$(timestamp_utc)" "$checkpoint" "${wda_pid:-unset}" "$alive" "$reachable" "$listening"
+    printf 'process: %s\n' "$process_info"
+    printf 'port: %s\n' "$port_info"
+    if [[ "$reachable" == yes ]]; then
+      printf 'status: '
+      head -c 4000 "$status_file"
+      printf '\n'
+    fi
+  } >> "$OUT/wda-lifecycle.log"
+  return 0
+}
+
+monitor_wda() {
+  while true; do
+    record_wda_checkpoint monitor
+    sleep 5
+  done
+}
+
+record_simulator_checkpoint() {
+  local checkpoint="$1"
+  local lifecycle_log="$OUT/simulator-lifecycle.log"
+  local state_file="$OUT/simulator-state-${checkpoint}.json"
+  local device_line="unavailable"
+  local booted="no"
+  local simulator_processes="unavailable"
+  local wda_reachable="no"
+  local checkpoint_record
+
+  mkdir -p "$OUT/logs"
+  if [[ -n "$udid" ]]; then
+    device_line="$(xcrun simctl list devices 2>&1 | grep -F "$udid" | head -n 1 || true)"
+    if [[ "$device_line" == *"(Booted)"* ]]; then booted="yes"; fi
+    xcrun simctl list --json devices 2>/dev/null | python3 -c '
+import json, sys
+udid = sys.argv[1]
+data = json.load(sys.stdin)
+matches = [device for devices in data.get("devices", {}).values()
+           for device in devices if device.get("udid") == udid]
+json.dump(matches[0] if matches else {"udid": udid, "available": False}, sys.stdout, indent=2)
+' "$udid" > "$state_file" 2> "$OUT/logs/simulator-state-${checkpoint}-error.log" || true
+  fi
+  simulator_processes="$(ps -axo pid=,ppid=,stat=,etime=,command= 2>&1 \
+    | grep -E 'Simulator\.app|CoreSimulator|launchd_sim' \
+    | grep -v grep | head -n 40 || true)"
+  if curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" > /dev/null 2>&1; then
+    wda_reachable="yes"
+  fi
+  checkpoint_record="$({
+    printf '%s checkpoint=%s udid=%s booted=%s wdaReachable=%s\n' \
+      "$(timestamp_utc)" "$checkpoint" "${udid:-unset}" "$booted" "$wda_reachable"
+    printf 'device: %s\n' "$device_line"
+    printf 'simulatorProcesses:\n%s\n' "$simulator_processes"
+  })"
+  printf '%s\n' "$checkpoint_record" >> "$lifecycle_log"
+  if [[ "$checkpoint" == monitor ]]; then
+    printf '%s\n' "$checkpoint_record" >> "$OUT/simulator-runtime-monitor.log"
+  fi
+  return 0
+}
+
+monitor_simulator() {
+  while true; do
+    record_simulator_checkpoint monitor
+    sleep 5
+  done
+}
+
+stop_simulator_log_capture() {
+  if [[ -n "$simulator_log_pid" ]]; then
+    kill "$simulator_log_pid" 2>/dev/null || true
+    wait "$simulator_log_pid" 2>/dev/null || true
+    simulator_log_pid=""
+  fi
+  if [[ -n "$simulator_log_raw" && -f "$simulator_log_raw" ]]; then
+    tail -n 5000 "$simulator_log_raw" | cut -c1-2000 \
+      > "$OUT/logs/simulator-coresimulator-session.log" || true
+    rm -f "$simulator_log_raw"
+    simulator_log_raw=""
+  fi
+}
+
+sanitize_text_file() {
+  local source="$1"
+  local destination="$2"
+  local sanitized_temp
+  [[ -f "$source" ]] || return 1
+  sanitized_temp="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-sanitized.XXXXXX")"
+  if ! python3 - "$source" "$sanitized_temp" <<'PY'
+import re
+import sys
+
+source, destination = sys.argv[1:]
+text = open(source, encoding="utf-8", errors="replace").read()
+
+# Appium may echo provider capabilities, HTTP headers, or credential-bearing URLs. Preserve
+# protocol flow and session IDs while removing values that can authenticate or identify users.
+sensitive_key = r"(?:authorization|proxy-authorization|cookie|set-cookie|password|passwd|token|secret|api[-_]?key|access[-_]?key|credential|username|user[-_]?name)"
+text = re.sub(
+    rf'(?i)(["\']{sensitive_key}["\']\s*[:=]\s*)(["\'][^"\']*["\']|[^,\s}}]+)',
+    r'\1"<redacted>"',
+    text,
+)
+text = re.sub(
+    rf'(?im)^({sensitive_key}\s*:\s*).+$',
+    r'\1<redacted>',
+    text,
+)
+text = re.sub(
+    r'(?i)(https?://)[^/@\s:]+:[^/@\s]+@',
+    r'\1<redacted>@',
+    text,
+)
+text = re.sub(
+    rf'(?i)([?&](?:{sensitive_key})=)[^&#\s]+',
+    r'\1<redacted>',
+    text,
+)
+open(destination, "w", encoding="utf-8").write(text)
+PY
+  then
+    rm -f "$sanitized_temp"
+    return 1
+  fi
+  mv "$sanitized_temp" "$destination"
+}
+
+capture_diagnostics() {
+  mkdir -p "$OUT/logs"
+
+  if [[ -n "$appium_pid" ]]; then
+    curl --silent --show-error --max-time 5 "http://127.0.0.1:$APPIUM_PORT/status" \
+      > "$OUT/appium-status-final.json" 2> "$OUT/logs/appium-status-final-error.log" || true
+  fi
+
+  if [[ -n "$udid" ]]; then
+    xcrun simctl list devices > "$OUT/simctl-devices-final.txt" 2>&1 || true
+    xcrun simctl list --json > "$OUT/simctl-list-final.json" 2>&1 || true
+  fi
+
+}
+
+sanitize_appium_log() {
+  [[ -n "$appium_raw_log" && -f "$appium_raw_log" ]] || return 0
+  sanitize_text_file "$appium_raw_log" "$OUT/logs/appium-sanitized.log" || \
+    printf '%s\n' 'Appium log sanitization failed; raw log was not retained.' \
+      > "$OUT/logs/appium-sanitization-error.log"
+  if [[ -f "$OUT/logs/appium-sanitized.log" ]]; then
+    grep -Ei '(/contexts|context handles|webview|webkit|remote.?debug|inspector|automation session|socket)' \
+      "$OUT/logs/appium-sanitized.log" | tail -n 500 | cut -c1-2000 \
+      > "$OUT/logs/appium-hybrid-context.log" || true
+  fi
+  rm -f "$appium_raw_log"
+  appium_raw_log=""
+}
+
+cleanup() {
+  local status=$?
+  set +e
+  if [[ -n "$wda_monitor_pid" ]]; then
+    kill "$wda_monitor_pid" 2>/dev/null || true
+    wait "$wda_monitor_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$simulator_monitor_pid" ]]; then
+    kill "$simulator_monitor_pid" 2>/dev/null || true
+    wait "$simulator_monitor_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$udid" ]]; then record_simulator_checkpoint cleanup-before-teardown; fi
+  stop_simulator_log_capture
+  capture_diagnostics
+  if [[ -n "$appium_pid" ]]; then
+    kill "$appium_pid" 2>/dev/null || true
+    wait "$appium_pid" 2>/dev/null || true
+  fi
+  sanitize_appium_log
+  if [[ "$status" -ne 0 && -f "$OUT/logs/appium-sanitized.log" ]]; then
+    printf '%s\n' '::group::Sanitized Appium session/WDA failure diagnostics'
+    grep -E 'POST /session|createSession|Session created|wdaStart|wdaStarted|WebDriverAgent|Xcode.*(error|failed)|Encountered internal error|ECONNREFUSED' \
+      "$OUT/logs/appium-sanitized.log" | tail -n 250 | cut -c1-2000 || true
+    printf '%s\n' '::endgroup::'
+    printf '%s\n' '::group::Sanitized Appium final diagnostics (last 100 bounded lines)'
+    tail -n 100 "$OUT/logs/appium-sanitized.log" | cut -c1-2000
+    printf '%s\n' '::endgroup::'
+  fi
+  if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi
+  if [[ -n "$wda_pid" ]]; then
+    printf '%s cleanup-requested wdaPid=%s\n' "$(timestamp_utc)" "$wda_pid" \
+      > "$WDA_CLEANUP_MARKER"
+    kill "$wda_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$wda_supervisor_pid" ]]; then
+    wait "$wda_supervisor_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$udid" ]]; then
+    xcrun simctl shutdown "$udid" 2>/dev/null || true
+    xcrun simctl delete "$udid" 2>/dev/null || true
+  fi
+  mkdir -p "$OUT/logs"
+  if [[ -n "$candidate_log" && -f "$candidate_log" ]]; then
+    mv "$candidate_log" "$OUT/logs/candidate-build.log" 2>/dev/null || true
+  fi
+  printf '%s\n' "exit=$status ownedSimulatorDeleted=$([[ -z "$udid" ]] && echo not-created || echo attempted)" > "$OUT/cleanup.txt"
+  exit "$status"
+}
+trap cleanup EXIT INT TERM
+
+export DEVELOPER_DIR="$XCODE_PATH"
+
+command -v java > /dev/null
+command -v node > /dev/null
+command -v npm > /dev/null
+command -v python3 > /dev/null
+command -v curl > /dev/null
+command -v codesign > /dev/null
+command -v xcodebuild > /dev/null
+command -v xcrun > /dev/null
+command -v open > /dev/null
+command -v pgrep > /dev/null
+[[ "$(java -version 2>&1 | head -n 1)" == *'version "25'* ]] || { echo 'Java 25 is required' >&2; exit 10; }
+[[ "$(node --version)" == v22.12.0 ]] || { echo 'Node 22.12.0 is required' >&2; exit 11; }
+[[ -d "$XCODE_PATH" ]] || { echo "Selected Xcode is unavailable: $XCODE_PATH" >&2; exit 12; }
+[[ -d "$SIMULATOR_APP" ]] || { echo "Selected Simulator application is unavailable: $SIMULATOR_APP" >&2; exit 12; }
+
+candidate_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-candidate.XXXXXX.log")"
+"$ROOT/mvnw" -B -ntp clean deploy -Prelease-staging -DskipTests \
+  "-DaltDeploymentRepository=taf-candidate::default::file:$CANDIDATE_REPO" \
+  | tee "$candidate_log"
+mkdir -p "$OUT/logs" "$CANDIDATE_REPO"
+mv "$candidate_log" "$OUT/logs/candidate-build.log"
+candidate_log=""
+
+xcodebuild -version | tee "$OUT/xcode-version.txt"
+xcrun simctl list --json > "$OUT/simctl-list.json"
+xcrun simctl list runtimes | grep -F "$RUNTIME" > "$OUT/selected-runtime.txt" || {
+  echo "Selected runtime is unavailable: $RUNTIME" >&2; exit 13;
+}
+xcrun simctl list devicetypes | grep -F "$DEVICE_TYPE" > "$OUT/selected-device-type.txt" || {
+  echo "Selected device type is unavailable: $DEVICE_TYPE" >&2; exit 14;
+}
+
+sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+arch="$(uname -m)"
+mkdir -p "$APP"
+cp "$ROOT/qualification/apple-simulator/fixture/Info.plist" "$APP/Info.plist"
+xcrun swiftc "$ROOT/qualification/apple-simulator/fixture/AppDelegate.swift" \
+  -parse-as-library \
+  -sdk "$sdk" -target "${arch}-apple-ios${PLATFORM_VERSION}-simulator" \
+  -framework UIKit -framework WebKit -o "$APP/TafAppleFixture"
+codesign --force --sign - "$APP"
+shasum -a 256 "$APP/TafAppleFixture" > "$OUT/fixture-sha256.txt"
+
+udid="$(xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$RUNTIME")"
+boot_start_epoch="$(date +%s)"
+printf '%s event=before-simctl-boot udid=%s\n' "$(timestamp_utc)" "$udid" \
+  > "$OUT/simulator-lifecycle.log"
+xcrun simctl boot "$udid" || {
+  boot_status=$?
+  echo "CoreSimulator device failed to boot: $udid" >&2
+  exit "$boot_status"
+}
+printf '%s event=before-simctl-bootstatus udid=%s\n' "$(timestamp_utc)" "$udid" \
+  >> "$OUT/simulator-lifecycle.log"
+xcrun simctl bootstatus "$udid" -b 2>&1 | tee "$OUT/simulator-bootstatus.log" || {
+  boot_status=$?
+  echo "CoreSimulator device failed to boot: $udid" >&2
+  exit "$boot_status"
+}
+boot_end_epoch="$(date +%s)"
+printf '%s event=simctl-bootstatus-succeeded udid=%s elapsedSeconds=%s\n' \
+  "$(timestamp_utc)" "$udid" "$((boot_end_epoch - boot_start_epoch))" \
+  >> "$OUT/simulator-lifecycle.log"
+xcrun simctl list devices > "$OUT/simctl-devices-after-boot.txt"
+record_simulator_checkpoint after-bootstatus
+{
+  printf '%s event=simulator-ui-launch app=%s udid=%s\n' \
+    "$(timestamp_utc)" "$SIMULATOR_APP" "$udid"
+} > "$OUT/simulator-ui-readiness.log"
+open -Fn "$SIMULATOR_APP"
+simulator_ui_pid=""
+for _ in {1..30}; do
+  target_device_line="$(xcrun simctl list devices 2>&1 | grep -F "$udid" | head -n 1 || true)"
+  if [[ "$target_device_line" != *"(Booted)"* ]]; then
+    echo "CoreSimulator device failed to remain booted while starting Simulator UI: $udid" >&2
+    exit 18
+  fi
+  simulator_ui_pid="$(pgrep -f "$SIMULATOR_APP/Contents/MacOS/Simulator" | head -n 1 || true)"
+  if [[ -n "$simulator_ui_pid" ]]; then break; fi
+  sleep 1
+done
+[[ -n "$simulator_ui_pid" ]] || {
+  echo "Simulator UI failed to become available within 30 seconds: $SIMULATOR_APP" >&2
+  exit 19
+}
+printf '%s event=simulator-ui-ready pid=%s udid=%s device=%s\n' \
+  "$(timestamp_utc)" "$simulator_ui_pid" "$udid" "$target_device_line" \
+  >> "$OUT/simulator-ui-readiness.log"
+record_simulator_checkpoint after-simulator-ui-readiness
+xcrun simctl install "$udid" "$APP"
+
+python3 -m http.server "$WEB_PORT" --bind 127.0.0.1 \
+  --directory "$ROOT/qualification/apple-simulator/web" > "$OUT/logs/web-server.log" 2>&1 &
+web_pid=$!
+
+npm install --no-save --prefix "$OUT/appium" "appium@$APPIUM_VERSION" \
+  > "$OUT/logs/appium-install.log" 2>&1
+"$OUT/appium/node_modules/.bin/appium" driver install "xcuitest@$XCUITEST_VERSION" \
+  > "$OUT/logs/xcuitest-install.log" 2>&1
+wda_project="$APPIUM_HOME/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj"
+[[ -f "$wda_project/project.pbxproj" ]] || { echo "WDA project is unavailable: $wda_project" >&2; exit 15; }
+xcodebuild build-for-testing \
+  -project "$wda_project" \
+  -scheme WebDriverAgentRunner \
+  -derivedDataPath "$WDA_DERIVED_DATA" \
+  -destination "platform=iOS Simulator,id=$udid,arch=$arch" \
+  "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
+  GCC_TREAT_WARNINGS_AS_ERRORS=0 \
+  COMPILER_INDEX_STORE_ENABLE=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  > "$OUT/logs/wda-prebuild.log" 2>&1
+wda_pid_file="$OUT/wda-xcodebuild.pid"
+(
+  set +e
+  xcodebuild test-without-building \
+    -project "$wda_project" \
+    -scheme WebDriverAgentRunner \
+    -derivedDataPath "$WDA_DERIVED_DATA" \
+    -destination "platform=iOS Simulator,id=$udid,arch=$arch" \
+    "IPHONEOS_DEPLOYMENT_TARGET=$PLATFORM_VERSION" \
+    GCC_TREAT_WARNINGS_AS_ERRORS=0 \
+    COMPILER_INDEX_STORE_ENABLE=NO \
+    CODE_SIGNING_ALLOWED=NO \
+    > "$OUT/logs/wda-launch.log" 2>&1 &
+  supervised_wda_pid=$!
+  printf '%s\n' "$supervised_wda_pid" > "$wda_pid_file"
+  wait "$supervised_wda_pid"
+  wda_exit=$?
+  wda_termination_cause="unexpected"
+  if [[ -f "$WDA_CLEANUP_MARKER" ]]; then wda_termination_cause="cleanup-requested"; fi
+  {
+    printf '%s event=xcodebuild-exit wdaPid=%s exitCode=%s terminationCause=%s\n' \
+      "$(timestamp_utc)" "$supervised_wda_pid" "$wda_exit" "$wda_termination_cause"
+    ps -p "$supervised_wda_pid" -o pid=,ppid=,stat=,etime=,command= 2>&1 || \
+      printf '%s\n' 'process: no longer present'
+    printf '%s\n' 'wda-launch.log tail (last 100 bounded lines):'
+    tail -n 100 "$OUT/logs/wda-launch.log" | cut -c1-2000
+  } >> "$OUT/wda-lifecycle.log"
+  exit "$wda_exit"
+) &
+wda_supervisor_pid=$!
+for _ in {1..50}; do
+  [[ -s "$wda_pid_file" ]] && break
+  kill -0 "$wda_supervisor_pid" 2>/dev/null || break
+  sleep 0.1
+done
+[[ -s "$wda_pid_file" ]] || { echo 'WebDriverAgent PID was not recorded' >&2; exit 16; }
+wda_pid="$(<"$wda_pid_file")"
+record_wda_checkpoint launched
+for _ in {1..180}; do
+  if ! kill -0 "$wda_pid" 2>/dev/null; then
+    echo 'WebDriverAgent launch exited before readiness' >&2
+    exit 16
+  fi
+  if curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" \
+      > "$OUT/wda-status.json"; then
+    record_wda_checkpoint ready
+    record_simulator_checkpoint after-wda-readiness
+    break
+  fi
+  sleep 1
+done
+curl --fail --silent --max-time 2 "http://127.0.0.1:8100/status" > "$OUT/wda-status.json"
+record_wda_checkpoint before-appium
+record_simulator_checkpoint before-appium
+appium_raw_log="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-appium.XXXXXX.log")"
+"$OUT/appium/node_modules/.bin/appium" --address 127.0.0.1 --port "$APPIUM_PORT" \
+  > "$appium_raw_log" 2>&1 &
+appium_pid=$!
+
+for _ in {1..60}; do
+  if curl --fail --silent "http://127.0.0.1:$APPIUM_PORT/status" > "$OUT/appium-status.json"; then break; fi
+  sleep 1
+done
+curl --fail --silent "http://127.0.0.1:$APPIUM_PORT/status" > "$OUT/appium-status.json"
+
+export APPLE_DEVICE_NAME="$DEVICE_NAME"
+export APPLE_DEVICE_UDID="$udid"
+export APPLE_PLATFORM_VERSION="$PLATFORM_VERSION"
+export APPLE_TEST_URL="http://127.0.0.1:$WEB_PORT/index.html"
+export APPLE_WDA_BASE_URL="http://127.0.0.1:8100"
+
+candidate_uri="file://$CANDIDATE_REPO"
+record_wda_checkpoint before-maven
+record_simulator_checkpoint before-maven
+{
+  printf '%s checkpoint=before-maven wda-launch.log tail (last 100 bounded lines):\n' \
+    "$(timestamp_utc)"
+  tail -n 100 "$OUT/logs/wda-launch.log" | cut -c1-2000
+} >> "$OUT/wda-lifecycle.log"
+simulator_log_raw="$(mktemp "${TMPDIR:-/tmp}/ver-130-002-simulator-log.XXXXXX.log")"
+log stream --style compact --level info \
+  --predicate 'process == "Simulator" OR process CONTAINS "CoreSimulator" OR process == "SpringBoard" OR process == "launchd_sim" OR eventMessage CONTAINS[c] "boot"' \
+  > "$simulator_log_raw" 2>&1 &
+simulator_log_pid=$!
+monitor_wda &
+wda_monitor_pid=$!
+monitor_simulator &
+simulator_monitor_pid=$!
+printf '%s event=maven-smoke-start udid=%s\n' "$(timestamp_utc)" "$udid" \
+  >> "$OUT/simulator-lifecycle.log"
+"$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
+  "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
+  -Dtaf.apple.live=true test \
+  | tee "$OUT/logs/live-smoke.log"
+printf '%s event=maven-smoke-succeeded udid=%s\n' "$(timestamp_utc)" "$udid" \
+  >> "$OUT/simulator-lifecycle.log"
+kill "$wda_monitor_pid" 2>/dev/null || true
+wait "$wda_monitor_pid" 2>/dev/null || true
+wda_monitor_pid=""
+kill "$simulator_monitor_pid" 2>/dev/null || true
+wait "$simulator_monitor_pid" 2>/dev/null || true
+simulator_monitor_pid=""
+stop_simulator_log_capture
+
+set +e
+export APPLE_OWNED_SESSION_FILE="$OUT/controlled-failure-session-id.txt"
+rm -f "$APPLE_OWNED_SESSION_FILE"
+"$ROOT/mvnw" -B -ntp -f "$ROOT/qualification/apple-simulator/pom.xml" \
+  "-Dtaf.version=$TAF_VERSION" "-Dtaf.candidate.repository=$candidate_uri" \
+  -Dtaf.apple.live=true \
+  -Dtaf.apple.controlledFailure=true \
+  '-Dtest=AppleSimulatorSmokeTest#controlledFailureStillUsesNormalSessionCleanup' test \
+  > "$OUT/logs/controlled-failure.log" 2>&1
+controlled_status=$?
+set -e
+[[ "$controlled_status" -ne 0 ]] || { echo 'Controlled failure unexpectedly passed' >&2; exit 20; }
+[[ -s "$APPLE_OWNED_SESSION_FILE" ]] || {
+  echo 'Controlled failure did not record its owned Appium session ID' >&2
+  exit 21
+}
+owned_session="$(<"$APPLE_OWNED_SESSION_FILE")"
+[[ "$owned_session" =~ ^[A-Za-z0-9_-]{1,128}$ ]] || {
+  echo 'Controlled failure recorded an invalid Appium session ID' >&2
+  exit 22
+}
+cleanup_http_status="$(curl --silent --show-error --max-time 5 \
+  --output "$OUT/owned-session-cleanup-response.json" --write-out '%{http_code}' \
+  "http://127.0.0.1:$APPIUM_PORT/session/$owned_session/source")"
+[[ "$cleanup_http_status" == 404 ]] || {
+  echo "Deleted Appium session remained usable or returned an unexpected status: $cleanup_http_status" >&2
+  exit 23
+}
+python3 - "$OUT/owned-session-cleanup-response.json" <<'PY'
+import json
+import sys
+
+response = json.load(open(sys.argv[1], encoding="utf-8"))
+assert response.get("value", {}).get("error") == "invalid session id", response
+PY
+printf '%s\n' \
+  "expectedFailureObserved=true ownedSession=$owned_session ownedSessionCleanupVerified=true verificationEndpoint=GET_/session/{id}/source httpStatus=$cleanup_http_status" \
+  > "$OUT/controlled-failure-cleanup.txt"
+
+git -C "$ROOT" rev-parse HEAD > "$OUT/tested-sha.txt"
+git -C "$ROOT" diff --binary | shasum -a 256 > "$OUT/working-tree-diff-sha256.txt"
+find "$CANDIDATE_REPO/com/codinglair/taf" -type f \( -name '*.jar' -o -name '*.pom' \) \
+  -exec shasum -a 256 {} + > "$OUT/candidate-artifact-sha256.txt"
+npm --prefix "$OUT/appium" exec appium -- --version > "$OUT/appium-version.txt"
+"$OUT/appium/node_modules/.bin/appium" driver list --installed --json > "$OUT/appium-drivers.json"
+node --version > "$OUT/node-version.txt"
+npm --version > "$OUT/npm-version.txt"
+sw_vers > "$OUT/macos-version.txt"
+find "$APPIUM_HOME" -type f -ipath '*webdriveragent*' -name package.json -exec shasum -a 256 {} + \
+  > "$OUT/wda-package-sha256.txt"
+{
+  printf '%s\n' \
+    'evidenceLayer=REAL_APPLE_SIMULATOR' \
+    "tafVersion=$TAF_VERSION" \
+    'javaClientVersion=10.1.1' \
+    'seleniumVersion=4.43.0' \
+    "appiumVersion=$APPIUM_VERSION" \
+    "xcuitestVersion=$XCUITEST_VERSION" \
+    "runtime=$RUNTIME" \
+    "deviceType=$DEVICE_TYPE" \
+    "platformVersion=$PLATFORM_VERSION" \
+    'deviceFamily=IPHONE' \
+    'deviceKind=SIMULATOR' \
+    'topology=LOCAL_HOST' \
+    'modes=NATIVE,HYBRID,SAFARI'
+  java -version 2>&1 | head -n 1
+  node --version
+  npm --version
+  xcodebuild -version
+  sw_vers
+} > "$OUT/compatibility-manifest.txt"
+printf '%s\n' 'hostedStatus=PASSED' 'physicalDeviceStatus=UNVERIFIED' > "$OUT/outcome.txt"

@@ -14,6 +14,7 @@ cannot select a smaller matrix than the scheduled gate.
 | Playwright 1.57.0 | The authoritative browser smoke's Chromium, Firefox, and WebKit engine matrix |
 | Testcontainers 2.0.5 | Environment, MongoDB definitions, PostgreSQL/Mongo migration, Kafka, RabbitMQ, JMS, and WireMock suites |
 | Appium / Android UiAutomator2 | Approved MOB-003 API 34 emulator recipe, two clean smokes, controlled-failure cleanup |
+| Appium / Apple XCUITest | Dedicated `VER-130-002 Apple Simulator Qualification` workflow on the selected macOS/Xcode/iOS simulator tuple; native, hybrid, Safari, evidence, controlled-failure, and owned-cleanup checks |
 | MCP STDIO/HTTP, security, cancellation | Complete MCP `mcp-e2e,security-it` reactor |
 
 Windows 11 remains a supported development environment and is covered by the
@@ -58,6 +59,13 @@ Physical-device tests use the `android-device` Maven profile only after separate
 human authorization and device/cloud credentials are provisioned. They are not
 part of automatic nightly or release execution and no workflow secret is added
 by DEVOPS-002.
+
+The Apple simulator lane is deliberately separate from the reusable Linux verification matrix
+because it requires a macOS/Xcode host. The Product Owner manually verifies its hosted result
+before merge; pending hosted CI is not an implementation or documentation-review prerequisite.
+The retained candidate record identifies the exact tested source and tuple. A simulator pass does
+not certify physical Apple devices, iPad hardware, named providers, remote hosts, or untested
+Xcode/iOS combinations.
 
 ## Operator validation
 

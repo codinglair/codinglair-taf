@@ -54,28 +54,35 @@ public final class StdioProtocolInput extends InputStream {
 
   private byte[] nextValidFrame() throws IOException {
     while (true) {
-      var buffer = new ByteArrayOutputStream();
-      boolean oversized = false;
-      int value;
-      while ((value = source.read()) != -1 && value != '\n') {
-        if (buffer.size() < MAXIMUM_FRAME_BYTES) {
-          buffer.write(value);
-        } else {
-          oversized = true;
-        }
-      }
-      if (value == -1 && buffer.size() == 0) {
+      FrameCandidate candidate = readFrameCandidate();
+      if (candidate.endOfInput() && candidate.content().length == 0) {
         return null;
       }
-      if (!oversized && validJson(buffer.toByteArray())) {
-        buffer.write('\n');
-        return buffer.toByteArray();
+      if (!candidate.oversized() && validJson(candidate.content())) {
+        var normalized = new ByteArrayOutputStream();
+        normalized.writeBytes(candidate.content());
+        normalized.write('\n');
+        return normalized.toByteArray();
       }
       System.err.println("Rejected malformed or oversized MCP STDIO frame");
-      if (value == -1) {
+      if (candidate.endOfInput()) {
         return null;
       }
     }
+  }
+
+  private FrameCandidate readFrameCandidate() throws IOException {
+    var buffer = new ByteArrayOutputStream();
+    boolean oversized = false;
+    int value;
+    while ((value = source.read()) != -1 && value != '\n') {
+      if (buffer.size() < MAXIMUM_FRAME_BYTES) {
+        buffer.write(value);
+      } else {
+        oversized = true;
+      }
+    }
+    return new FrameCandidate(buffer.toByteArray(), oversized, value == -1);
   }
 
   private static boolean validJson(byte[] value) {
@@ -91,4 +98,6 @@ public final class StdioProtocolInput extends InputStream {
       return false;
     }
   }
+
+  private record FrameCandidate(byte[] content, boolean oversized, boolean endOfInput) {}
 }
