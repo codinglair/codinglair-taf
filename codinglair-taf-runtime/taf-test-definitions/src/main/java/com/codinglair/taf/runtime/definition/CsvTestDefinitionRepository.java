@@ -100,21 +100,12 @@ public final class CsvTestDefinitionRepository implements TestDefinitionReposito
               .<Map<String, String>>readValues(stream);
       Map<String, Map<String, String>> indexed = new LinkedHashMap<>();
       while (rows.hasNext()) {
-        Map<String, String> row = new LinkedHashMap<>(rows.next());
-        String id = row.remove(idColumn);
-        if (id == null || id.isBlank()) {
-          throw new DefinitionDiagnosticException(
-              DefinitionDiagnosticException.Kind.MALFORMED,
-              null,
-              "CSV " + role + " contains a row with missing column '" + idColumn + "'");
-        }
-        id = id.trim();
-        validateSecrets(row, secretFields, id, role);
-        if (indexed.putIfAbsent(id, Map.copyOf(row)) != null) {
+        IndexedRow indexedRow = materializeRow(rows.next(), idColumn, role, secretFields);
+        if (indexed.putIfAbsent(indexedRow.id(), indexedRow.values()) != null) {
           throw new DefinitionDiagnosticException(
               DefinitionDiagnosticException.Kind.DUPLICATE,
-              id,
-              "CSV " + role + " contains duplicate test case ID '" + id + "'");
+              indexedRow.id(),
+              "CSV " + role + " contains duplicate test case ID '" + indexedRow.id() + "'");
         }
       }
       return Map.copyOf(indexed);
@@ -133,6 +124,24 @@ public final class CsvTestDefinitionRepository implements TestDefinitionReposito
               + "'",
           failure);
     }
+  }
+
+  private static IndexedRow materializeRow(
+      Map<String, String> source,
+      String idColumn,
+      String role,
+      Map<String, SecretFieldDefinition> secretFields) {
+    Map<String, String> row = new LinkedHashMap<>(source);
+    String id = row.remove(idColumn);
+    if (id == null || id.isBlank()) {
+      throw new DefinitionDiagnosticException(
+          DefinitionDiagnosticException.Kind.MALFORMED,
+          null,
+          "CSV " + role + " contains a row with missing column '" + idColumn + "'");
+    }
+    id = id.trim();
+    validateSecrets(row, secretFields, id, role);
+    return new IndexedRow(id, Map.copyOf(row));
   }
 
   private static void validateSecrets(
@@ -176,4 +185,6 @@ public final class CsvTestDefinitionRepository implements TestDefinitionReposito
     if (!Files.isRegularFile(path)) throw new IOException("External file not found: " + path);
     return Files.newInputStream(path);
   }
+
+  private record IndexedRow(String id, Map<String, String> values) {}
 }

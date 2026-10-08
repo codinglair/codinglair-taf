@@ -11,7 +11,7 @@
     <artifactId>codinglair-taf-starter-mobile</artifactId>
     <packaging>pom</packaging>
     <name>Codinglair TAF Mobile Starter</name>
-    <description>Consumer dependency aggregator for the Android Appium UiAutomator2 baseline</description>
+    <description>Consumer dependency aggregator for Android UiAutomator2 and Apple XCUITest Appium capabilities</description>
     <dependencyManagement>
         <dependencies>
             <dependency>

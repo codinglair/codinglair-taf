@@ -3,14 +3,18 @@ package com.codinglair.taf.mcp.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -70,6 +74,33 @@ class LocalJobRepositoryTest {
       assertThatThrownBy(() -> repository.find(job.id()))
           .isInstanceOf(JobPersistenceException.class)
           .hasMessageNotContaining("sample");
+    }
+
+    @Test
+    @DisplayName("writes the version-one binary contract in its exact field order")
+    void preservesBinaryFormat() throws Exception {
+      var job =
+          new Job(
+              new JobId("format"),
+              "execute",
+              Map.of("project", "sample"),
+              JobState.SUCCEEDED,
+              100,
+              Optional.of("suite:complete"),
+              List.of(new JobReference("taf://artifact/format/result.zip", "application/zip")),
+              List.of(new JobEvent(1, NOW, "completed", "done")),
+              4,
+              NOW.minusSeconds(5),
+              NOW);
+
+      new LocalJobRepository(root).create(job);
+
+      var encodedId =
+          Base64.getUrlEncoder()
+              .withoutPadding()
+              .encodeToString(job.id().value().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      assertThat(Files.readAllBytes(root.resolve(encodedId + ".job")))
+          .containsExactly(expectedVersionOneBytes(job));
     }
   }
 
@@ -235,5 +266,34 @@ class LocalJobRepositoryTest {
 
   private static Job job(String id) {
     return Job.queued(new JobId(id), "execute", Map.of("project", "sample"), NOW);
+  }
+
+  private static byte[] expectedVersionOneBytes(Job job) throws Exception {
+    var bytes = new ByteArrayOutputStream();
+    try (var output = new DataOutputStream(bytes)) {
+      output.writeInt(0x5441464A);
+      output.writeInt(1);
+      output.writeUTF(job.id().value());
+      output.writeUTF(job.operation());
+      output.writeUTF(job.state().name());
+      output.writeInt(job.progressPercent());
+      output.writeLong(job.version());
+      output.writeLong(job.createdAt().toEpochMilli());
+      output.writeLong(job.updatedAt().toEpochMilli());
+      output.writeBoolean(true);
+      output.writeUTF(job.safeCheckpoint().orElseThrow());
+      output.writeInt(1);
+      output.writeUTF("project");
+      output.writeUTF("sample");
+      output.writeInt(1);
+      output.writeUTF(job.resultReferences().getFirst().uri());
+      output.writeUTF(job.resultReferences().getFirst().mediaType());
+      output.writeInt(1);
+      output.writeLong(job.events().getFirst().sequence());
+      output.writeLong(job.events().getFirst().occurredAt().toEpochMilli());
+      output.writeUTF(job.events().getFirst().kind());
+      output.writeUTF(job.events().getFirst().message());
+    }
+    return bytes.toByteArray();
   }
 }

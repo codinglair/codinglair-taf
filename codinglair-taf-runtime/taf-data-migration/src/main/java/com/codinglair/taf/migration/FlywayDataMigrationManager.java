@@ -56,31 +56,43 @@ final class FlywayDataMigrationManager implements DataMigrationManager {
       return failed("The named migration target is unavailable");
     }
     try {
-      Flyway flyway =
-          Flyway.configure()
-              .dataSource(new FactoryDataSource(connections, descriptor))
-              .locations(request.locations().toArray(String[]::new))
-              .baselineOnMigrate(false)
-              .cleanDisabled(true)
-              .load();
+      Flyway flyway = flyway(request, descriptor);
       if (request.policy() == MigrationPolicy.VALIDATE_ONLY) {
-        var validation = flyway.validateWithResult();
-        if (!validation.validationSuccessful) return failed("Migration validation failed");
-        return new MigrationResult(
-            MigrationOutcome.VALIDATED,
-            MigrationValidationResult.passed(),
-            evidence(request.targetName(), flyway.info().applied(), MigrationOutcome.VALIDATED));
+        return validate(request.targetName(), flyway);
       }
       // migrate validates the applied history before executing pending scripts. A separate
       // validate call would reject a legitimate empty history because its scripts are pending.
-      flyway.migrate();
-      return new MigrationResult(
-          MigrationOutcome.MIGRATED,
-          MigrationValidationResult.passed(),
-          evidence(request.targetName(), flyway.info().applied(), MigrationOutcome.MIGRATED));
+      return migrate(request.targetName(), flyway);
     } catch (RuntimeException _) {
       return failed("Migration failed; inspect the logical target history and Git migrations");
     }
+  }
+
+  private Flyway flyway(MigrationRequest request, SutConnectionDescriptor descriptor) {
+    return Flyway.configure()
+        .dataSource(new FactoryDataSource(connections, descriptor))
+        .locations(request.locations().toArray(String[]::new))
+        .baselineOnMigrate(false)
+        .cleanDisabled(true)
+        .load();
+  }
+
+  private static MigrationResult validate(String target, Flyway flyway) {
+    var validation = flyway.validateWithResult();
+    if (!validation.validationSuccessful) return failed("Migration validation failed");
+    return result(target, flyway, MigrationOutcome.VALIDATED);
+  }
+
+  private static MigrationResult migrate(String target, Flyway flyway) {
+    flyway.migrate();
+    return result(target, flyway, MigrationOutcome.MIGRATED);
+  }
+
+  private static MigrationResult result(String target, Flyway flyway, MigrationOutcome outcome) {
+    return new MigrationResult(
+        outcome,
+        MigrationValidationResult.passed(),
+        evidence(target, flyway.info().applied(), outcome));
   }
 
   private static List<MigrationEvidence> evidence(

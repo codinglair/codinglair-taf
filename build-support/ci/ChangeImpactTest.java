@@ -17,16 +17,17 @@ final class ChangeImpactTest {
         continue;
       }
       String[] columns = line.split("\\|", -1);
-      if (columns.length != 8) {
+      if (columns.length != 9) {
         throw new AssertionError("Malformed fixture: " + line);
       }
       ChangeImpact.Result actual = ChangeImpact.classify(changes(columns[1]), repository);
       assertEquals(columns[0], columns[2], String.join(",", actual.modules()));
-      assertEquals(columns[0], columns[3], Boolean.toString(actual.integration()));
-      assertEquals(columns[0], columns[4], Boolean.toString(actual.crossModule()));
-      assertEquals(columns[0], columns[5], Boolean.toString(actual.browser()));
-      assertEquals(columns[0], columns[6], Boolean.toString(actual.appium()));
-      assertEquals(columns[0], columns[7], Boolean.toString(actual.aws()));
+      assertEquals(columns[0], columns[3], String.join(",", actual.standaloneBuilds()));
+      assertEquals(columns[0], columns[4], Boolean.toString(actual.integration()));
+      assertEquals(columns[0], columns[5], Boolean.toString(actual.crossModule()));
+      assertEquals(columns[0], columns[6], Boolean.toString(actual.browser()));
+      assertEquals(columns[0], columns[7], Boolean.toString(actual.appium()));
+      assertEquals(columns[0], columns[8], Boolean.toString(actual.aws()));
       executed++;
     }
     verifiesNullDelimitedRenameParsing();

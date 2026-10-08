@@ -12,7 +12,9 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
@@ -107,6 +109,26 @@ class StructuredFileValidationTest {
     }
 
     @Test
+    @DisplayName("rejects short and long fixed-width rows")
+    void invalidFixedWidthRows() throws Exception {
+      var options =
+          new FileComparisonOptions(
+              Set.of(), BigDecimal.ZERO, StandardCharsets.UTF_8, ',', List.of(3, 2), 20);
+      Path valid = write("valid.fw", "ABC12\n");
+
+      assertThatThrownBy(
+              () -> compare(valid, write("short.fw", "ABC1\n"), FileFormat.FIXED_WIDTH, options))
+          .isInstanceOf(FileValidationException.class)
+          .extracting("kind")
+          .isEqualTo(FileValidationException.Kind.INVALID_FORMAT);
+      assertThatThrownBy(
+              () -> compare(valid, write("long.fw", "ABC123\n"), FileFormat.FIXED_WIDTH, options))
+          .isInstanceOf(FileValidationException.class)
+          .extracting("kind")
+          .isEqualTo(FileValidationException.Kind.INVALID_FORMAT);
+    }
+
+    @Test
     @DisplayName("compares Excel OOXML worksheet cells")
     void excel() throws Exception {
       Path expected = workbook("expected.xlsx", "42");
@@ -117,6 +139,55 @@ class StructuredFileValidationTest {
       assertThat(
               compare(expected, workbook("bad.xlsx", "43"), FileFormat.EXCEL, defaults()).matched())
           .isFalse();
+    }
+
+    @Test
+    @DisplayName("compares every worksheet and resolves shared strings")
+    void excelWorksheetSelectionAndSharedStrings() throws Exception {
+      Map<String, String> expectedEntries = new LinkedHashMap<>();
+      expectedEntries.put(
+          "xl/sharedStrings.xml",
+          "<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><si><t>catalog</t></si></sst>");
+      expectedEntries.put("xl/worksheets/sheet1.xml", worksheet("A1", "0", "s"));
+      expectedEntries.put("xl/worksheets/sheet2.xml", worksheet("B2", "7", null));
+      Map<String, String> actualEntries = new LinkedHashMap<>(expectedEntries);
+      actualEntries.put("xl/worksheets/sheet2.xml", worksheet("B2", "8", null));
+
+      Path expected = workbook("expected-multi.xlsx", expectedEntries);
+      assertThat(
+              compare(
+                      expected,
+                      workbook("same-multi.xlsx", expectedEntries),
+                      FileFormat.EXCEL,
+                      defaults())
+                  .matched())
+          .isTrue();
+      assertThat(
+              compare(
+                      expected,
+                      workbook("bad-multi.xlsx", actualEntries),
+                      FileFormat.EXCEL,
+                      defaults())
+                  .differences())
+          .containsExactly("xl/worksheets/sheet2.xml/B2 differs");
+    }
+
+    @Test
+    @DisplayName("rejects workbooks whose selected entries exceed the expanded-byte limit")
+    void excelExpandedByteLimit() throws Exception {
+      String oversizedWorksheet = worksheet("A1", "A".repeat(2_000), null);
+      Path workbook =
+          workbook("expanded.xlsx", Map.of("xl/worksheets/sheet1.xml", oversizedWorksheet));
+      assertThat(Files.size(workbook)).isLessThan(512);
+
+      var controller = controller(collector(), 512);
+      assertThatThrownBy(
+              () ->
+                  controller.compare(
+                      new FileComparisonRequest(workbook, workbook, FileFormat.EXCEL, defaults())))
+          .isInstanceOf(FileValidationException.class)
+          .extracting("kind")
+          .isEqualTo(FileValidationException.Kind.INVALID_FORMAT);
     }
 
     @Test
@@ -240,16 +311,29 @@ class StructuredFileValidationTest {
   }
 
   private Path workbook(String name, String value) throws Exception {
+    return workbook(name, Map.of("xl/worksheets/sheet1.xml", worksheet("A1", value, null)));
+  }
+
+  private Path workbook(String name, Map<String, String> entries) throws Exception {
     Path path = root.resolve(name);
     try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(path))) {
-      zip.putNextEntry(new ZipEntry("xl/worksheets/sheet1.xml"));
-      zip.write(
-          ("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData><row r=\"1\"><c r=\"A1\"><v>"
-                  + value
-                  + "</v></c></row></sheetData></worksheet>")
-              .getBytes(StandardCharsets.UTF_8));
-      zip.closeEntry();
+      for (var entry : entries.entrySet()) {
+        zip.putNextEntry(new ZipEntry(entry.getKey()));
+        zip.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+      }
     }
     return path;
+  }
+
+  private static String worksheet(String reference, String value, String type) {
+    String typeAttribute = type == null ? "" : " t=\"" + type + "\"";
+    return "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData><row r=\"1\"><c r=\""
+        + reference
+        + "\""
+        + typeAttribute
+        + "><v>"
+        + value
+        + "</v></c></row></sheetData></worksheet>";
   }
 }

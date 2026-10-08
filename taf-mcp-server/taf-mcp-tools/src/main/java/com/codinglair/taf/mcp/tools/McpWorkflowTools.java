@@ -107,36 +107,31 @@ public final class McpWorkflowTools implements AutoCloseable {
                 digest(request),
                 request.approvalId(),
                 safeInput(request)),
-            () -> {
-              try {
-                validateBoundary(request);
-                capabilityPreflight.validate(request);
-                return dispatch(request);
-              } catch (IllegalArgumentException failure) {
-                return failed(request, WorkflowOutcome.VALIDATION_FAILED, failure.getMessage());
-              }
-            });
-    if (result.status() != EnforcementResult.Status.ALLOWED) {
-      var outcome =
-          switch (result.status()) {
-            case DENIED -> WorkflowOutcome.DENIED;
-            case APPROVAL_REQUIRED -> WorkflowOutcome.APPROVAL_REQUIRED;
-            case INPUT_REJECTED -> WorkflowOutcome.VALIDATION_FAILED;
-            case FAILED -> WorkflowOutcome.INTERNAL_FAILED;
-            case ALLOWED -> throw new IllegalStateException();
-          };
-      return failed(
-          request,
-          outcome,
-          switch (result.status()) {
-            case DENIED -> "authorization denied";
-            case APPROVAL_REQUIRED -> "approval required";
-            case INPUT_REJECTED -> "input rejected";
-            case FAILED -> "operation failed";
-            case ALLOWED -> throw new IllegalStateException();
-          });
+            () -> invokeAllowed(request));
+    return result.status() == EnforcementResult.Status.ALLOWED
+        ? (ToolResponse) result.body()
+        : rejected(request, result.status());
+  }
+
+  private ToolResponse invokeAllowed(ToolRequest request) {
+    try {
+      validateBoundary(request);
+      capabilityPreflight.validate(request);
+      return dispatch(request);
+    } catch (IllegalArgumentException failure) {
+      return failed(request, WorkflowOutcome.VALIDATION_FAILED, failure.getMessage());
     }
-    return (ToolResponse) result.body();
+  }
+
+  private ToolResponse rejected(ToolRequest request, EnforcementResult.Status status) {
+    return switch (status) {
+      case DENIED -> failed(request, WorkflowOutcome.DENIED, "authorization denied");
+      case APPROVAL_REQUIRED ->
+          failed(request, WorkflowOutcome.APPROVAL_REQUIRED, "approval required");
+      case INPUT_REJECTED -> failed(request, WorkflowOutcome.VALIDATION_FAILED, "input rejected");
+      case FAILED -> failed(request, WorkflowOutcome.INTERNAL_FAILED, "operation failed");
+      case ALLOWED -> throw new IllegalStateException();
+    };
   }
 
   private ToolResponse dispatch(ToolRequest request) {
@@ -204,14 +199,7 @@ public final class McpWorkflowTools implements AutoCloseable {
                 JobStateMachine.transition(current, JobState.CANCEL_REQUESTED, clock.instant()),
                 current.version());
       }
-      Job terminal =
-          switch (result.outcome()) {
-            case SUCCEEDED ->
-                JobStateMachine.succeed(current, result.references(), clock.instant());
-            case CANCELLED ->
-                JobStateMachine.transition(current, JobState.CANCELLED, clock.instant());
-            default -> JobStateMachine.transition(current, JobState.FAILED, clock.instant());
-          };
+      Job terminal = terminal(current, result);
       repository.save(terminal, current.version());
     } catch (JobConflictException conflict) {
       repository
@@ -225,6 +213,14 @@ public final class McpWorkflowTools implements AutoCloseable {
     } catch (RuntimeException failure) {
       failRunningJob(id);
     }
+  }
+
+  private Job terminal(Job current, WorkflowResult result) {
+    return switch (result.outcome()) {
+      case SUCCEEDED -> JobStateMachine.succeed(current, result.references(), clock.instant());
+      case CANCELLED -> JobStateMachine.transition(current, JobState.CANCELLED, clock.instant());
+      default -> JobStateMachine.transition(current, JobState.FAILED, clock.instant());
+    };
   }
 
   private void failRunningJob(JobId id) {

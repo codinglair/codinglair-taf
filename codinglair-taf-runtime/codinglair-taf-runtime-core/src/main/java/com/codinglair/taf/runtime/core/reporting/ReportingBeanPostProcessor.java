@@ -3,6 +3,7 @@ package com.codinglair.taf.runtime.core.reporting;
 import java.lang.reflect.Method;
 import java.util.function.Supplier;
 import org.aopalliance.intercept.MethodInterceptor;
+import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -30,29 +31,22 @@ public final class ReportingBeanPostProcessor implements BeanPostProcessor {
     }
     ProxyFactory proxy = new ProxyFactory(bean);
     proxy.setProxyTargetClass(true);
-    proxy.addAdvice(
-        (MethodInterceptor)
-            invocation -> {
-              Method target = ClassUtils.getMostSpecificMethod(invocation.getMethod(), type);
-              try {
-                return interceptor
-                    .get()
-                    .invoke(
-                        target,
-                        invocation.getArguments(),
-                        () -> {
-                          try {
-                            return invocation.proceed();
-                          } catch (Throwable failure) {
-                            ReportingBeanPostProcessor.<RuntimeException>throwAny(failure);
-                            return null;
-                          }
-                        });
-              } catch (Exception failure) {
-                throw failure;
-              }
-            });
+    proxy.addAdvice((MethodInterceptor) invocation -> invoke(type, invocation));
     return proxy.getProxy(type.getClassLoader());
+  }
+
+  private Object invoke(Class<?> type, MethodInvocation invocation) throws Exception {
+    Method target = ClassUtils.getMostSpecificMethod(invocation.getMethod(), type);
+    return interceptor.get().invoke(target, invocation.getArguments(), () -> proceed(invocation));
+  }
+
+  private static Object proceed(MethodInvocation invocation) {
+    try {
+      return invocation.proceed();
+    } catch (Throwable failure) {
+      ReportingBeanPostProcessor.<RuntimeException>throwAny(failure);
+      return null;
+    }
   }
 
   @SuppressWarnings("unchecked")

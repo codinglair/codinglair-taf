@@ -114,18 +114,15 @@ class CapabilityContributionCatalogTest {
     }
 
     @Test
-    @DisplayName("Explicit iOS fails before generation with corrective guidance")
-    void rejectsIos() {
+    @DisplayName("Explicit iOS selects Apple assets through the existing mobile starter")
+    void acceptsIos() {
       CompositionPlan plan = plan(List.of("MOBILE"), null, "IOS");
 
-      assertThat(plan.valid()).isFalse();
-      assertThat(plan.writes()).isEmpty();
-      assertThat(plan.diagnostics())
-          .anySatisfy(
-              diagnostic -> {
-                assertThat(diagnostic.code()).isEqualTo("SCF_UNSUPPORTED_IOS");
-                assertThat(diagnostic.correctiveAction()).contains("Android/UiAutomator2");
-              });
+      assertThat(plan.valid()).isTrue();
+      assertThat(plan.request().mobileAutomationName()).contains("XCUITEST");
+      assertThat(allContent(plan))
+          .contains("XCUITest", "AppleInteractionExample", "InteractionTask");
+      assertThat(content(plan, "pom.xml")).contains("codinglair-taf-starter-mobile");
     }
 
     @Test

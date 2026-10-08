@@ -3,7 +3,6 @@ package com.codinglair.taf.runtime.core.reporting;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TafTest;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TestStep;
-import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,16 +122,7 @@ public class ArtifactCollector {
    * @return the Base64-encoded SHA-256 hash
    */
   public String computeHash(String content) {
-    if (content == null) {
-      return null;
-    }
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hashBytes = digest.digest(content.getBytes());
-      return Base64.getEncoder().encodeToString(hashBytes);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to compute SHA-256 hash", e);
-    }
+    return TestArtifact.computeHash(content);
   }
 
   /**

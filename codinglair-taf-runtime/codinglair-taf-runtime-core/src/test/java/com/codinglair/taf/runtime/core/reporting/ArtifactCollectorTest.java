@@ -78,6 +78,17 @@ class ArtifactCollectorTest {
   }
 
   @Test
+  @DisplayName("Collector hash entry point is equivalent to TestArtifact")
+  void computeHash_delegatesWithoutChangingContract() {
+    ArtifactCollector collector =
+        new ArtifactCollector(TafTest.of("test", "TestClass"), "session", "test");
+
+    assertEquals(TestArtifact.computeHash(null), collector.computeHash(null));
+    assertEquals(TestArtifact.computeHash(""), collector.computeHash(""));
+    assertEquals(TestArtifact.computeHash("content-å"), collector.computeHash("content-å"));
+  }
+
+  @Test
   void finalizesEvidenceExactlyOnce() {
     ArtifactCollector collector =
         new ArtifactCollector(TafTest.of("test", "TestClass"), "session", "test");

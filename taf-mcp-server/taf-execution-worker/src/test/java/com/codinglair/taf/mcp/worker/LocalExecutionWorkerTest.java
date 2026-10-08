@@ -10,6 +10,8 @@ import com.codinglair.taf.mcp.jobs.JobService;
 import com.codinglair.taf.mcp.jobs.JobState;
 import com.codinglair.taf.mcp.jobs.LocalJobRepository;
 import com.codinglair.taf.mcp.security.ResponseRedactor;
+import com.codinglair.taf.runtime.core.security.ResourceAccess;
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,7 +21,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,6 +35,46 @@ import org.junit.jupiter.api.io.TempDir;
 @DisplayName("Isolated local execution worker")
 class LocalExecutionWorkerTest {
   private static final Pattern CHILD_PID = Pattern.compile("(?m)^CHILD=(\\d+)\\s*$");
+
+  @Test
+  @DisplayName(
+      "resource-protected workflows deny before workspace copying and allow explicit grants")
+  void resourceBoundary() throws Exception {
+    var resource =
+        new ResourceAccess(
+            ResourceAccess.Kind.ENDPOINT, "https://appium.example/custom", "connect");
+    var command =
+        new WorkerCommand(
+            "success",
+            List.of(
+                javaExecutable(),
+                "-cp",
+                System.getProperty("java.class.path"),
+                WorkerProcessFixture.class.getName(),
+                "success"));
+    var worker =
+        new LocalExecutionWorker(
+            Map.of("success", command),
+            limits(4096),
+            executionRoot,
+            new LocalArtifactStore(artifactRoot),
+            new ResponseRedactor(Set.of("worker-canary-43f1")),
+            Clock.systemUTC(),
+            Map.of("success", Set.of(resource)));
+    var request = request("success", Duration.ofSeconds(5), List.of());
+    var denied =
+        assertThrows(
+            WorkerExecutionException.class, () -> worker.execute(request, CancellationToken.NEVER));
+    assertThat(denied.code()).isEqualTo("RESOURCE_DENIED");
+    assertThat(executionRoot).isEmptyDirectory();
+    assertThat(
+            worker
+                .execute(
+                    request, CancellationToken.NEVER, ResourceAuthorizer.trusted(Set.of(resource)))
+                .status())
+        .isEqualTo(WorkerStatus.SUCCEEDED);
+    assertThat(executionRoot).isEmptyDirectory();
+  }
 
   @TempDir Path temporary;
   private Path source;
@@ -189,6 +235,49 @@ class LocalExecutionWorkerTest {
     }
 
     @Test
+    @DisplayName("interruption promptly terminates the process tree before output-drain shutdown")
+    void interruptionKillsDescendantsBeforeDrainShutdown() throws Exception {
+      var existingDescendants =
+          ProcessHandle.current().descendants().map(ProcessHandle::pid).collect(Collectors.toSet());
+      var failure = new AtomicReference<Throwable>();
+      var interrupted = new AtomicBoolean();
+      var thread =
+          Thread.ofPlatform()
+              .unstarted(
+                  () -> {
+                    try {
+                      worker("tree", limits(4096))
+                          .execute(
+                              request("tree", Duration.ofSeconds(20), List.of()),
+                              CancellationToken.NEVER);
+                    } catch (Throwable error) {
+                      failure.set(error);
+                      interrupted.set(Thread.currentThread().isInterrupted());
+                    }
+                  });
+      thread.start();
+      var ownedProcesses =
+          awaitProcesses(
+              () ->
+                  ProcessHandle.current()
+                      .descendants()
+                      .filter(process -> !existingDescendants.contains(process.pid()))
+                      .toList());
+
+      thread.interrupt();
+      thread.join(Duration.ofSeconds(5));
+
+      assertThat(thread.isAlive()).isFalse();
+      assertThat(failure.get())
+          .isInstanceOf(WorkerExecutionException.class)
+          .extracting(error -> ((WorkerExecutionException) error).code())
+          .isEqualTo("INTERRUPTED");
+      assertThat(interrupted.get()).isTrue();
+      assertThat(ownedProcesses).allMatch(process -> !process.isAlive());
+      assertThat(executionRoot).isEmptyDirectory();
+    }
+
+    @Test
     @DisplayName("bounds returned process output")
     void boundsOutput() throws Exception {
       var result =
@@ -330,5 +419,18 @@ class LocalExecutionWorkerTest {
   private static String javaExecutable() {
     var suffix = System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java";
     return Path.of(System.getProperty("java.home"), "bin", suffix).toAbsolutePath().toString();
+  }
+
+  private static List<ProcessHandle> awaitProcesses(Supplier<List<ProcessHandle>> processes) {
+    var deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+    List<ProcessHandle> owned;
+    do {
+      owned = processes.get();
+      if (owned.size() >= 2) {
+        return owned;
+      }
+      java.util.concurrent.locks.LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
+    } while (System.nanoTime() < deadline);
+    throw new AssertionError("Owned process tree did not start within five seconds");
   }
 }

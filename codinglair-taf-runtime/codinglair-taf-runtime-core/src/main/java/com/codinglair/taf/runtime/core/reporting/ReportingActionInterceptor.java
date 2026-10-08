@@ -30,24 +30,33 @@ public final class ReportingActionInterceptor {
       return invocation.call();
     }
     if (action.level == ReportLevel.VALIDATION) {
-      try {
-        Object result = invocation.call();
-        Object expected = arguments != null && arguments.length > 0 ? arguments[0] : "unspecified";
-        Object actual = arguments != null && arguments.length > 1 ? arguments[1] : result;
-        current.get().validation(action.name, "PASSED", expected, actual);
-        return result;
-      } catch (Throwable failure) {
-        Object expected = arguments != null && arguments.length > 0 ? arguments[0] : "unspecified";
-        Object actual =
-            arguments != null && arguments.length > 1
-                ? arguments[1]
-                : failure.getClass().getSimpleName();
-        current.get().validation(action.name, "FAILED", expected, actual);
-        throwAny(failure);
-        return null;
-      }
+      return invokeValidation(action, arguments, invocation, current.get());
     }
     return current.get().execute(action.level, action.name, invocation);
+  }
+
+  private Object invokeValidation(
+      Action action,
+      Object[] arguments,
+      Callable<Object> invocation,
+      ReportingContext reportingContext) {
+    try {
+      Object result = invocation.call();
+      reportValidation(reportingContext, action, "PASSED", arguments, result);
+      return result;
+    } catch (Throwable failure) {
+      reportValidation(
+          reportingContext, action, "FAILED", arguments, failure.getClass().getSimpleName());
+      throwAny(failure);
+      return null;
+    }
+  }
+
+  private void reportValidation(
+      ReportingContext context, Action action, String status, Object[] arguments, Object fallback) {
+    Object expected = arguments != null && arguments.length > 0 ? arguments[0] : "unspecified";
+    Object actual = arguments != null && arguments.length > 1 ? arguments[1] : fallback;
+    context.validation(action.name, status, expected, actual);
   }
 
   public static boolean isReportable(Method method) {

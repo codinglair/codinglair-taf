@@ -35,7 +35,7 @@ validation or execution.
 - Java 25
 - Git
 - the Maven Wrapper copied into the consumer project (`mvnw`, `mvnw.cmd`, and `.mvn/wrapper`)
-- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.2.0`, or an approved locally
+- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.3.0`, or an approved locally
   staged build
 - Docker only for capabilities that provision containers
 - external infrastructure for opt-in capabilities such as Appium, Android devices, databases, and
@@ -120,7 +120,7 @@ the TAF source reactor.
 
 ### 3.2 Select capability starters
 
-For normal <!-- taf-version -->`1.2.0` consumption, import `codinglair-taf-bom` and add the starter that matches the
+For normal <!-- taf-version -->`1.3.0` consumption, import `codinglair-taf-bom` and add the starter that matches the
 capability. The BOM aligns versions only; it installs no capability. Use provider starters for
 operational messaging—`codinglair-taf-starter-messaging` alone is provider-neutral.
 
@@ -129,7 +129,7 @@ operational messaging—`codinglair-taf-starter-messaging` alone is provider-neu
 | Browser UI | `codinglair-taf-starter-web` |
 | REST API | `codinglair-taf-starter-api` |
 | JDBC database | `codinglair-taf-starter-database` plus an approved JDBC driver |
-| Android/Appium | `codinglair-taf-starter-mobile` |
+| Android/UiAutomator2 or Apple/XCUITest | `codinglair-taf-starter-mobile` |
 | Kafka | `codinglair-taf-starter-messaging-kafka` |
 | RabbitMQ | `codinglair-taf-starter-messaging-rabbitmq` |
 | JMS | `codinglair-taf-starter-messaging-jms` plus an approved JMS client/`ConnectionFactory` |
@@ -157,7 +157,7 @@ Typical dependency choices are:
 | TestNG lifecycle | `codinglair-taf-runner-testng` |
 | Cucumber lifecycle | `codinglair-taf-runner-cucumber` |
 | Browser UI | `taf-web-playwright` |
-| Android/Appium | `taf-mobile-appium` |
+| Android/UiAutomator2 or Apple/XCUITest | `taf-mobile-appium` |
 | REST / SOAP | `taf-api-rest` / `taf-api-soap` |
 | JDBC validation | `taf-database` plus the approved JDBC driver |
 | Structured files | `taf-file` |
@@ -1584,7 +1584,7 @@ The following boundaries are intentional or incomplete in this release:
 | REST and database | Released; corrected DOC-001 examples may still be uncommitted and require SUT adaptation |
 | SOAP | Released; no complete clean-consumer fault/auth example; advanced WS-* features listed above unavailable |
 | Files | Released; bounded public capability, but no golden consumer workflow |
-| Android Appium | Released for native Android; configuration and API-verified excerpt included; external Appium/device required; no iOS/cloud provider |
+| Mobile Appium | Android/UiAutomator2 and Apple/XCUITest are implemented through the shared starter; Apple native, hybrid, and Safari have a standalone consumer and a passing hosted simulator record for one tuple; external infrastructure is required and physical devices/named providers remain unverified |
 | Kafka, RabbitMQ, JMS | Released adapters; configuration/API excerpts included but not yet clean-consumer compiled or live-broker verified |
 | AWS EventBridge and SQS | Released and LocalStack-qualified; staged clean-consumer workflow covers routing, bounded non-match, evidence, acknowledgment, and ownership-safe cleanup; authorized AWS remains separately approved |
 | WireMock | Released provider; mapping API excerpt included, while environment-resource composition remains speculative pending verification |

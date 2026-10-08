@@ -28,6 +28,12 @@ final class SecretPreflightContributor implements ConsumerPreflightContributor {
   @Override
   public List<PreflightDiagnostic> inspect() {
     List<PreflightDiagnostic> diagnostics = new ArrayList<>();
+    Map<String, SecretReference> selected = collectReferences(diagnostics);
+    selected.forEach((providerId, _) -> inspectProvider(providerId, diagnostics));
+    return List.copyOf(diagnostics);
+  }
+
+  private Map<String, SecretReference> collectReferences(List<PreflightDiagnostic> diagnostics) {
     Map<String, SecretReference> selected = new HashMap<>();
     for (String configured : properties.getReferences()) {
       if (configured == null || configured.isBlank() || configured.contains("REPLACE_ME")) {
@@ -49,28 +55,28 @@ final class SecretPreflightContributor implements ConsumerPreflightContributor {
                 "Use the documented version-one secret-reference grammar"));
       }
     }
-    selected.forEach(
-        (providerId, reference) -> {
-          SecretProvider provider = providers.get(providerId);
-          if (provider == null) {
-            diagnostics.add(
-                failure(
-                    providerId,
-                    "A selected secret provider is unavailable",
-                    "Add exactly one authorized provider bean for the selected reference type"));
-            return;
-          }
-          try {
-            provider.verifyReady();
-          } catch (RuntimeException unavailable) {
-            diagnostics.add(
-                failure(
-                    providerId,
-                    "A selected secret provider is not ready",
-                    "Configure its authorized bootstrap source before execution"));
-          }
-        });
-    return List.copyOf(diagnostics);
+    return selected;
+  }
+
+  private void inspectProvider(String providerId, List<PreflightDiagnostic> diagnostics) {
+    SecretProvider provider = providers.get(providerId);
+    if (provider == null) {
+      diagnostics.add(
+          failure(
+              providerId,
+              "A selected secret provider is unavailable",
+              "Add exactly one authorized provider bean for the selected reference type"));
+      return;
+    }
+    try {
+      provider.verifyReady();
+    } catch (RuntimeException _) {
+      diagnostics.add(
+          failure(
+              providerId,
+              "A selected secret provider is not ready",
+              "Configure its authorized bootstrap source before execution"));
+    }
   }
 
   private static PreflightDiagnostic failure(String id, String message, String action) {

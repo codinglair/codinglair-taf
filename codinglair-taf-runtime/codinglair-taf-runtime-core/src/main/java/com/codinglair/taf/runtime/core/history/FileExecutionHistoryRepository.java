@@ -125,34 +125,22 @@ public final class FileExecutionHistoryRepository implements ExecutionHistoryRep
     List<ExecutionAttemptSummary> records = new ArrayList<>();
     boolean corrupt = false;
     long bytesRead = 0;
-    try (var paths = Files.walk(root)) {
-      List<Path> candidates =
-          paths
-              .filter(
-                  item ->
-                      Files.isRegularFile(item, LinkOption.NOFOLLOW_LINKS)
-                          && item.getFileName().toString().endsWith(".json"))
-              .limit((long) configuration.maximumRecords() * 4 + 1)
-              .toList();
-      if (candidates.size() > (long) configuration.maximumRecords() * 4) corrupt = true;
-      for (Path path :
-          candidates.stream().limit((long) configuration.maximumRecords() * 4).toList()) {
-        try {
-          long size = Files.size(path);
-          bytesRead += size;
-          if (size > configuration.maximumBytes() || bytesRead > configuration.maximumBytes()) {
-            corrupt = true;
-            continue;
-          }
-          ExecutionAttemptSummary item = decode(Files.readString(path, StandardCharsets.UTF_8));
-          if (!item.completedAt().isBefore(cutoff)
-              && (signature == null
-                  || item.signature() != null && item.signature().value().equals(signature)))
-            records.add(item);
-        } catch (RuntimeException malformed) {
+    List<Path> candidates = discoverCandidates(root);
+    if (candidates.size() > (long) configuration.maximumRecords() * 4) corrupt = true;
+    for (Path path :
+        candidates.stream().limit((long) configuration.maximumRecords() * 4).toList()) {
+      try {
+        long size = Files.size(path);
+        bytesRead += size;
+        if (size > configuration.maximumBytes() || bytesRead > configuration.maximumBytes()) {
           corrupt = true;
-          quarantine(path);
+          continue;
         }
+        ExecutionAttemptSummary item = acceptedRecord(path, cutoff, signature);
+        if (item != null) records.add(item);
+      } catch (RuntimeException malformed) {
+        corrupt = true;
+        quarantine(path);
       }
     }
     records.sort(
@@ -164,6 +152,27 @@ public final class FileExecutionHistoryRepository implements ExecutionHistoryRep
         corrupt ? HistoryResult.Status.CORRUPT : HistoryResult.Status.SUCCESS,
         bounded,
         corrupt ? "one or more corrupt records excluded" : "ok");
+  }
+
+  private List<Path> discoverCandidates(Path root) throws IOException {
+    try (var paths = Files.walk(root)) {
+      return paths
+          .filter(
+              item ->
+                  Files.isRegularFile(item, LinkOption.NOFOLLOW_LINKS)
+                      && item.getFileName().toString().endsWith(".json"))
+          .limit((long) configuration.maximumRecords() * 4 + 1)
+          .toList();
+    }
+  }
+
+  private ExecutionAttemptSummary acceptedRecord(Path path, Instant cutoff, String signature)
+      throws IOException {
+    ExecutionAttemptSummary item = decode(Files.readString(path, StandardCharsets.UTF_8));
+    if (item.completedAt().isBefore(cutoff)) return null;
+    if (signature != null
+        && (item.signature() == null || !item.signature().value().equals(signature))) return null;
+    return item;
   }
 
   private void retain(Path directory) throws IOException {

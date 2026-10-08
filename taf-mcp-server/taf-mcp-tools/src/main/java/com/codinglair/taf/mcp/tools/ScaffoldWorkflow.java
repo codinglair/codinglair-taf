@@ -181,32 +181,8 @@ public final class ScaffoldWorkflow {
             target, asset.content(), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         created.add(target);
       }
-      var files = new ArrayList<ScaffoldProvenance.CreatedFile>();
-      for (int index = 0; index < created.size(); index++) {
-        var path = created.get(index);
-        files.add(
-            new ScaffoldProvenance.CreatedFile(
-                destination.relativize(path),
-                digest(read(path)),
-                template.assets().get(index).kind()));
-      }
-      var provenance =
-          new ScaffoldProvenance(
-              UUID.randomUUID().toString(),
-              template.name(),
-              template.version(),
-              clock.instant(),
-              files);
-      var diff =
-          template.assets().stream()
-              .map(
-                  asset ->
-                      "create "
-                          + asset.path().toString().replace(java.io.File.separatorChar, '/')
-                          + " ("
-                          + asset.content().getBytes(StandardCharsets.UTF_8).length
-                          + " bytes)")
-              .toList();
+      var provenance = provenance(destination, template, created);
+      var diff = proposedDiff(template);
       var compilation = compiler.compile(destination);
       return new ScaffoldResult(
           compilation.successful()
@@ -222,6 +198,33 @@ public final class ScaffoldWorkflow {
       rollbackPartial(created);
       return result(ScaffoldResult.Status.FAILED, "scaffold write failed safely");
     }
+  }
+
+  private ScaffoldProvenance provenance(
+      Path destination, ScaffoldTemplate template, List<Path> created) {
+    var files = new ArrayList<ScaffoldProvenance.CreatedFile>();
+    for (int index = 0; index < created.size(); index++) {
+      var path = created.get(index);
+      files.add(
+          new ScaffoldProvenance.CreatedFile(
+              destination.relativize(path),
+              digest(read(path)),
+              template.assets().get(index).kind()));
+    }
+    return new ScaffoldProvenance(
+        UUID.randomUUID().toString(), template.name(), template.version(), clock.instant(), files);
+  }
+
+  private static List<String> proposedDiff(ScaffoldTemplate template) {
+    return template.assets().stream()
+        .map(
+            asset ->
+                "create "
+                    + asset.path().toString().replace(java.io.File.separatorChar, '/')
+                    + " ("
+                    + asset.content().getBytes(StandardCharsets.UTF_8).length
+                    + " bytes)")
+        .toList();
   }
 
   private Path confinedDestination(ScaffoldRequest request) {

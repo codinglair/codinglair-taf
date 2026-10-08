@@ -80,13 +80,7 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
         result.setStatus(ITestResult.FAILURE);
       }
     } finally {
-      recordAttempt(result, descriptor, false);
-      finishReporting(result);
-      invocation.remove();
-      metadata.remove();
-      reporting.remove();
-      currentReporting.unbind();
-      SessionFactory.unbindObservation(result);
+      finishInvocation(result, descriptor, false);
     }
     if (cleanupFailure != null) throwUnchecked(cleanupFailure);
   }
@@ -158,15 +152,45 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
       ITestResult result, InvocationDescriptor descriptor, Throwable setupFailure) {
     try {
       lifecycle.close(descriptor, InvocationOutcome.setupFailed(setupFailure));
+    } catch (Throwable cleanupFailure) {
+      suppressSecondary(setupFailure, cleanupFailure);
     } finally {
       result.setThrowable(setupFailure);
-      recordAttempt(result, descriptor, true);
-      finishReportingFailure(result, setupFailure);
-      invocation.remove();
-      metadata.remove();
-      reporting.remove();
-      currentReporting.unbind();
+      try {
+        finishInvocation(result, descriptor, true);
+      } catch (Throwable finalizationFailure) {
+        suppressSecondary(setupFailure, finalizationFailure);
+      }
     }
+  }
+
+  private void finishInvocation(
+      ITestResult result, InvocationDescriptor descriptor, boolean setupFailure) {
+    try {
+      try {
+        recordAttempt(result, descriptor, setupFailure);
+      } finally {
+        if (setupFailure) finishReportingFailure(result, result.getThrowable());
+        else finishReporting(result);
+      }
+    } finally {
+      unbindInvocationContext(result);
+    }
+  }
+
+  private void unbindInvocationContext(ITestResult result) {
+    invocation.remove();
+    metadata.remove();
+    reporting.remove();
+    try {
+      currentReporting.unbind();
+    } finally {
+      SessionFactory.unbindObservation(result);
+    }
+  }
+
+  private static void suppressSecondary(Throwable primary, Throwable secondary) {
+    if (secondary != primary) primary.addSuppressed(secondary);
   }
 
   private TestDefinitionResolver definitionResolver() {
@@ -267,9 +291,7 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
                         + result.getMethod().getMethodName()
                         + java.util.Arrays.deepToString(result.getParameters())),
                 hash(
-                    result.getTestContext().getSuite().getName()
-                        + ":"
-                        + result.getTestContext().getStartDate()
+                    attemptGroup(result)
                         + ":"
                         + result.getTestClass().getName()
                         + "."
@@ -291,6 +313,15 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
                 List.of()));
     if (completion.analysis() != null)
       result.setAttribute(TestNgLifecycleListener.ANALYSIS_KEY, completion.analysis());
+  }
+
+  private static String attemptGroup(ITestResult result) {
+    var context = result.getTestContext();
+    if (context != null) return context.getSuite().getName() + ":" + context.getStartDate();
+    // BeforeMethod's injected result has no ITestContext on setup failure. The XmlSuite is
+    // still available and identifies this in-process execution without masking preflight.
+    var suite = result.getMethod().getXmlTest().getSuite();
+    return suite.getName() + ":" + System.identityHashCode(suite);
   }
 
   private static String hash(String value) {

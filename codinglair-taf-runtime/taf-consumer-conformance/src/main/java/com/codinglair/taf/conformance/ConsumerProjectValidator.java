@@ -293,58 +293,66 @@ public final class ConsumerProjectValidator {
           root.resolve("src/main/java"),
           "No Spring Boot application was found",
           "Add one conventional non-web @SpringBootApplication bootstrap class");
-    for (Path file : concat(main, tests)) {
-      String text = read(file, out, "source.readable");
-      JavaSourceRules.inspect(file, text, tests.contains(file))
-          .forEach(
-              finding ->
-                  violation(
-                      out,
-                      finding.rule(),
-                      file,
-                      finding.detail() + " at line " + finding.line(),
-                      correctionFor(finding.rule())));
-      if (Pattern.compile(
-              "(?i)(https?://[^\\s\"']+|(?:password|token|secret)\\s*=\\s*\"(?!\\$\\{|REPLACE_ME)[^\"]+\")")
-          .matcher(text)
-          .find())
-        violation(
-            out,
-            "configuration.externalized",
-            file,
-            "Hard-coded environment or sensitive value detected",
-            "Use typed external configuration or an opaque secret-reference alias");
-      if ((text.contains("implements ITestListener")
-              || text.contains("extends TestListenerAdapter"))
-          && (text.contains("TestSession")
-              || text.contains("openSession")
-              || text.contains("closeSession")))
-        violation(
-            out,
-            "lifecycle.listener-owned",
-            file,
-            "A listener appears to own session lifecycle",
-            "Restrict listeners to observation/reporting");
-    }
-    tests.forEach(
-        file -> {
-          String text = read(file, out, "source.readable");
-          if (text.contains("@Test")
-              && !text.contains("@TestCaseId")
-              && !text.contains("AbstractTestNGCucumberTests"))
-            violation(
-                out,
-                "traceability.testng",
-                file,
-                "TestNG test has no @TestCaseId",
-                "Declare one unique test-case identifier per executable test");
-        });
+    for (Path file : concat(main, tests)) validateSourceFile(file, tests.contains(file), out);
+    tests.forEach(file -> validateTestTraceability(file, out));
     validateUniqueJavaTraceability(tests, out);
     validateResolvedJavaTraceability(root.resolve("src/test/resources/test-data"), tests, out);
     validateFeatureTraceability(root.resolve("src/test/resources/features"), out);
     if (safe(d.capabilities()).contains("web-playwright")) {
       requireDirectory(root.resolve("src/main/java"), "page", "architecture.page", out);
     }
+  }
+
+  private static void validateSourceFile(
+      Path file, boolean testSource, List<ConformanceViolation> out) {
+    String text = read(file, out, "source.readable");
+    JavaSourceRules.inspect(file, text, testSource)
+        .forEach(
+            finding ->
+                violation(
+                    out,
+                    finding.rule(),
+                    file,
+                    finding.detail() + " at line " + finding.line(),
+                    correctionFor(finding.rule())));
+    if (Pattern.compile(
+            "(?i)(https?://[^\\s\"']+|(?:password|token|secret)\\s*=\\s*\"(?!\\$\\{|REPLACE_ME)[^\"]+\")")
+        .matcher(text)
+        .find())
+      violation(
+          out,
+          "configuration.externalized",
+          file,
+          "Hard-coded environment or sensitive value detected",
+          "Use typed external configuration or an opaque secret-reference alias");
+    if (ownsLifecycleFromListener(text))
+      violation(
+          out,
+          "lifecycle.listener-owned",
+          file,
+          "A listener appears to own session lifecycle",
+          "Restrict listeners to observation/reporting");
+  }
+
+  private static boolean ownsLifecycleFromListener(String text) {
+    return (text.contains("implements ITestListener")
+            || text.contains("extends TestListenerAdapter"))
+        && (text.contains("TestSession")
+            || text.contains("openSession")
+            || text.contains("closeSession"));
+  }
+
+  private static void validateTestTraceability(Path file, List<ConformanceViolation> out) {
+    String text = read(file, out, "source.readable");
+    if (text.contains("@Test")
+        && !text.contains("@TestCaseId")
+        && !text.contains("AbstractTestNGCucumberTests"))
+      violation(
+          out,
+          "traceability.testng",
+          file,
+          "TestNG test has no @TestCaseId",
+          "Declare one unique test-case identifier per executable test");
   }
 
   private static void validateRequiredAssets(Path root, List<ConformanceViolation> out) {
@@ -524,38 +532,7 @@ public final class ConsumerProjectValidator {
     try (Stream<Path> files = Files.walk(features)) {
       files
           .filter(p -> p.toString().endsWith(".feature"))
-          .forEach(
-              file -> {
-                String text = read(file, out, "source.readable");
-                if (text.contains("Scenario:") && !text.contains("@test-case-"))
-                  violation(
-                      out,
-                      "traceability.cucumber",
-                      file,
-                      "Cucumber scenario has no test-case tag",
-                      "Add a unique @test-case-<id> tag");
-                var matcher = Pattern.compile("@test-case-([A-Za-z0-9._-]+)").matcher(text);
-                while (matcher.find()) {
-                  String id = matcher.group(1);
-                  if (!ids.add(id))
-                    violation(
-                        out,
-                        "traceability.duplicate",
-                        file,
-                        "Duplicate Cucumber test-case identifier: " + id,
-                        "Assign one unique identifier to each executable scenario");
-                  Path data = features.getParent().resolve("test-data");
-                  if (!Files.isRegularFile(data.resolve(id + ".json"))
-                      && !Files.isRegularFile(data.resolve(id + ".yaml"))
-                      && !Files.isRegularFile(data.resolve(id + ".csv")))
-                    violation(
-                        out,
-                        "traceability.unresolved",
-                        file,
-                        "Cucumber test-case identifier has no authoritative resource: " + id,
-                        "Add a matching test-data resource or correct the tag");
-                }
-              });
+          .forEach(file -> validateFeatureFile(file, features, ids, out));
     } catch (IOException failure) {
       violation(
           out,
@@ -564,6 +541,41 @@ public final class ConsumerProjectValidator {
           "Cannot inspect feature resources",
           "Make feature resources readable");
     }
+  }
+
+  private static void validateFeatureFile(
+      Path file, Path features, Set<String> ids, List<ConformanceViolation> out) {
+    String text = read(file, out, "source.readable");
+    if (text.contains("Scenario:") && !text.contains("@test-case-"))
+      violation(
+          out,
+          "traceability.cucumber",
+          file,
+          "Cucumber scenario has no test-case tag",
+          "Add a unique @test-case-<id> tag");
+    var matcher = Pattern.compile("@test-case-([A-Za-z0-9._-]+)").matcher(text);
+    while (matcher.find()) validateFeatureId(file, features, ids, matcher.group(1), out);
+  }
+
+  private static void validateFeatureId(
+      Path file, Path features, Set<String> ids, String id, List<ConformanceViolation> out) {
+    if (!ids.add(id))
+      violation(
+          out,
+          "traceability.duplicate",
+          file,
+          "Duplicate Cucumber test-case identifier: " + id,
+          "Assign one unique identifier to each executable scenario");
+    Path data = features.getParent().resolve("test-data");
+    if (!Files.isRegularFile(data.resolve(id + ".json"))
+        && !Files.isRegularFile(data.resolve(id + ".yaml"))
+        && !Files.isRegularFile(data.resolve(id + ".csv")))
+      violation(
+          out,
+          "traceability.unresolved",
+          file,
+          "Cucumber test-case identifier has no authoritative resource: " + id,
+          "Add a matching test-data resource or correct the tag");
   }
 
   private static void requireDirectory(

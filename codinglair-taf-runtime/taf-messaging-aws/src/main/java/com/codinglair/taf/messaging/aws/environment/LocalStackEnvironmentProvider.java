@@ -209,53 +209,72 @@ public final class LocalStackEnvironmentProvider extends AbstractEnvironmentProv
       String eventBus = physicalName(owner, settings.getEventBus());
       clients.eventbridge().createEventBus(builder -> builder.name(eventBus));
       add(entries, "event-bus", logical, eventBus, owner, 40);
-      if (settings.getTargetSqsController() != null) {
-        String queueUrl = queues.get(settings.getTargetSqsController());
-        if (queueUrl == null)
-          throw new IllegalArgumentException(
-              "Unknown target SQS controller: " + settings.getTargetSqsController());
-        String rule = owner + "-" + logical;
-        clients
-            .eventbridge()
-            .putRule(
-                PutRuleRequest.builder()
-                    .name(rule)
-                    .eventBusName(eventBus)
-                    .eventPattern(settings.getEventPattern())
-                    .state(RuleState.ENABLED)
-                    .build());
-        add(entries, "event-rule", logical + ".rule", eventBus + "/" + rule, owner, 50);
-        String queueArn = queueArn(clients.sqs(), queueUrl);
-        String policy =
-            "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\""
-                + queueArn
-                + "\"}]}";
-        clients
-            .sqs()
-            .setQueueAttributes(
-                SetQueueAttributesRequest.builder()
-                    .queueUrl(queueUrl)
-                    .attributes(Map.of(QueueAttributeName.POLICY, policy))
-                    .build());
-        add(entries, "sqs-queue-policy", logical + ".policy", queueUrl, owner, 55);
-        clients
-            .eventbridge()
-            .putTargets(
-                PutTargetsRequest.builder()
-                    .eventBusName(eventBus)
-                    .rule(rule)
-                    .targets(
-                        Target.builder().id(settings.getTargetIdentity()).arn(queueArn).build())
-                    .build());
-        add(
-            entries,
-            "event-target",
-            logical + ".target",
-            eventBus + "/" + rule + "/" + settings.getTargetIdentity(),
-            owner,
-            60);
-      }
+      if (settings.getTargetSqsController() != null)
+        provisionRoutedTarget(settings, logical, eventBus, owner, queues, clients, entries);
     }
+  }
+
+  private static void provisionRoutedTarget(
+      EventBridgeControllerProperties settings,
+      String logical,
+      String eventBus,
+      String owner,
+      Map<String, String> queues,
+      Clients clients,
+      List<AwsOwnershipManifestEntry> entries) {
+    String queueUrl = queues.get(settings.getTargetSqsController());
+    if (queueUrl == null)
+      throw new IllegalArgumentException(
+          "Unknown target SQS controller: " + settings.getTargetSqsController());
+    String rule = owner + "-" + logical;
+    clients
+        .eventbridge()
+        .putRule(
+            PutRuleRequest.builder()
+                .name(rule)
+                .eventBusName(eventBus)
+                .eventPattern(settings.getEventPattern())
+                .state(RuleState.ENABLED)
+                .build());
+    add(entries, "event-rule", logical + ".rule", eventBus + "/" + rule, owner, 50);
+    String queueArn = queueArn(clients.sqs(), queueUrl);
+    addQueuePolicy(queueUrl, queueArn, logical, owner, clients, entries);
+    clients
+        .eventbridge()
+        .putTargets(
+            PutTargetsRequest.builder()
+                .eventBusName(eventBus)
+                .rule(rule)
+                .targets(Target.builder().id(settings.getTargetIdentity()).arn(queueArn).build())
+                .build());
+    add(
+        entries,
+        "event-target",
+        logical + ".target",
+        eventBus + "/" + rule + "/" + settings.getTargetIdentity(),
+        owner,
+        60);
+  }
+
+  private static void addQueuePolicy(
+      String queueUrl,
+      String queueArn,
+      String logical,
+      String owner,
+      Clients clients,
+      List<AwsOwnershipManifestEntry> entries) {
+    String policy =
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\""
+            + queueArn
+            + "\"}]}";
+    clients
+        .sqs()
+        .setQueueAttributes(
+            SetQueueAttributesRequest.builder()
+                .queueUrl(queueUrl)
+                .attributes(Map.of(QueueAttributeName.POLICY, policy))
+                .build());
+    add(entries, "sqs-queue-policy", logical + ".policy", queueUrl, owner, 55);
   }
 
   private static void describeExternal(AwsConnectionProperties profile, Clients clients) {

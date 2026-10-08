@@ -14,7 +14,7 @@ import com.codinglair.taf.mcp.tools.BlueprintCompositionEngine.StarterManifest;
 import java.util.List;
 import java.util.Map;
 
-/** Approved version 1.0 physical blueprint contributions for release 1.2.0. */
+/** Approved version 1.0 physical blueprint contributions, including additive Apple selections. */
 public final class CapabilityContributionCatalog {
   public static final String BLUEPRINT_VERSION = "1.0";
 
@@ -29,6 +29,7 @@ public final class CapabilityContributionCatalog {
             Map.entry("starter-api", "codinglair-taf-starter-api"),
             Map.entry("starter-database", "codinglair-taf-starter-database"),
             Map.entry("starter-mobile", "codinglair-taf-starter-mobile"),
+            Map.entry("runner-cucumber", "codinglair-taf-runner-cucumber"),
             Map.entry("messaging-kafka", "codinglair-taf-starter-messaging-kafka"),
             Map.entry("messaging-rabbitmq", "codinglair-taf-starter-messaging-rabbitmq"),
             Map.entry("messaging-jms", "codinglair-taf-starter-messaging-jms"),
@@ -117,7 +118,7 @@ public final class CapabilityContributionCatalog {
         Kind.RUNNER,
         new Selector(Kind.RUNNER, null, null, runner, null),
         order,
-        List.of(),
+        runner == Runner.CUCUMBER_TESTNG ? List.of("runner-cucumber") : List.of(),
         runner == Runner.CUCUMBER_TESTNG
             ? List.of(
                 asset(
@@ -247,6 +248,16 @@ public final class CapabilityContributionCatalog {
           </dependencies>
           <build>
             <plugins>
+              <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+              </plugin>
+              <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+              </plugin>
               <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

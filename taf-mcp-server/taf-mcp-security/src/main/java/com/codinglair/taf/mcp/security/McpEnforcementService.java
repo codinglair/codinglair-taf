@@ -1,5 +1,6 @@
 package com.codinglair.taf.mcp.security;
 
+import com.codinglair.taf.runtime.core.security.ResourceAuthorizer;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -33,18 +34,8 @@ public final class McpEnforcementService {
 
   public EnforcementResult enforce(EnforcementRequest request, Callable<?> sideEffect) {
     var context = request.authorization();
-    try {
-      inputValidator.validate(request.input());
-    } catch (IllegalArgumentException exception) {
-      audit.append(
-          request.correlationId(),
-          "input.rejected",
-          context.identity().userId(),
-          Map.of("reason", exception.getMessage()));
-      return new EnforcementResult(
-          EnforcementResult.Status.INPUT_REJECTED,
-          Map.of("error", "input exceeds configured limits"));
-    }
+    var rejection = validateInput(request);
+    if (rejection != null) return rejection;
     audit.append(
         request.correlationId(),
         "tool.invoked",
@@ -75,28 +66,46 @@ public final class McpEnforcementService {
       return new EnforcementResult(
           EnforcementResult.Status.APPROVAL_REQUIRED, Map.of("error", "valid approval required"));
     }
+    return executeAudited(request, sideEffect);
+  }
+
+  private EnforcementResult validateInput(EnforcementRequest request) {
+    try {
+      inputValidator.validate(request.input());
+      return null;
+    } catch (IllegalArgumentException exception) {
+      audit.append(
+          request.correlationId(),
+          "input.rejected",
+          request.authorization().identity().userId(),
+          Map.of("reason", exception.getMessage()));
+      return new EnforcementResult(
+          EnforcementResult.Status.INPUT_REJECTED,
+          Map.of("error", "input exceeds configured limits"));
+    }
+  }
+
+  private EnforcementResult executeAudited(EnforcementRequest request, Callable<?> sideEffect) {
+    var actorId = request.authorization().identity().userId();
     try {
       var sanitized = redactor.redact(sideEffect.call());
       audit.append(
           request.correlationId(),
           "tool.completed",
-          context.identity().userId(),
+          actorId,
           Map.of("result", sanitized == null ? "completed" : sanitized));
       return new EnforcementResult(EnforcementResult.Status.ALLOWED, sanitized);
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
       audit.append(
-          request.correlationId(),
-          "tool.failed",
-          context.identity().userId(),
-          Map.of("failure", "interrupted"));
+          request.correlationId(), "tool.failed", actorId, Map.of("failure", "interrupted"));
       return new EnforcementResult(
           EnforcementResult.Status.FAILED, Map.of("error", "operation interrupted"));
     } catch (Exception exception) {
       audit.append(
           request.correlationId(),
           "tool.failed",
-          context.identity().userId(),
+          actorId,
           Map.of("failure", exception.getClass().getSimpleName()));
       return new EnforcementResult(
           EnforcementResult.Status.FAILED, Map.of("error", "operation failed"));
@@ -115,5 +124,36 @@ public final class McpEnforcementService {
   /** Applies the enforcement boundary's configured redaction policy to response content. */
   public Object redact(Object value) {
     return redactor.redact(value);
+  }
+
+  /**
+   * Bind the same caller and approval to worker transport use, not to job-supplied configuration.
+   */
+  public ResourceAuthorizer resourceAuthorizer(EnforcementRequest request) {
+    return resource -> {
+      var decision = policyEngine.decideResource(request.authorization(), resource);
+      boolean allowed =
+          decision.allowed()
+              && (!decision.approvalRequired()
+                  || (request.approvalId() != null
+                      && approvals.permits(
+                          request.approvalId(),
+                          request.authorization(),
+                          request.operationDigest())));
+      audit.append(
+          request.correlationId(),
+          "resource.authorization.decided",
+          request.authorization().identity().userId(),
+          Map.of(
+              "kind",
+              resource.kind().name(),
+              "action",
+              resource.action(),
+              "allowed",
+              allowed,
+              "rules",
+              decision.ruleIds()));
+      return allowed;
+    };
   }
 }

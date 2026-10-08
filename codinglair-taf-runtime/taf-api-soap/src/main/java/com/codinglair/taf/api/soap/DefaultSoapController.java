@@ -70,48 +70,11 @@ final class DefaultSoapController implements SoapController {
     ensureReady();
     Objects.requireNonNull(request);
     try {
-      var document = SoapXml.parse(request.envelope());
-      if (!request
-          .version()
-          .envelopeNamespace()
-          .equals(document.getDocumentElement().getNamespaceURI()))
-        throw new IllegalArgumentException(
-            "Envelope namespace does not match " + request.version());
-      request.security().secure(document);
-      String secured = SoapXml.serialize(document);
-      String boundary = "taf-" + UUID.randomUUID();
-      byte[] body =
-          request.attachments().isEmpty()
-              ? secured.getBytes(StandardCharsets.UTF_8)
-              : multipart(secured, request, boundary);
-      String contentType =
-          request.attachments().isEmpty()
-              ? request.version().contentType() + "; charset=UTF-8"
-              : "multipart/related; type=\""
-                  + request.version().contentType()
-                  + "\"; boundary=\""
-                  + boundary
-                  + "\"; start=\"<root@taf>\"";
-      var builder =
-          HttpRequest.newBuilder(settings.getEndpoint())
-              .timeout(settings.getTimeout())
-              .header("Content-Type", contentType)
-              .POST(HttpRequest.BodyPublishers.ofByteArray(body));
-      if (request.action() != null && request.version() == SoapVersion.SOAP_11)
-        builder.header("SOAPAction", '"' + request.action() + '"');
-      request.headers().forEach(builder::header);
+      String secured = secureEnvelope(request);
+      HttpRequest httpRequest = httpRequest(request, secured);
       HttpResponse<byte[]> nativeResponse =
-          client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
-      if (nativeResponse.body().length > settings.getMaxResponseBytes())
-        throw new IllegalStateException("SOAP response exceeds configured maximum");
-      ParsedResponse parsed = parseResponse(nativeResponse);
-      SoapResponse response =
-          new SoapResponse(
-              nativeResponse.statusCode(),
-              parsed.envelope,
-              nativeResponse.headers().map(),
-              parsed.attachments,
-              SoapXml.fault(SoapXml.parse(parsed.envelope), request.version()));
+          client.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
+      SoapResponse response = mapResponse(nativeResponse, request.version());
       capture(SoapXml.sanitizeSecurity(secured), response);
       return response;
     } catch (InterruptedException failure) {
@@ -126,6 +89,54 @@ final class DefaultSoapController implements SoapController {
           "verify endpoint, envelope, security references, and network availability",
           failure);
     }
+  }
+
+  private static String secureEnvelope(SoapRequest request) {
+    var document = SoapXml.parse(request.envelope());
+    if (!request
+        .version()
+        .envelopeNamespace()
+        .equals(document.getDocumentElement().getNamespaceURI()))
+      throw new IllegalArgumentException("Envelope namespace does not match " + request.version());
+    request.security().secure(document);
+    return SoapXml.serialize(document);
+  }
+
+  private HttpRequest httpRequest(SoapRequest request, String secured) {
+    String boundary = "taf-" + UUID.randomUUID();
+    byte[] body =
+        request.attachments().isEmpty()
+            ? secured.getBytes(StandardCharsets.UTF_8)
+            : multipart(secured, request, boundary);
+    String contentType =
+        request.attachments().isEmpty()
+            ? request.version().contentType() + "; charset=UTF-8"
+            : "multipart/related; type=\""
+                + request.version().contentType()
+                + "\"; boundary=\""
+                + boundary
+                + "\"; start=\"<root@taf>\"";
+    var builder =
+        HttpRequest.newBuilder(settings.getEndpoint())
+            .timeout(settings.getTimeout())
+            .header("Content-Type", contentType)
+            .POST(HttpRequest.BodyPublishers.ofByteArray(body));
+    if (request.action() != null && request.version() == SoapVersion.SOAP_11)
+      builder.header("SOAPAction", '"' + request.action() + '"');
+    request.headers().forEach(builder::header);
+    return builder.build();
+  }
+
+  private SoapResponse mapResponse(HttpResponse<byte[]> nativeResponse, SoapVersion version) {
+    if (nativeResponse.body().length > settings.getMaxResponseBytes())
+      throw new IllegalStateException("SOAP response exceeds configured maximum");
+    ParsedResponse parsed = parseResponse(nativeResponse);
+    return new SoapResponse(
+        nativeResponse.statusCode(),
+        parsed.envelope,
+        nativeResponse.headers().map(),
+        parsed.attachments,
+        SoapXml.fault(SoapXml.parse(parsed.envelope), version));
   }
 
   private void capture(String request, SoapResponse response) {
@@ -208,25 +219,31 @@ final class DefaultSoapController implements SoapController {
     String envelope = null;
     List<SoapAttachment> attachments = new ArrayList<>();
     for (String part : parts) {
-      int split = part.indexOf("\r\n\r\n");
-      if (split < 0) continue;
-      String headers = part.substring(0, split);
-      byte[] content =
-          part.substring(split + 4).replaceFirst("\r\n$", "").getBytes(StandardCharsets.ISO_8859_1);
-      String type = header(headers, "Content-Type");
-      String id = header(headers, "Content-ID");
-      if (envelope == null && type != null && (type.contains("xml") || type.contains("soap")))
-        envelope = new String(content, StandardCharsets.UTF_8);
-      else
-        attachments.add(
-            new SoapAttachment(
-                id == null ? "unknown" : id.replace("<", "").replace(">", ""),
-                type == null ? "application/octet-stream" : type,
-                content));
+      ParsedPart parsed = parsePart(part);
+      if (parsed == null) continue;
+      if (envelope == null && parsed.isEnvelope()) envelope = parsed.envelope();
+      else attachments.add(parsed.attachment());
     }
     if (envelope == null)
       throw new IllegalArgumentException("Multipart SOAP response has no envelope part");
     return new ParsedResponse(envelope, attachments);
+  }
+
+  private static ParsedPart parsePart(String part) {
+    int split = part.indexOf("\r\n\r\n");
+    if (split < 0) return null;
+    String headers = part.substring(0, split);
+    byte[] content =
+        part.substring(split + 4).replaceFirst("\r\n$", "").getBytes(StandardCharsets.ISO_8859_1);
+    String type = header(headers, "Content-Type");
+    String id = header(headers, "Content-ID");
+    boolean envelope = type != null && (type.contains("xml") || type.contains("soap"));
+    SoapAttachment attachment =
+        new SoapAttachment(
+            id == null ? "unknown" : id.replace("<", "").replace(">", ""),
+            type == null ? "application/octet-stream" : type,
+            content);
+    return new ParsedPart(envelope, content, attachment);
   }
 
   private static String parameter(String value, String name) {
@@ -259,4 +276,10 @@ final class DefaultSoapController implements SoapController {
   }
 
   private record ParsedResponse(String envelope, List<SoapAttachment> attachments) {}
+
+  private record ParsedPart(boolean isEnvelope, byte[] content, SoapAttachment attachment) {
+    private String envelope() {
+      return new String(content, StandardCharsets.UTF_8);
+    }
+  }
 }

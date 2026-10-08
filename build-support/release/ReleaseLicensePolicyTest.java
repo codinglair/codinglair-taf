@@ -60,7 +60,74 @@ public final class ReleaseLicensePolicyTest {
         "https://projects.eclipse.org/license/secondary-gpl-2.0-cp",
         true,
         null);
+    assertLicensePreferenceAndAmbiguity();
+    assertDelimiterParsing();
     System.out.println("Release license policy tests passed: " + assertions);
+  }
+
+  private static void assertLicensePreferenceAndAmbiguity() throws Exception {
+    assertComponent(
+        "pkg:maven/example/choice@1?type=jar",
+        "[{\"license\":{\"id\":\"GPL-2.0-only\"}},{\"license\":{\"id\":\"MIT\"}}]",
+        true,
+        null);
+    assertComponent(
+        "pkg:maven/example/ambiguous@1?type=jar",
+        "[{\"license\":{\"id\":\"MIT\"}},{\"license\":{\"name\":\"new-license\"}}]",
+        false,
+        "unrecognized or ambiguous declaration");
+  }
+
+  private static void assertDelimiterParsing() throws Exception {
+    assertComponent(
+        "pkg:maven/example/nested@1?type=jar",
+        "[{\"license\":{\"id\":\"MIT\",\"comment\":\"nested { bracket } and \\\"quote\\\" and \\\\ slash\"}}]",
+        true,
+        null);
+    assertInvalidSbom(
+        "{\"metadata\":{\"component\":{\"bom-ref\":\"root\",\"licenses\":[{\"license\":{\"id\":\"MIT\"}}]}},\"components\":[{",
+        "invalid components array");
+    assertInvalidSbom(
+        "{\"metadata\":{\"component\":{\"bom-ref\":\"root\",\"licenses\":[{\"license\":{\"id\":\"MIT\"}}]}},\"components\":{}}",
+        "invalid components array");
+  }
+
+  private static void assertComponent(
+      String identity, String licenses, boolean expectedPass, String diagnostic) throws Exception {
+    String json = "{\"metadata\":{\"component\":{\"bom-ref\":\"root\",\"licenses\":[{\"license\":{\"id\":\"MIT\"}}]}},"
+        + "\"components\":[{\"bom-ref\":\"" + identity + "\",\"licenses\":" + licenses + "}]}";
+    assertSbom(json, expectedPass, diagnostic);
+  }
+
+  private static void assertInvalidSbom(String json, String diagnostic) throws Exception {
+    Path fixture = Files.createTempFile("release-license-policy-invalid-", "-cyclonedx.json");
+    try {
+      Files.writeString(fixture, json);
+      try {
+        ReleaseLicensePolicy.inspectSbom(fixture, new ArrayList<>(), new LinkedHashMap<>());
+        throw new AssertionError("invalid SBOM unexpectedly passed");
+      } catch (IllegalStateException expected) {
+        check(expected.getMessage().contains(diagnostic), "unexpected parser diagnostic: " + expected);
+      }
+    } finally {
+      Files.deleteIfExists(fixture);
+    }
+  }
+
+  private static void assertSbom(String json, boolean expectedPass, String diagnostic) throws Exception {
+    Path fixture = Files.createTempFile("release-license-policy-choice-", "-cyclonedx.json");
+    try {
+      Files.writeString(fixture, json);
+      var violations = new ArrayList<String>();
+      ReleaseLicensePolicy.inspectSbom(fixture, violations, new LinkedHashMap<>());
+      check(violations.isEmpty() == expectedPass, "unexpected gate result: " + violations);
+      if (diagnostic != null) {
+        check(violations.stream().anyMatch(value -> value.contains(diagnostic)),
+            "diagnostic did not contain " + diagnostic + ": " + violations);
+      }
+    } finally {
+      Files.deleteIfExists(fixture);
+    }
   }
 
   private static void assertClassification(

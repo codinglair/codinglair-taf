@@ -107,6 +107,21 @@ class ReportingInterceptionTest {
   }
 
   @Test
+  void controllerProxyPreservesOriginalThrowableIdentity() {
+    IllegalStateException expected = new IllegalStateException("original");
+    TestSession session = TestSession.create();
+    session.getControllerRegistry().enableReporting(interceptor);
+    session
+        .getControllerRegistry()
+        .register(DemoController.class, "web", new DemoControllerImpl(expected));
+    DemoController controller = session.getController(DemoController.class, "web");
+
+    assertThatThrownBy(controller::fail).isSameAs(expected);
+
+    session.close();
+  }
+
+  @Test
   void parallelInvocationsRetainIndependentParentsAndSanitizedValues() throws Exception {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       var results =
@@ -191,14 +206,31 @@ class ReportingInterceptionTest {
 
   interface DemoController extends TestController {
     void navigate();
+
+    void fail();
   }
 
   static final class DemoControllerImpl implements DemoController {
     private ControllerState state = ControllerState.NEW;
+    private final RuntimeException failure;
+
+    DemoControllerImpl() {
+      this(null);
+    }
+
+    DemoControllerImpl(RuntimeException failure) {
+      this.failure = failure;
+    }
 
     @Override
     @ControllerAction("Navigate")
     public void navigate() {}
+
+    @Override
+    @ControllerAction("Fail")
+    public void fail() {
+      throw failure;
+    }
 
     @Override
     public ControllerIdentity identity() {

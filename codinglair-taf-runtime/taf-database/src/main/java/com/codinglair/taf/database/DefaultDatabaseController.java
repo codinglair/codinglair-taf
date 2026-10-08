@@ -117,11 +117,7 @@ public final class DefaultDatabaseController implements DatabaseController {
         evidence("transaction", 1);
         return result;
       } catch (Throwable failure) {
-        try {
-          connection.rollback();
-        } catch (SQLException rollback) {
-          failure.addSuppressed(rollback);
-        }
+        rollback(connection, failure);
         if (failure instanceof RuntimeException runtime) throw runtime;
         throw new DatabaseException(
             descriptor.name(), "transaction", "verify SQL and transaction data", failure);
@@ -154,17 +150,31 @@ public final class DefaultDatabaseController implements DatabaseController {
         failure = current;
       }
     }
-    for (Connection connection : nativeConnections)
-      try {
-        connection.close();
-      } catch (SQLException current) {
-        if (failure == null) failure = current;
-        else failure.addSuppressed(current);
-      }
+    failure = closeNativeConnections(failure);
     nativeConnections.clear();
     if (failure != null)
       throw new DatabaseException(
           descriptor.name(), "close", "verify authorized cleanup SQL and connectivity", failure);
+  }
+
+  private static void rollback(Connection connection, Throwable failure) {
+    try {
+      connection.rollback();
+    } catch (SQLException rollback) {
+      failure.addSuppressed(rollback);
+    }
+  }
+
+  private Throwable closeNativeConnections(Throwable failure) {
+    Throwable accumulated = failure;
+    for (Connection connection : nativeConnections)
+      try {
+        connection.close();
+      } catch (SQLException current) {
+        if (accumulated == null) accumulated = current;
+        else accumulated.addSuppressed(current);
+      }
+    return accumulated;
   }
 
   private int write(String operation, boolean requireWrite, String sql, Object... parameters) {

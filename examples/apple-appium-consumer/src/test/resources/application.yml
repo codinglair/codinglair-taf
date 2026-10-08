@@ -1,0 +1,5 @@
+taf:
+  environment: local
+  secrets:
+    provider: env
+    references-only: true
