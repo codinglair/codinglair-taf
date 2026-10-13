@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.3.0` reference
+# Codinglair TAF <!-- taf-version -->`1.3.1` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.0`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.1`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 

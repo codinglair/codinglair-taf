@@ -133,7 +133,7 @@ public class McpProductionServiceAutoConfiguration {
         List.of(capability("aws.eventbridge"), capability("aws.sqs"), capability("mobile.apple"));
     var versions = Map.of("aws.eventbridge", "1.1.0", "aws.sqs", "1.1.0", "mobile.apple", "1.3.0");
     return new McpResourceService(
-        new RuntimeCapabilityCatalog(capabilities, versions, "1.3.0"),
+        new RuntimeCapabilityCatalog(capabilities, versions, "1.3.1"),
         McpContractDocumentation.load(getClass().getClassLoader()),
         emptyEvidence(),
         policy,

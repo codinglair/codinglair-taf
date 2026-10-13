@@ -1,4 +1,4 @@
-# Apple Appium <!-- taf-version -->`1.3.0` compatibility and limitations record
+# Apple Appium 1.3.0 compatibility and limitations record
 
 **Record revision:** DOC-130-002 current summary
 

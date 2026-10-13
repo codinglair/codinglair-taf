@@ -11,7 +11,7 @@ cleanup() {
 trap cleanup EXIT
 
 docker run --rm --entrypoint sh "$image" -c \
-  "grep -Fq '\"tafRelease\": \"1.3.0\"' /opt/taf/image-compatibility.json && \
+  "grep -Fq '\"tafRelease\": \"1.3.1\"' /opt/taf/image-compatibility.json && \
    grep -Fq '\"id\": \"mobile.apple\"' /opt/taf/capabilities.json && \
    ! find /opt/taf -iname '*xcode*' -o -iname '*simulator*' -o -iname '*ios-deploy*' | grep -q ."
 
