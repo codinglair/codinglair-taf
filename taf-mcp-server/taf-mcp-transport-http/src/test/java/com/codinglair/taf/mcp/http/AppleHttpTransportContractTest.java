@@ -123,7 +123,8 @@ class AppleHttpTransportContractTest {
   private static void awaitCancelled(JobRepository repository, String jobId) {
     long deadline = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
     while (System.nanoTime() < deadline) {
-      var state = repository.find(new com.codinglair.taf.mcp.jobs.JobId(jobId)).orElseThrow().state();
+      var state =
+          repository.find(new com.codinglair.taf.mcp.jobs.JobId(jobId)).orElseThrow().state();
       if (state == com.codinglair.taf.mcp.jobs.JobState.CANCELLED) return;
       Thread.onSpinWait();
     }
