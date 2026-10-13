@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +25,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(
     classes = TafMcpHttpApplication.class,
@@ -121,6 +123,18 @@ class HttpExternalClientSmokeTest {
             assertThat(initialized.body()).contains("codinglair-taf", "prompts");
             String session = initialized.headers().firstValue("Mcp-Session-Id").orElseThrow();
 
+            var tools =
+                post(
+                    client,
+                    session,
+                    """
+                    {"jsonrpc":"2.0","id":4,"method":"tools/list","params":{}}
+                    """);
+            assertThat(tools.statusCode()).isEqualTo(200);
+            assertThat(toolNames(tools.body()))
+                .containsExactlyInAnyOrder(
+                    "validate", "compile", "build", "execute", "cancel", "scaffold", "diagnose");
+
             var prompts =
                 post(
                     client,
@@ -151,6 +165,23 @@ class HttpExternalClientSmokeTest {
                 .doesNotContain("http-secret-canary");
           }
         });
+  }
+
+  private static List<String> toolNames(String response) throws Exception {
+    String payload =
+        response.stripLeading().startsWith("{")
+            ? response
+            : response
+                .lines()
+                .filter(line -> line.startsWith("data:"))
+                .map(line -> line.substring("data:".length()).stripLeading())
+                .findFirst()
+                .orElseThrow(
+                    () -> new IllegalStateException("MCP response did not contain JSON data"));
+    var tools = JsonMapper.builder().build().readTree(payload).required("result").required("tools");
+    return StreamSupport.stream(tools.spliterator(), false)
+        .map(tool -> tool.required("name").asText())
+        .toList();
   }
 
   private HttpResponse<String> post(HttpClient client, String session, String body)

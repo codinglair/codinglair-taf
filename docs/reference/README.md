@@ -78,7 +78,7 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-contracts` | OpenAPI/AsyncAPI contract validation |
 | `taf-consumer-conformance` | Consumer blueprint validator |
 | `taf-mcp-contracts` | Versioned MCP wire contracts |
-| `codinglair-taf-mcp` | MCP dependency-management parent |
+| `codinglair-taf-mcp` | Shared fail-closed production composition for MCP transports |
 | `taf-mcp-jobs` | Persistent job state machine |
 | `taf-mcp-security` | authorization, approval, audit, redaction |
 | `taf-execution-worker` | isolated execution worker |

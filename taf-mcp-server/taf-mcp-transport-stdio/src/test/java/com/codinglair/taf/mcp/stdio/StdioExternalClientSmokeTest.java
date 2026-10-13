@@ -68,7 +68,7 @@ class StdioExternalClientSmokeTest {
             assertThat(client.listTools().tools())
                 .extracting(McpSchema.Tool::name)
                 .containsExactlyInAnyOrder(
-                    "validate", "compile", "build", "execute", "cancel", "diagnose");
+                    "validate", "compile", "build", "execute", "cancel", "scaffold", "diagnose");
             assertThat(client.listPrompts().prompts())
                 .extracting(McpSchema.Prompt::name)
                 .containsExactlyInAnyOrder(

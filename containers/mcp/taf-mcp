@@ -45,12 +45,15 @@ if [[ "$profile" == stdio ]]; then
   [[ "$port" == 8080 && -z "${TAF_MCP_PORT:-}" ]] || fail "port is only valid for streamable-http"
   exec java -cp '/opt/taf/stdio/app.jar:/opt/taf/stdio/lib/*' \
     com.codinglair.taf.mcp.stdio.TafMcpStdioApplication \
-    "--taf.mcp.stdio.workspace-root=$workspace" "${java_args[@]}"
+    "--taf.mcp.stdio.workspace-root=$workspace" \
+    "--taf.mcp.application.workspace-root=$workspace" \
+    "--taf.mcp.application.state-root=$state_dir" "${java_args[@]}"
 fi
 
 [[ -n "${TAF_MCP_OIDC_ISSUER:-}" ]] && java_args+=("--taf.mcp.http.issuer-uri=${TAF_MCP_OIDC_ISSUER}")
 [[ -n "${TAF_MCP_OIDC_AUDIENCE:-}" ]] && java_args+=("--taf.mcp.http.audience=${TAF_MCP_OIDC_AUDIENCE}")
-java_args+=("--server.port=$port" "--taf.mcp.http.workspace-root=$workspace")
+java_args+=("--server.port=$port" "--taf.mcp.http.workspace-root=$workspace"
+  "--taf.mcp.application.workspace-root=$workspace" "--taf.mcp.application.state-root=$state_dir")
 exec java -cp '/opt/taf/http/app.jar:/opt/taf/http/lib/*' \
   com.codinglair.taf.mcp.http.TafMcpHttpApplication "${java_args[@]}"
 

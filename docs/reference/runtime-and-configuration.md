@@ -43,6 +43,7 @@ references remain opaque until an authorized execution boundary.
 | `taf.migration.mongodb` | isolated MongoDB migration jobs |
 | `taf.virtualization.wiremock` | WireMock provider |
 | `taf.reporting.allure.single-file` | single-file report publisher |
+| `taf.mcp.application` | shared production service composition, workspace, and persistent state roots |
 | `taf.mcp.stdio` | STDIO limits and lifecycle |
 | `taf.mcp.http` | HTTP/OIDC limits and lifecycle |
 | `consumer.environment` | clean consumer-smoke environment identity |
