@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'containers/**'
+      - 'codinglair-taf-mcp/**'
       - 'taf-mcp-server/**'
       - 'pom.xml'
       - '.github/workflows/container-images.yml'

@@ -2,6 +2,24 @@
 
 All notable user-visible changes to Codinglair TAF will be documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project intends to use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published releases.
 
+## [1.3.1] - 2026-10-13
+
+### Fixed
+
+- Restored the production MCP tool catalog for both STDIO and Streamable HTTP by composing the
+  shared production services in each transport and failing startup when the expected seven-tool
+  registration is incomplete or duplicated.
+- Connected the supported MCP container launchers and Kind deployment to bounded writable
+  workspace and state locations required by production composition while preserving non-root,
+  read-only-root operation.
+
+### Changed
+
+- Expanded production-process, built-image, and authenticated Kind qualification to assert the
+  exact MCP tool catalog, including discovery before and after pod replacement.
+- Updated container CI path coverage for shared MCP composition changes and made MCP image release
+  versioning derive from and validate against the Maven revision instead of a hardcoded tag.
+
 ## [1.3.0] - 2026-10-08
 
 ### Added

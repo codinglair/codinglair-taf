@@ -129,25 +129,35 @@ spec:
               [ -n "$session" ] || fail 31 'MCP initialize response omitted the session identifier'
               echo 'Smoke stage [MCP initialize]: request passed'
 
-              echo 'Smoke stage [MCP tools/list]: governed prompts/list request started'
+              echo 'Smoke stage [MCP tools/list]: request started'
+              if ! list_status="$(curl --silent --show-error -o "$work/tools" -w '%{http_code}' \
+                -H "Authorization: Bearer ${token}" \
+                -H "Mcp-Session-Id: ${session}" \
+                -H 'Content-Type: application/json' \
+                -H 'Accept: application/json, text/event-stream' \
+                --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+                http://taf-control-plane:8080/mcp)"; then
+                fail 32 'MCP tools/list transport failed'
+              fi
+              case "$list_status" in 2??) ;; *) fail 32 "MCP tools/list returned HTTP ${list_status}; response body withheld" ;; esac
+              for tool in validate compile build execute cancel scaffold diagnose; do
+                grep -q "\"name\":\"${tool}\"" "$work/tools" || fail 32 "MCP tools/list omitted ${tool}; response body withheld"
+              done
+              [ "$(grep -o '"name":"[^"]*"' "$work/tools" | sort -u | wc -l)" -eq 7 ] || fail 32 'MCP tools/list catalog was incomplete or unexpected; response body withheld'
+              echo 'Smoke stage [MCP tools/list]: request passed'
+
               if ! list_status="$(curl --silent --show-error -o "$work/prompts" -w '%{http_code}' \
                 -H "Authorization: Bearer ${token}" \
                 -H "Mcp-Session-Id: ${session}" \
                 -H 'Content-Type: application/json' \
                 -H 'Accept: application/json, text/event-stream' \
-                --data '{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{}}' \
+                --data '{"jsonrpc":"2.0","id":4,"method":"prompts/list","params":{}}' \
                 http://taf-control-plane:8080/mcp)"; then
                 fail 32 'MCP prompts/list transport failed'
               fi
               case "$list_status" in 2??) ;; *) fail 32 "MCP prompts/list returned HTTP ${list_status}; response body withheld" ;; esac
-              if ! grep -q 'taf.qa.execution-summary' "$work/prompts"; then
-                classify_mcp_payload "$work/prompts" 'MCP prompts/list'
-                fail 32 'MCP prompts/list returned an unexpected payload; response body withheld'
-              fi
-              if ! print_execution_summary_schema "$work/prompts"; then
-                fail 32 'MCP prompts/list did not advertise a readable execution-summary argument schema; response body withheld'
-              fi
-              echo 'Smoke stage [MCP tools/list]: governed prompts/list request passed'
+              grep -q 'taf.qa.execution-summary' "$work/prompts" || fail 32 'MCP prompts/list returned an unexpected payload; response body withheld'
+              print_execution_summary_schema "$work/prompts" || fail 32 'MCP prompts/list did not advertise a readable execution-summary argument schema; response body withheld'
 
               echo 'Smoke stage [MCP tool/get execution]: governed prompts/get request started'
               if ! get_status="$(curl --silent --show-error -o "$work/prompt" -w '%{http_code}' \

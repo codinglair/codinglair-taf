@@ -132,15 +132,27 @@ function Invoke-CommandCheck {
 function Invoke-AndroidCheck { Invoke-CommandCheck docker @() Native }
 function Invoke-PlaywrightCheck { Invoke-CommandCheck .\mvnw.cmd @() Maven }
 $original = $env:TEST_ENVIRONMENT
+$originalAllureExecutable = [Environment]::GetEnvironmentVariable('TAF_ALLURE_EXECUTABLE', 'Process')
 $location = (Get-Location).Path
 try {
     $env:TEST_ENVIRONMENT = 'caller-value'
+    Remove-Item -LiteralPath Env:TAF_ALLURE_EXECUTABLE -ErrorAction SilentlyContinue
     Assert ((Invoke-LocalVerification) -eq 1) 'Overall failure exit lost.'
     Assert ($script:commands -eq 10) 'Not all ten checks ran.'
     Assert ($env:TEST_ENVIRONMENT -eq 'caller-value') 'Caller environment changed.'
+    Assert (-not (Test-Path Env:TAF_ALLURE_EXECUTABLE)) 'Absent Allure executable became present.'
     Assert ((Get-Location).Path -eq $location) 'Caller directory changed.'
     $script:commands = 1
     Assert ((Invoke-LocalVerification) -eq 0) 'Successful aggregate failed.'
+    Assert (-not (Test-Path Env:TAF_ALLURE_EXECUTABLE)) 'Successful aggregate created an absent Allure executable.'
 }
-finally { $env:TEST_ENVIRONMENT = $original }
+finally {
+    $env:TEST_ENVIRONMENT = $original
+    if ($null -eq $originalAllureExecutable) {
+        Remove-Item -LiteralPath Env:TAF_ALLURE_EXECUTABLE -ErrorAction SilentlyContinue
+    }
+    else {
+        [Environment]::SetEnvironmentVariable('TAF_ALLURE_EXECUTABLE', $originalAllureExecutable, 'Process')
+    }
+}
 Write-Host "PASS: $script:assertions assertions"

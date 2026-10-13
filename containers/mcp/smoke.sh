@@ -11,11 +11,13 @@ cleanup() {
 trap cleanup EXIT
 
 docker run --rm --entrypoint sh "$image" -c \
-  "grep -Fq '\"tafRelease\": \"1.3.0\"' /opt/taf/image-compatibility.json && \
+  "grep -Fq '\"tafRelease\": \"1.3.1\"' /opt/taf/image-compatibility.json && \
    grep -Fq '\"id\": \"mobile.apple\"' /opt/taf/capabilities.json && \
    ! find /opt/taf -iname '*xcode*' -o -iname '*simulator*' -o -iname '*ios-deploy*' | grep -q ."
 
-common=(--read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 768m --cpus 1 --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m)
+common=(--read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 768m --cpus 1
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m
+  --tmpfs /var/lib/taf-mcp:rw,nosuid,nodev,size=128m,uid=10001,gid=10001)
 
 launcher_java="$config_dir/java"
 launcher_fixture="$(docker create "$image")"
@@ -90,9 +92,19 @@ docker stop --time 30 "$name" >/dev/null
 docker rm "$name" >/dev/null
 name=""
 
-printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"image-smoke","version":"1"}}}' \
-  '{"jsonrpc":"2.0","method":"notifications/initialized"}' |
+{
+  printf '%s\n' \
+    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"image-smoke","version":"1"}}}' \
+    '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+    '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+  # Keep stdin open long enough for the production JVM to start and drain all queued frames.
+  sleep 5
+} |
   docker run --rm -i "${common[@]}" --network none "$image" stdio >"$config_dir/stdio.out" 2>"$config_dir/stdio.err"
 grep -q '"id":1' "$config_dir/stdio.out"
+grep -q '"id":2' "$config_dir/stdio.out"
+for tool in validate compile build execute cancel scaffold diagnose; do
+  grep -q "\"name\":\"${tool}\"" "$config_dir/stdio.out"
+done
+test "$(grep -o '"name":"[^"]*"' "$config_dir/stdio.out" | grep -v '"name":"codinglair-taf"' | sort -u | wc -l)" -eq 7
 ! grep -Eiq 'started|spring|password|token|secret=' "$config_dir/stdio.out"

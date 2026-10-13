@@ -8,6 +8,7 @@ import com.codinglair.taf.mcp.security.ApprovalService;
 import com.codinglair.taf.mcp.security.McpEnforcementService;
 import com.codinglair.taf.mcp.tools.BlueprintScaffoldingService;
 import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 class TafMcpHttpAutoConfigurationTest {
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(TafMcpHttpAutoConfiguration.class));
+          .withConfiguration(AutoConfigurations.of(TafMcpHttpAutoConfiguration.class))
+          .withBean("tafMcpToolCatalogIntegrity", Set.class, Set::of);
 
   @Nested
   @DisplayName("conditional composition")
