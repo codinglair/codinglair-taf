@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.3.0` reference
+# Codinglair TAF <!-- taf-version -->`1.3.1` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.0`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.1`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 
@@ -78,7 +78,7 @@ capabilities depend on Runtime contracts; Runtime never depends on MCP.
 | `taf-contracts` | OpenAPI/AsyncAPI contract validation |
 | `taf-consumer-conformance` | Consumer blueprint validator |
 | `taf-mcp-contracts` | Versioned MCP wire contracts |
-| `codinglair-taf-mcp` | MCP dependency-management parent |
+| `codinglair-taf-mcp` | Shared fail-closed production composition for MCP transports |
 | `taf-mcp-jobs` | Persistent job state machine |
 | `taf-mcp-security` | authorization, approval, audit, redaction |
 | `taf-execution-worker` | isolated execution worker |

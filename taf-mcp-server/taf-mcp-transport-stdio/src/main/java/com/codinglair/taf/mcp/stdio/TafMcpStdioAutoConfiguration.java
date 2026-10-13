@@ -1,5 +1,7 @@
 package com.codinglair.taf.mcp.stdio;
 
+import com.codinglair.taf.mcp.McpProductionServiceAutoConfiguration;
+import com.codinglair.taf.mcp.McpToolCatalogIntegrity;
 import com.codinglair.taf.mcp.jobs.JobRepository;
 import com.codinglair.taf.mcp.jobs.JobService;
 import com.codinglair.taf.mcp.prompts.McpPromptReportService;
@@ -11,7 +13,10 @@ import com.codinglair.taf.mcp.tools.BlueprintScaffoldingService;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
 import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
 import java.time.Clock;
+import java.util.List;
+import java.util.Set;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -20,6 +25,7 @@ import org.springframework.context.annotation.Bean;
 
 /** Conditional composition of Spring AI's STDIO transport over shared TAF services. */
 @AutoConfiguration
+@AutoConfigureAfter(McpProductionServiceAutoConfiguration.class)
 @EnableConfigurationProperties(TafMcpStdioProperties.class)
 @ConditionalOnProperty(prefix = "spring.ai.mcp.server", name = "stdio", havingValue = "true")
 @ConditionalOnProperty(
@@ -28,6 +34,13 @@ import org.springframework.context.annotation.Bean;
     havingValue = "true",
     matchIfMissing = true)
 public class TafMcpStdioAutoConfiguration {
+  @Bean
+  @ConditionalOnMissingBean(name = "tafMcpToolCatalogIntegrity")
+  Set<String> tafMcpToolCatalogIntegrity(
+      StdioWorkflowTools workflows, StdioScaffoldingTools scaffolding, StdioPromptReports prompts) {
+    return McpToolCatalogIntegrity.requireComplete(List.of(workflows, scaffolding, prompts));
+  }
+
   @Bean
   @ConditionalOnBean({McpEnforcementService.class, ApprovalService.class, ScaffoldCompiler.class})
   @ConditionalOnMissingBean

@@ -15,9 +15,6 @@ The platform has two independently usable layers:
   audit, redaction, and isolated workers without exposing unrestricted shell, browser, SQL, or
   filesystem access.
 
-The proprietary Quality Intelligence product area is planned but is not implemented or available
-in this release.
-
 ## Highlights
 
 - Java 25 and Spring Boot 4 modular architecture

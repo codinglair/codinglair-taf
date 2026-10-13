@@ -23,7 +23,10 @@ LABEL org.opencontainers.image.title="Codinglair TAF MCP control plane" \
       org.opencontainers.image.created="${CREATED}" \
       org.opencontainers.image.source="https://github.com/codinglair/codinglair-taf" \
       org.opencontainers.image.licenses="Apache-2.0"
-RUN groupadd --gid 10001 taf && useradd --uid 10001 --gid taf --no-create-home --shell /usr/sbin/nologin taf
+RUN groupadd --gid 10001 taf && \
+    useradd --uid 10001 --gid taf --no-create-home --shell /usr/sbin/nologin taf && \
+    mkdir -p /opt/taf /workspace /var/lib/taf-mcp && \
+    chown -R 10001:10001 /opt/taf /workspace /var/lib/taf-mcp
 WORKDIR /opt/taf
 COPY --from=builder --chown=10001:10001 /source/taf-mcp-server/taf-mcp-transport-http/target/taf-mcp-transport-http-${VERSION}.jar app.jar
 COPY --from=builder --chown=10001:10001 /source/taf-mcp-server/taf-mcp-transport-http/target/runtime-libs/ lib/

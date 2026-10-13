@@ -11,6 +11,8 @@ public final class ContainerSupplyChainContractTest {
 
   public static void main(String[] args) throws Exception {
     var control = read("containers/control-plane/Dockerfile");
+    var controlEntrypoint = read("containers/control-plane/entrypoint.sh");
+    var runtimeSmoke = read("containers/smoke.sh");
     var worker = read("containers/worker/Dockerfile");
     var workerEntrypoint = read("containers/worker/entrypoint.sh");
     var mcp = read("containers/mcp/Dockerfile");
@@ -33,6 +35,23 @@ public final class ContainerSupplyChainContractTest {
     }
     require(workerEntrypoint.contains("umask 0077"), "worker must default to private created files");
     require(worker.contains("TAF_WORKSPACE=/workspace"), "worker workspace boundary missing");
+    require(
+        control.contains("mkdir -p /opt/taf /workspace /var/lib/taf-mcp")
+            && control.contains("chown -R 10001:10001 /opt/taf /workspace /var/lib/taf-mcp"),
+        "control-plane mutable directory ownership is incomplete");
+    require(
+        controlEntrypoint.contains("TAF_MCP_APPLICATION_WORKSPACE_ROOT:-/workspace")
+            && controlEntrypoint.contains("TAF_MCP_APPLICATION_STATE_ROOT:-/var/lib/taf-mcp")
+            && controlEntrypoint.contains("--taf.mcp.application.workspace-root=$workspace")
+            && controlEntrypoint.contains("--taf.mcp.application.state-root=$state_dir"),
+        "control-plane production MCP roots are incomplete");
+    require(
+        runtimeSmoke.contains("--read-only")
+            && runtimeSmoke.contains("/workspace:rw,noexec,nosuid,nodev")
+            && runtimeSmoke.contains("/var/lib/taf-mcp:rw,nosuid,nodev")
+            && runtimeSmoke.contains("test -d /var/lib/taf-mcp/jobs")
+            && runtimeSmoke.contains("test -w /opt/taf"),
+        "control-plane hardened mutable-storage smoke is incomplete");
     require(
         mcpEntrypoint.contains("exec java")
             && mcpEntrypoint.contains("stdio")
@@ -58,6 +77,9 @@ public final class ContainerSupplyChainContractTest {
         "bake targets incomplete");
     require(bake.contains("linux/arm64"), "official MCP image must declare arm64 policy");
     require(workflow.contains("load: true"), "scan and smoke image must load into Docker");
+    require(
+        workflow.contains("- 'codinglair-taf-mcp/**'"),
+        "shared MCP composition changes must select container qualification");
     require(
         workflow.contains("id: maven-version")
             && workflow.contains("<revision>\\([^<]*\\)</revision>")

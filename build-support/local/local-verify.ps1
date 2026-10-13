@@ -190,7 +190,14 @@ function Invoke-LocalVerification {
                 $results[$check.Key] = 'FAIL'
             }
             finally {
-                foreach ($name in $variables) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
+                foreach ($name in $variables) {
+                    if ($null -eq $saved[$name]) {
+                        Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process')
+                    }
+                }
             }
             Write-Host "## Success criteria: $($results[$check.Key])"
         }

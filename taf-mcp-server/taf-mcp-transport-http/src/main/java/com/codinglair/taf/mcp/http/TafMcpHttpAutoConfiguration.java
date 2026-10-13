@@ -1,5 +1,7 @@
 package com.codinglair.taf.mcp.http;
 
+import com.codinglair.taf.mcp.McpProductionServiceAutoConfiguration;
+import com.codinglair.taf.mcp.McpToolCatalogIntegrity;
 import com.codinglair.taf.mcp.prompts.McpPromptReportService;
 import com.codinglair.taf.mcp.resources.McpResourceService;
 import com.codinglair.taf.mcp.security.ApprovalService;
@@ -10,10 +12,13 @@ import com.codinglair.taf.mcp.tools.McpWorkflowTools;
 import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import java.time.Clock;
+import java.util.List;
+import java.util.Set;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties;
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -34,6 +39,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Conditional OIDC, admission-control, and shared-service HTTP composition. */
 @AutoConfiguration
+@AutoConfigureAfter(McpProductionServiceAutoConfiguration.class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 100)
 @EnableConfigurationProperties(TafMcpHttpProperties.class)
 @ConditionalOnProperty(
@@ -42,6 +48,13 @@ import tools.jackson.databind.json.JsonMapper;
     havingValue = "true",
     matchIfMissing = true)
 public class TafMcpHttpAutoConfiguration {
+  @Bean
+  @ConditionalOnMissingBean(name = "tafMcpToolCatalogIntegrity")
+  Set<String> tafMcpToolCatalogIntegrity(
+      HttpWorkflowTools workflows, HttpScaffoldingTools scaffolding, HttpPromptReports prompts) {
+    return McpToolCatalogIntegrity.requireComplete(List.of(workflows, scaffolding, prompts));
+  }
+
   @Bean
   @ConditionalOnBean({McpEnforcementService.class, ApprovalService.class, ScaffoldCompiler.class})
   @ConditionalOnMissingBean

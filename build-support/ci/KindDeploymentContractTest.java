@@ -16,8 +16,21 @@ public final class KindDeploymentContractTest {
     verifyWorkload("deploy/kind/base/keycloak.yaml", "readinessProbe:", "livenessProbe:", "startupProbe:");
     verifyWorkload("deploy/kind/base/mongodb.yaml", "readinessProbe:", "livenessProbe:", "volumeClaimTemplates:");
     verifyWorkload("deploy/kind/base/worker.yaml", "readinessProbe:", "livenessProbe:", "automountServiceAccountToken: false");
-    requireContains("deploy/kind/base/control-plane.yaml", "secretKeyRef:", "readOnlyRootFilesystem: true", "drop: [\"ALL\"]", "resources:");
-    requireContains("deploy/kind/base/config.yaml", "TAF_MCP_KIND_REFERENCE_ENABLED: \"true\"");
+    requireContains(
+        "deploy/kind/base/control-plane.yaml",
+        "secretKeyRef:",
+        "readOnlyRootFilesystem: true",
+        "drop: [\"ALL\"]",
+        "mountPath: /workspace",
+        "mountPath: /var/lib/taf-mcp",
+        "sizeLimit: 1Gi",
+        "sizeLimit: 256Mi",
+        "resources:");
+    requireContains(
+        "deploy/kind/base/config.yaml",
+        "TAF_MCP_KIND_REFERENCE_ENABLED: \"true\"",
+        "TAF_MCP_APPLICATION_WORKSPACE_ROOT: /workspace",
+        "TAF_MCP_APPLICATION_STATE_ROOT: /var/lib/taf-mcp");
     requireContains("deploy/kind/base/worker.yaml", "readOnlyRootFilesystem: true", "drop: [\"ALL\"]", "emptyDir:", "sizeLimit:");
     requireContains("deploy/kind/overlays/external-mongodb/kustomization.yaml", "remove-mongodb-service.yaml", "remove-mongodb-statefulset.yaml");
     requireContains(
