@@ -85,7 +85,17 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: workspace
+              mountPath: /workspace
+            - name: state
+              mountPath: /var/lib/taf-mcp
       volumes:
         - name: tmp
           emptyDir:
             sizeLimit: 128Mi
+        - name: workspace
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: state
+          emptyDir:
+            sizeLimit: 256Mi

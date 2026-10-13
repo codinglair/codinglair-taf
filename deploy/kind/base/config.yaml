@@ -7,5 +7,7 @@ data:
   TAF_MCP_KIND_REFERENCE_ENABLED: "true"
   TAF_MCP_HTTP_ISSUER_URI: http://taf-keycloak:8080/realms/taf
   TAF_MCP_HTTP_AUDIENCE: taf-mcp
+  TAF_MCP_APPLICATION_WORKSPACE_ROOT: /workspace
+  TAF_MCP_APPLICATION_STATE_ROOT: /var/lib/taf-mcp
   TAF_CONTEXT_MONGODB_MODE: internal
   TAF_CONTEXT_MONGODB_DATABASE: taf-context
