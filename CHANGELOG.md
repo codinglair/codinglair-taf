@@ -2,6 +2,15 @@
 
 All notable user-visible changes to Codinglair TAF will be documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project intends to use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published releases.
 
+## 1.3.2
+
+- Converged published Jackson 2 runtime and data-format surfaces on 2.21.7 LTS, Jackson 3 runtime
+  and YAML surfaces on 3.1.7 LTS, and shared annotations on 2.21; removed MCP-local annotations
+  overrides and made the constraints explicit in the public BOM.
+- Added exhaustive staged-SBOM Jackson scanning, bundled-class checks and HIGH/CRITICAL coverage
+  for container and MCP image vulnerability gates. Consumers require no Jackson exclusions or
+  mapper replacement.
+
 ## [1.3.1] - 2026-10-13
 
 ### Fixed

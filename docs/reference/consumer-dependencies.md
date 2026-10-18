@@ -87,3 +87,12 @@ the official image.
 
 The authoritative mapping, activation keys, optional integrations, and exclusions are in
 [`starter-capability-manifest-v1.json`](starter-capability-manifest-v1.json).
+
+# Dependency security and Jackson convergence
+
+The published BOM explicitly manages Jackson 2 core, databind, CSV and YAML at the supported
+2.21.7 LTS patch level, Jackson 3 core, databind and YAML at 3.1.7, and the shared Jackson 2/3
+annotations artifact at 2.21. Consumers do not
+need exclusions, local version overrides or replacement mappers. See the
+[1.3.2 remediation record](jackson-dependency-remediation-1.3.2.md) for the inventory, scanner
+gate and temporary migration register.

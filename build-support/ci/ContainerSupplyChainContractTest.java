@@ -97,11 +97,11 @@ public final class ContainerSupplyChainContractTest {
         workflow.contains("aquasecurity/trivy-action@v0.36.0"),
         "approved Trivy action version missing");
     require(workflow.contains("scanners: vuln"), "Trivy gate must scan vulnerabilities only");
-    require(workflow.contains("severity: 'CRITICAL'"), "critical vulnerability gate missing");
+    require(workflow.contains("severity: 'HIGH,CRITICAL'"), "HIGH/CRITICAL vulnerability gate missing");
     require(
         workflow.contains("Vulnerabilities[]?") && workflow.contains("exit 1"),
-        "critical findings must be reported before the workflow fails");
-    require(!workflow.contains("ignore-unfixed: true"), "unfixed critical findings must not receive a blanket waiver");
+        "HIGH/CRITICAL findings must be reported before the workflow fails");
+    require(!workflow.contains("ignore-unfixed: true"), "unfixed HIGH/CRITICAL findings must not receive a blanket waiver");
     require(workflow.contains("actions/upload-artifact"), "retained evidence upload missing");
     require(
         count(workflow, "target/supply-chain/${{ matrix.image }}") == 5,
@@ -172,7 +172,7 @@ public final class ContainerSupplyChainContractTest {
         publication.contains("uses: aquasecurity/trivy-action@v0.36.0")
             && publication.contains("image-ref: codinglair/codinglair-taf-mcp@${{ steps.publish.outputs.digest }}")
             && publication.contains("output: target/mcp-image-release/trivy.json")
-            && publication.contains("severity: 'CRITICAL'")
+            && publication.contains("severity: 'HIGH,CRITICAL'")
             && publication.contains("exit-code: '0'"),
         "digest-bound Trivy JSON scan is incomplete");
     require(

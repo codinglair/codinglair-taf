@@ -60,8 +60,11 @@
         <selenium.version>4.43.0</selenium.version>
         <assertj.version>3.27.7</assertj.version>
         <jasypt.version>1.9.3</jasypt.version>
-        <jackson.version>2.19.2</jackson.version>
-        <jackson3.annotations.version>2.21</jackson3.annotations.version>
+        <!-- Jackson 2.21 is the supported LTS line. Since 2.20, annotations use
+        major.minor versioning while runtime and data-format artifacts retain patches. -->
+        <jackson.version>2.21.7</jackson.version>
+        <jackson.annotations.version>2.21</jackson.annotations.version>
+        <jackson3.version>3.1.7</jackson3.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <aws.sdk.version>2.42.15</aws.sdk.version>
         <localstack.image>localstack/localstack:4.14.0</localstack.image>
@@ -401,7 +404,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -412,6 +415,21 @@
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson3.version}</version>
             </dependency>
 
             <!-- Secret Management -->

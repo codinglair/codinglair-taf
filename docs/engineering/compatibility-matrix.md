@@ -31,7 +31,9 @@ selected by a consumer.
 | Appium Java client | 10.1.1 | Optional Android and Apple/XCUITest capability |
 | Selenium BOM | 4.43.0 | Pinned transitive WebDriver boundary for Appium |
 | Testcontainers | 2.0.5 | Optional managed-environment providers |
-| Jackson | 2.19.2 | Managed Runtime serialization baseline |
+| Jackson runtime/data formats | 2.21.7 | Managed patched Jackson 2 LTS baseline pending bounded Jackson 3 migration |
+| Jackson 3 runtime/data formats | 3.1.7 | Managed patched Jackson 3 LTS baseline for Spring Boot/MCP surfaces |
+| Jackson annotations | 2.21 | Single Jackson 2/3-compatible BOM-managed annotations artifact |
 
 Provider modules also manage the database, messaging, SOAP, contract-validation, virtualization,
 and observability libraries required by their own capabilities. The

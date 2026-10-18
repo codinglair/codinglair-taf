@@ -138,7 +138,7 @@ jobs:
           format: json
           output: target/mcp-image-release/trivy.json
           exit-code: '0'
-          severity: 'CRITICAL'
+          severity: 'HIGH,CRITICAL'
       - name: Capture scanner and vulnerability database metadata
         shell: bash
         run: trivy --version > target/mcp-image-release/trivy-version.txt
@@ -151,17 +151,17 @@ jobs:
           test -s target/mcp-image-release/sbom.spdx.json
           test -s target/mcp-image-release/trivy.json
           test -s target/mcp-image-release/trivy-version.txt
-      - name: Reject unapproved critical vulnerabilities
+      - name: Reject unapproved high or critical vulnerabilities
         shell: bash
         run: |
           report=target/mcp-image-release/trivy.json
           count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$report")"
           if (( count == 0 )); then
-            echo "No Critical vulnerabilities detected in the published digest."
+            echo "No High or Critical vulnerabilities detected in the published digest."
             exit 0
           fi
 
-          echo "::error title=Release vulnerability gate::Detected ${count} unapproved Critical vulnerability finding(s) in the published MCP image digest."
+          echo "::error title=Release vulnerability gate::Detected ${count} unapproved High or Critical vulnerability finding(s) in the published MCP image digest."
           jq -r '
             .Results[]
             | .Target as $target

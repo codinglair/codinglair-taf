@@ -81,18 +81,18 @@ jobs:
           format: json
           output: target/supply-chain/${{ matrix.image }}-trivy.json
           exit-code: '0'
-          severity: 'CRITICAL'
-      - name: Reject unapproved critical vulnerabilities
+          severity: 'HIGH,CRITICAL'
+      - name: Reject unapproved high or critical vulnerabilities
         shell: bash
         run: |
           report="target/supply-chain/${{ matrix.image }}-trivy.json"
           count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$report")"
           if (( count == 0 )); then
-            echo "No Critical vulnerabilities detected."
+            echo "No High or Critical vulnerabilities detected."
             exit 0
           fi
 
-          echo "::error title=Trivy vulnerability gate::Detected ${count} Critical vulnerability finding(s) in taf-${{ matrix.image }}."
+          echo "::error title=Trivy vulnerability gate::Detected ${count} High or Critical vulnerability finding(s) in taf-${{ matrix.image }}."
           jq -r '
             .Results[]
             | .Target as $target
