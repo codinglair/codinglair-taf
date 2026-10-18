@@ -41,3 +41,6 @@ ADR-031–035 were proposed on September 30 and are recorded in this working tre
 | ADR-033 | Accepted by Product Owner 2026-10-01 | [ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md](ADR-033_preserve-platform-semantics-and-isolate-apple-sessions.md) |
 | ADR-034 | Accepted by Product Owner 2026-10-01 | [ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md](ADR-034_integrate-apple-evidence-and-consumer-surfaces-through-existing-contracts.md) |
 | ADR-035 | Accepted by Product Owner 2026-10-01 | [ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md](ADR-035_qualify-apple-compatibility-with-the-existing-android-verification-approach.md) |
+| ADR-036 | Accepted by Product Owner 2026-10-18 | [ADR-036_enforce-a-standalone-test-automation-build-and-runtime-boundary.md](ADR-036_enforce-a-standalone-test-automation-build-and-runtime-boundary.md) |
+| ADR-037 | Accepted by Product Owner 2026-10-18 | [ADR-037_enforce-testng-execution-and-mandatory-taf-session-lifecycle.md](ADR-037_enforce-testng-execution-and-mandatory-taf-session-lifecycle.md) |
+| ADR-038 | Accepted by Product Owner 2026-10-18 | [ADR-038_migrate-taf-serialization-internals-to-jackson-3-behind-jackson-neutral-contracts.md](ADR-038_migrate-taf-serialization-internals-to-jackson-3-behind-jackson-neutral-contracts.md) |
