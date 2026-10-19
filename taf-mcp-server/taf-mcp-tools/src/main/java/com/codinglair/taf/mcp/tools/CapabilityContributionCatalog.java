@@ -65,9 +65,14 @@ public final class CapabilityContributionCatalog {
         List.of(),
         List.of(
             asset("pom.xml", pom(), true),
+            asset("mvnw", unixWrapper(), false),
+            asset("mvnw.cmd", windowsWrapper(), false),
+            asset(".mvn/maven.config", "-ntp\n", false),
+            asset(".mvn/wrapper/maven-wrapper.properties", wrapperProperties(), false),
             asset(".gitignore", "target/\n.idea/\n*.iml\n", false),
             asset("README.md", readme(), false),
             asset("src/test/resources/application.yml", commonConfiguration(), false),
+            asset("src/test/resources/taf-project.json", descriptor(), false),
             asset(
                 "src/test/java/__PACKAGE_PATH__/BlueprintPreflightTest.java",
                 preflightTest(),
@@ -296,6 +301,69 @@ public final class CapabilityContributionCatalog {
           secrets:
             provider: env
             references-only: true
+        """;
+  }
+
+  private static String descriptor() {
+    return """
+        {
+          "schemaVersion": "1.1",
+          "project": {
+            "name": "__ARTIFACT_ID__",
+            "type": "standalone-test-automation",
+            "basePackage": "__BASE_PACKAGE__",
+            "expectedBuildRoot": ".",
+            "sutInteraction": "external"
+          },
+          "runtime": { "version": "__TAF_VERSION__" },
+          "capabilities": [__CAPABILITIES__],
+          "runners": [__RUNNERS__],
+          "testDefinitions": { "provider": "file-csv", "authoritative": true },
+          "reporting": { "adapter": "allure" }
+        }
+        """;
+  }
+
+  private static String unixWrapper() {
+    return """
+        #!/bin/sh
+        set -eu
+        BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+        URL=$(sed -n 's/^distributionUrl=//p' "$BASE_DIR/.mvn/wrapper/maven-wrapper.properties")
+        ARCHIVE=${URL##*/}
+        MAVEN_HOME="$BASE_DIR/.mvn/wrapper/dists/${ARCHIVE%.zip}"
+        if [ ! -x "$MAVEN_HOME/bin/mvn" ]; then
+          mkdir -p "$MAVEN_HOME.tmp"
+          if command -v curl >/dev/null 2>&1; then curl -fsSL "$URL" -o "$MAVEN_HOME.tmp/$ARCHIVE";
+          elif command -v wget >/dev/null 2>&1; then wget -q "$URL" -O "$MAVEN_HOME.tmp/$ARCHIVE";
+          else echo "Maven Wrapper requires curl or wget" >&2; exit 1; fi
+          unzip -q "$MAVEN_HOME.tmp/$ARCHIVE" -d "$MAVEN_HOME.tmp"
+          mv "$MAVEN_HOME.tmp"/apache-maven-* "$MAVEN_HOME"
+          rm -rf "$MAVEN_HOME.tmp"
+        fi
+        exec "$MAVEN_HOME/bin/mvn" "$@"
+        """;
+  }
+
+  private static String windowsWrapper() {
+    return """
+        @echo off
+        setlocal
+        set "BASE_DIR=%~dp0"
+        for /f "tokens=1,* delims==" %%A in ('findstr /b distributionUrl "%BASE_DIR%.mvn\\wrapper\\maven-wrapper.properties"') do set "URL=%%B"
+        for %%A in ("%URL%") do set "ARCHIVE=%%~nxA"
+        set "MAVEN_HOME=%BASE_DIR%.mvn\\wrapper\\dists\\%ARCHIVE:.zip=%"
+        if not exist "%MAVEN_HOME%\\bin\\mvn.cmd" powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $u=$env:URL; $a=Join-Path $env:TEMP $env:ARCHIVE; Invoke-WebRequest $u -OutFile $a; $t=$env:MAVEN_HOME+'.tmp'; New-Item -ItemType Directory -Force $t|Out-Null; Expand-Archive $a $t -Force; Move-Item (Get-ChildItem $t -Directory | Select-Object -First 1).FullName $env:MAVEN_HOME; Remove-Item $t -Recurse -Force"
+        call "%MAVEN_HOME%\\bin\\mvn.cmd" %*
+        exit /b %ERRORLEVEL%
+        """;
+  }
+
+  private static String wrapperProperties() {
+    return """
+        wrapperVersion=3.3.4
+        distributionType=only-script
+        distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.16/apache-maven-3.9.16-bin.zip
         """;
   }
 

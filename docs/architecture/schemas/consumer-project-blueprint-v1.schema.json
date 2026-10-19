@@ -7,15 +7,17 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "project", "runtime", "capabilities", "runners", "testDefinitions", "reporting"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "enum": ["1.0", "1.1"] },
     "project": {
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "type", "basePackage"],
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 100 },
-        "type": { "enum": ["focused-golden", "cross-capability", "consumer"] },
-        "basePackage": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" }
+        "type": { "enum": ["focused-golden", "cross-capability", "consumer", "standalone-test-automation"] },
+        "basePackage": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+        "expectedBuildRoot": { "const": "." },
+        "sutInteraction": { "const": "external" }
       }
     },
     "runtime": {
@@ -51,5 +53,17 @@
       "required": ["adapter"],
       "properties": { "adapter": { "enum": ["allure", "custom"] } }
     }
-  }
+  },
+  "allOf": [{
+    "if": { "properties": { "schemaVersion": { "const": "1.1" } } },
+    "then": {
+      "properties": {
+        "project": {
+          "required": ["name", "type", "basePackage", "expectedBuildRoot", "sutInteraction"],
+          "properties": { "type": { "const": "standalone-test-automation" } }
+        },
+        "runners": { "contains": { "const": "testng" } }
+      }
+    }
+  }]
 }

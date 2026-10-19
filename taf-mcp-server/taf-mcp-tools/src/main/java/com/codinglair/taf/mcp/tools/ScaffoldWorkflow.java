@@ -33,6 +33,7 @@ public final class ScaffoldWorkflow {
   private final ApprovalService approvals;
   private final ScaffoldCompiler compiler;
   private final Clock clock;
+  private final StandaloneScaffoldBoundary boundary;
 
   public ScaffoldWorkflow(
       Path approvedRoot,
@@ -47,6 +48,7 @@ public final class ScaffoldWorkflow {
     this.approvals = Objects.requireNonNull(approvals, "approvals");
     this.compiler = Objects.requireNonNull(compiler, "compiler");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.boundary = new StandaloneScaffoldBoundary(this.approvedRoot);
   }
 
   public ScaffoldResult apply(ScaffoldRequest request) {
@@ -72,7 +74,11 @@ public final class ScaffoldWorkflow {
                 digest,
                 request.writeApprovalId(),
                 Map.of("template", template.name(), "version", template.version())),
-            () -> applyApproved(destination, template));
+            () ->
+                applyApproved(
+                    destination,
+                    template,
+                    ProtectedPathSnapshot.capture(confined(request.workspace()), destination)));
     return switch (enforced.status()) {
       case ALLOWED -> (ScaffoldResult) enforced.body();
       case APPROVAL_REQUIRED ->
@@ -140,16 +146,19 @@ public final class ScaffoldWorkflow {
 
   private synchronized ScaffoldResult revertApproved(Path root, ScaffoldProvenance provenance) {
     for (var file : provenance.files()) {
-      var target = root.resolve(file.path()).normalize();
-      if (!target.startsWith(root)
-          || Files.isSymbolicLink(target)
+      var target = boundary.target(root, file.path());
+      if (Files.isSymbolicLink(target)
           || !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
           || !digest(read(target)).equals(file.sha256())) {
         return result(ScaffoldResult.Status.CONFLICT, "created files changed; revert refused");
       }
     }
     try {
-      for (var file : provenance.files().reversed()) Files.delete(root.resolve(file.path()));
+      for (var file : provenance.files().reversed()) {
+        Path target = boundary.target(root, file.path());
+        boundary.verifyTargetAtWrite(root, target);
+        Files.delete(target);
+      }
       return new ScaffoldResult(
           ScaffoldResult.Status.REVERTED, "scaffold reverted", List.of(), provenance);
     } catch (NoSuchFileException conflict) {
@@ -159,10 +168,11 @@ public final class ScaffoldWorkflow {
     }
   }
 
-  private ScaffoldResult applyApproved(Path destination, ScaffoldTemplate template) {
+  private ScaffoldResult applyApproved(
+      Path destination, ScaffoldTemplate template, ProtectedPathSnapshot protectedBefore) {
     var targets =
         template.assets().stream()
-            .map(asset -> destination.resolve(asset.path()).normalize())
+            .map(asset -> boundary.target(destination, asset.path()))
             .toList();
     if (targets.stream()
         .anyMatch(
@@ -177,6 +187,7 @@ public final class ScaffoldWorkflow {
         var asset = template.assets().get(index);
         var target = targets.get(index);
         Files.createDirectories(target.getParent());
+        boundary.verifyTargetAtWrite(destination, target);
         Files.writeString(
             target, asset.content(), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         created.add(target);
@@ -184,6 +195,7 @@ public final class ScaffoldWorkflow {
       var provenance = provenance(destination, template, created);
       var diff = proposedDiff(template);
       var compilation = compiler.compile(destination);
+      protectedBefore.verifyUnchanged(destination);
       return new ScaffoldResult(
           compilation.successful()
               ? ScaffoldResult.Status.APPLIED
@@ -197,6 +209,11 @@ public final class ScaffoldWorkflow {
     } catch (IOException failure) {
       rollbackPartial(created);
       return result(ScaffoldResult.Status.FAILED, "scaffold write failed safely");
+    } catch (RuntimeException failure) {
+      rollbackPartial(created);
+      return result(
+          ScaffoldResult.Status.FAILED,
+          "protected-file verification failed; owned rollback attempted: " + failure.getMessage());
     }
   }
 
@@ -235,7 +252,7 @@ public final class ScaffoldWorkflow {
             : workspace.resolve(request.destination()).normalize();
     if (!destination.startsWith(workspace))
       throw new IllegalArgumentException("destination escapes workspace");
-    return destination;
+    return boundary.resolveLegacy(destination, workspace);
   }
 
   private Path confined(Path workspace) {

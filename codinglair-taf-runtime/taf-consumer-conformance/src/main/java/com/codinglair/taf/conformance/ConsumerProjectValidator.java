@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 /** Validates an unpacked Maven consumer project against blueprint 1.0. Thread safe. */
 public final class ConsumerProjectValidator {
   public static final String BLUEPRINT_VERSION = "1.0";
+  public static final String STANDALONE_BLUEPRINT_VERSION = "1.1";
   private static final Pattern PACKAGE = Pattern.compile("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+");
   private static final Pattern PROJECT = Pattern.compile("[a-z][a-z0-9-]{0,99}");
   private static final Set<String> CAPABILITIES =
@@ -135,23 +136,35 @@ public final class ConsumerProjectValidator {
   private static void validateDescriptor(
       Path root, BlueprintDescriptor d, List<ConformanceViolation> out) {
     Path file = root.resolve("src/test/resources/taf-project.json");
-    if (!BLUEPRINT_VERSION.equals(d.schemaVersion()))
+    if (!Set.of(BLUEPRINT_VERSION, STANDALONE_BLUEPRINT_VERSION).contains(d.schemaVersion()))
       violation(
           out,
           "descriptor.version",
           file,
           "Unsupported blueprint version",
-          "Use schemaVersion 1.0 or an approved migrated schema");
+          "Use schemaVersion 1.0 or the standalone 1.1 schema");
     if (d.project() == null
         || !PROJECT.matcher(orEmpty(d.project().name())).matches()
         || !PACKAGE.matcher(orEmpty(d.project().basePackage())).matches()
-        || !Set.of("focused-golden", "cross-capability", "consumer").contains(d.project().type()))
+        || !Set.of("focused-golden", "cross-capability", "consumer", "standalone-test-automation")
+            .contains(d.project().type()))
       violation(
           out,
           "descriptor.project",
           file,
           "Project metadata does not satisfy blueprint 1.0",
           "Use a valid project name, type, and dotted lowercase base package");
+    if (STANDALONE_BLUEPRINT_VERSION.equals(d.schemaVersion())
+        && (!"standalone-test-automation".equals(d.project().type())
+            || !"external".equals(d.project().sutInteraction())
+            || !".".equals(d.project().expectedBuildRoot())
+            || !safe(d.runners()).contains("testng")))
+      violation(
+          out,
+          "descriptor.standalone-boundary",
+          file,
+          "Standalone descriptor does not declare the TestNG/external/build-root boundary",
+          "Declare standalone-test-automation, external interaction, TestNG, and build root '.'");
     if (d.runtime() == null || orEmpty(d.runtime().version()).isBlank())
       violation(
           out,
