@@ -1,6 +1,6 @@
 package com.codinglair.taf.contracts;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.List;
 
 /** Dependency-light AsyncAPI 2.x/3.x structural validator and Runtime scaffold adapter. */
@@ -18,7 +18,7 @@ public final class AsyncApiContractAdapter extends StructuredContractAdapter {
   }
 
   @Override
-  protected List<ContractDiagnostic> validateRoot(JsonNode root, ContractDocument document) {
+  List<ContractDiagnostic> validateRoot(JsonNode root, ContractDocument document) {
     var version = root.path("asyncapi").asText("");
     if (!root.isObject() || !(version.startsWith("2.") || version.startsWith("3."))) {
       return List.of(
@@ -32,7 +32,7 @@ public final class AsyncApiContractAdapter extends StructuredContractAdapter {
   }
 
   @Override
-  protected GeneratedContractAsset generate(ContractScaffoldRequest request, JsonNode root) {
+  GeneratedContractAsset generate(ContractScaffoldRequest request, JsonNode root) {
     StringBuilder sb = new StringBuilder();
     var source =
         sb.append("package ")
