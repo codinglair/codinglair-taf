@@ -96,6 +96,22 @@ class CapabilityContributionCatalogTest {
           .isEqualTo(content(second, "README.md"))
           .contains("secret references, never values");
     }
+
+    @Test
+    @DisplayName("Generated launchers use the self-contained Maven Wrapper distribution")
+    void generatesStandaloneMavenWrapper() {
+      CompositionPlan plan = plan(List.of("WEB"), null);
+
+      assertThat(paths(plan))
+          .contains("mvnw", "mvnw.cmd", ".mvn/wrapper/maven-wrapper.properties");
+      assertThat(content(plan, ".mvn/wrapper/maven-wrapper.properties"))
+          .contains("wrapperVersion=3.3.4", "distributionType=only-script", "apache-maven-3.9.16")
+          .doesNotContain("file:");
+      assertThat(content(plan, "mvnw")).contains("distributionUrl", "curl", "wget");
+      assertThat(content(plan, "mvnw.cmd")).contains("distributionUrl", "Invoke-WebRequest");
+      assertThat(content(plan, "mvnw") + content(plan, "mvnw.cmd"))
+          .doesNotContain("command -v mvn", "where mvn");
+    }
   }
 
   @Nested

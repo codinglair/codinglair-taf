@@ -11,7 +11,12 @@ public record BlueprintDescriptor(
     List<String> runners,
     TestDefinitions testDefinitions,
     Reporting reporting) {
-  public record Project(String name, String type, String basePackage) {}
+  public record Project(
+      String name,
+      String type,
+      String basePackage,
+      String expectedBuildRoot,
+      String sutInteraction) {}
 
   public record RuntimeSelection(String version) {}
 
