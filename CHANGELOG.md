@@ -12,6 +12,10 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
   mapper replacement.
 - Aligned Cucumber modules on 7.34.9 to remove its relocated Jackson 2.17.0 runtime from container
   images, and refreshed the pinned Java 25/Noble Temurin images for patched OpenSSL packages.
+- Added an expiring, exact-scope MCP STDIO disposition for two genuine HttpCore 5.3.6 findings
+  embedded in the required Testcontainers Docker transport. Raw Trivy/SBOM evidence remains
+  unsuppressed; the gate reports accepted findings separately and still rejects every unapproved
+  HIGH/CRITICAL finding.
 
 ## [1.3.1] - 2026-10-13
 

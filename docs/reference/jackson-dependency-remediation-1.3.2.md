@@ -93,6 +93,37 @@ The Cucumber upgrade retains the existing MIT license and 7.x public line. Its p
 remove the scanner-visible, relocated Jackson 2.17.0 copy; risk is bounded by the TestNG
 orchestration, TAF hook, scenario-session ownership and reporting integration suites.
 
+## Approved MCP HttpCore security exception
+
+The MCP STDIO distribution necessarily retains Testcontainers 2.0.5 and its working
+`docker-java-transport-zerodep:3.7.1` transport. Replacing that transport caused provisioning and
+AWS/LocalStack regressions. Removing it would remove supported `taf-environments` container
+provisioning, contrary to ADR-007. The owner approved this temporary disposition on 2026-10-18;
+it is a genuine residual vulnerability, not a false positive.
+
+| CVE | Embedded package | Exact containing distribution/path | Reachability and residual risk | Owner / review / expiry |
+| --- | --- | --- | --- | --- |
+| CVE-2026-54399 | `httpcore5:5.3.6` relocated under `com.github.dockerjava.zerodep.shaded.org.apache.hc.core5`; HTTP/1 parser classes include `AbstractMessageParser` and `DefaultHttpRequestParser` | MCP image STDIO classpath only, `/opt/taf/stdio/lib/docker-java-transport-zerodep-3.7.1.jar` | Reachable when container provisioning parses responses from the configured Docker endpoint. A malicious or compromised daemon/proxy can cause memory exhaustion with excessive headers. | TAF Security/Release Owner; review 2026-11-18; expires 2026-12-18 or the 1.3.3 release gate, whichever is first |
+| CVE-2026-54428 | `httpcore5-h2:5.3.6` relocated under the same prefix; HTTP/2 classes include `HPackDecoder` | Same MCP STDIO JAR/path | Classes are present, but the zerodep transport constructs the classic HTTP client and no HTTP/2 requester path was identified. The packaged finding remains accepted as genuine. | Same owner, review, and expiry |
+
+The dependency path is `taf-mcp-transport-stdio -> taf-mcp-resources -> taf-environments ->
+testcontainers:2.0.5 -> docker-java-transport-zerodep:3.7.1`. A Maven BOM override cannot replace
+relocated classes embedded in that JAR. The JAR SHA-256 is
+`b89bdb1754160323597f9ea32a7fe7a4a3aa8f5b3b43b88e8d71fff3b267ab21`.
+
+During the exception, operators must use a trusted local Unix socket or Windows named pipe, or an
+administratively controlled mutually authenticated TLS Docker endpoint. Plaintext or untrusted
+remote Docker endpoints are prohibited. Docker endpoint configuration is process/operator-owned
+through Testcontainers/Docker configuration; MCP callers cannot supply it per request. Access to
+the daemon remains privileged and must not be exposed to untrusted MCP clients.
+
+The exception is removed when a compatible Testcontainers/docker-java release embeds HttpCore
+5.4.3 or later and passes all provisioning/AWS qualification, or when a separately approved
+architecture change removes provisioning from the MCP STDIO distribution. The gate matches the
+exact CVE, package/version, containing artifact/version, path and `mcp` distribution. It preserves
+the unsuppressed Trivy report and SBOM, emits accepted and unapproved reports separately, rejects
+all unexpected findings, and fails after expiry.
+
 ## Reproduction
 
 ```text

@@ -6,6 +6,9 @@ on:
       - 'containers/**'
       - 'codinglair-taf-mcp/**'
       - 'taf-mcp-server/**'
+      - 'build-support/security/**'
+      - 'build-support/scripts/evaluate_container_vulnerabilities.py'
+      - 'build-support/ci/test_container_vulnerability_exceptions.py'
       - 'pom.xml'
       - '.github/workflows/container-images.yml'
   workflow_dispatch:
@@ -34,6 +37,9 @@ jobs:
             repository: codinglair/codinglair-taf-mcp
     steps:
       - uses: actions/checkout@v4
+      - name: Verify vulnerability exception scope and expiry
+        if: ${{ matrix.image == 'mcp' }}
+        run: python3 build-support/ci/test_container_vulnerability_exceptions.py
       - uses: docker/setup-buildx-action@v4
       - name: Resolve Maven project version
         id: maven-version
@@ -86,32 +92,10 @@ jobs:
         shell: bash
         run: |
           report="target/supply-chain/${{ matrix.image }}-trivy.json"
-          count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$report")"
-          if (( count == 0 )); then
-            echo "No High or Critical vulnerabilities detected."
-            exit 0
-          fi
-
-          echo "::error title=Trivy vulnerability gate::Detected ${count} High or Critical vulnerability finding(s) in taf-${{ matrix.image }}."
-          jq -r '
-            .Results[]
-            | .Target as $target
-            | .Vulnerabilities[]?
-            | [
-                $target,
-                .PkgName,
-                .InstalledVersion,
-                (.FixedVersion // "not fixed"),
-                .VulnerabilityID,
-                (.Title // "")
-              ]
-            | @tsv
-          ' "$report" | while IFS=$'\t' read -r target package installed fixed vulnerability title; do
-            printf '::error title=%s in %s::Package %s %s; fixed version: %s. %s\n' \
-              "$vulnerability" "$target" "$package" "$installed" "$fixed" "$title"
-          done
-          echo "Download the supply-chain-${{ matrix.image }}-${{ github.run_attempt }} artifact for the complete JSON report."
-          exit 1
+          python3 build-support/scripts/evaluate_container_vulnerabilities.py \
+            "$report" "${{ matrix.image }}" \
+            "target/supply-chain/${{ matrix.image }}-accepted.json" \
+            "target/supply-chain/${{ matrix.image }}-unapproved.json"
       - name: Smoke existing runtime image
         if: ${{ matrix.image != 'mcp' }}
         shell: bash
@@ -132,6 +116,8 @@ jobs:
         run: |
           test -s "target/supply-chain/${{ matrix.image }}.spdx.json"
           test -s "target/supply-chain/${{ matrix.image }}-trivy.json"
+          test -s "target/supply-chain/${{ matrix.image }}-accepted.json"
+          test -s "target/supply-chain/${{ matrix.image }}-unapproved.json"
       - name: Retain SBOM and vulnerability evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4

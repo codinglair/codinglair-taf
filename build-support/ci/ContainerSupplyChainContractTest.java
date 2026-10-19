@@ -21,6 +21,8 @@ public final class ContainerSupplyChainContractTest {
     var bake = read("docker-bake.hcl");
     var workflow = read(".github/workflows/container-images.yml");
     var publication = read(".github/workflows/mcp-image-release.yml");
+    var exceptionPolicy = read("build-support/security/container-vulnerability-exceptions.json");
+    var exceptionEvaluator = read("build-support/scripts/evaluate_container_vulnerabilities.py");
 
     String approvedJdk =
         "eclipse-temurin:25-jdk-noble@sha256:ba0f0e1a33864105e1d454e88105c617ab40f71062db1f306bf58be32a3f8e5e";
@@ -108,12 +110,14 @@ public final class ContainerSupplyChainContractTest {
     require(workflow.contains("scanners: vuln"), "Trivy gate must scan vulnerabilities only");
     require(workflow.contains("severity: 'HIGH,CRITICAL'"), "HIGH/CRITICAL vulnerability gate missing");
     require(
-        workflow.contains("Vulnerabilities[]?") && workflow.contains("exit 1"),
-        "HIGH/CRITICAL findings must be reported before the workflow fails");
+        workflow.contains("evaluate_container_vulnerabilities.py")
+            && workflow.contains("${{ matrix.image }}-accepted.json")
+            && workflow.contains("${{ matrix.image }}-unapproved.json"),
+        "HIGH/CRITICAL findings must be classified without altering raw evidence");
     require(!workflow.contains("ignore-unfixed: true"), "unfixed HIGH/CRITICAL findings must not receive a blanket waiver");
     require(workflow.contains("actions/upload-artifact"), "retained evidence upload missing");
     require(
-        count(workflow, "target/supply-chain/${{ matrix.image }}") == 5,
+        count(workflow, "target/supply-chain/${{ matrix.image }}") == 9,
         "evidence producers and validation must share the repository-root output directory");
     require(workflow.contains("path: target/supply-chain\n"), "evidence directory upload missing");
     require(workflow.contains("upload-artifact: false"), "implicit SBOM upload must be disabled");
@@ -121,8 +125,8 @@ public final class ContainerSupplyChainContractTest {
         workflow.contains("find \"${GITHUB_WORKSPACE}\" -type f -path \"*/target/supply-chain/*\" -print"),
         "evidence diagnostic missing before upload");
     require(
-        count(workflow, "test -s \"target/supply-chain/") == 2,
-        "both required evidence files must be validated before upload");
+        count(workflow, "test -s \"target/supply-chain/") == 4,
+        "raw, SBOM, accepted and unapproved evidence files must be validated before upload");
     require(workflow.contains("if-no-files-found: error"), "missing required evidence must fail");
     require(
         !workflow.contains("ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION"),
@@ -186,8 +190,9 @@ public final class ContainerSupplyChainContractTest {
         "digest-bound Trivy JSON scan is incomplete");
     require(
         publication.contains("trivy --version > target/mcp-image-release/trivy-version.txt")
-            && publication.contains("Vulnerabilities[]?")
-            && publication.contains("exit 1"),
+            && publication.contains("evaluate_container_vulnerabilities.py")
+            && publication.contains("accepted-vulnerabilities.json")
+            && publication.contains("unapproved-vulnerabilities.json"),
         "scanner metadata or explicit vulnerability gate is incomplete");
     require(
         publication.contains("test -s target/mcp-image-release/sbom.spdx.json")
@@ -200,6 +205,20 @@ public final class ContainerSupplyChainContractTest {
         !publication.contains("COSIGN_PRIVATE_KEY")
             && !publication.contains("ignore-unfixed: true"),
         "stored signing keys and blanket vulnerability waivers are forbidden");
+    require(
+        exceptionPolicy.contains("CVE-2026-54399")
+            && exceptionPolicy.contains("CVE-2026-54428")
+            && exceptionPolicy.contains("docker-java-transport-zerodep")
+            && exceptionPolicy.contains("opt/taf/stdio/lib/docker-java-transport-zerodep-3.7.1.jar")
+            && exceptionPolicy.contains("2026-12-18"),
+        "approved MCP HttpCore exception scope is incomplete");
+    require(
+        exceptionEvaluator.contains("expired vulnerability exception")
+            && exceptionEvaluator.contains("packagePath")
+            && exceptionEvaluator.contains("installedVersion")
+            && exceptionEvaluator.contains("distribution")
+            && exceptionEvaluator.contains("unapproved"),
+        "exception evaluator must enforce expiry and exact finding scope");
     System.out.println("Container supply-chain contract checks passed");
   }
 
