@@ -3,6 +3,7 @@ package com.codinglair.taf.conformance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -115,7 +116,7 @@ class StandaloneSutBoundaryIntegrationTest {
   }
 
   private static void buildSut(Path sut, Path effective, Path tree) throws Exception {
-    Path wrapper = repositoryRoot().resolve("mvnw.cmd");
+    Path wrapper = repositoryRoot().resolve(isWindows() ? "mvnw.cmd" : "mvnw");
     run(wrapper, sut, "-B", "-ntp", "package");
     run(wrapper, sut, "-B", "-ntp", "help:effective-pom", "-Doutput=" + effective);
     run(wrapper, sut, "-B", "-ntp", "dependency:tree", "-DoutputFile=" + tree);
@@ -124,8 +125,12 @@ class StandaloneSutBoundaryIntegrationTest {
   private static void run(Path wrapper, Path workingDirectory, String... arguments)
       throws Exception {
     var command = new java.util.ArrayList<String>();
-    command.add(System.getenv().getOrDefault("ComSpec", "C:\\Windows\\System32\\cmd.exe"));
-    command.add("/c");
+    if (isWindows()) {
+      command.add(System.getenv().getOrDefault("ComSpec", "C:\\Windows\\System32\\cmd.exe"));
+      command.add("/c");
+    } else {
+      command.add("sh");
+    }
     command.add(wrapper.toString());
     command.addAll(java.util.List.of(arguments));
     var process =
@@ -133,16 +138,21 @@ class StandaloneSutBoundaryIntegrationTest {
             .directory(workingDirectory.toFile())
             .redirectErrorStream(true)
             .start();
-    String output = new String(process.getInputStream().readAllBytes());
+    String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     assertThat(process.waitFor()).as(output).isZero();
   }
 
   private static Path repositoryRoot() {
     Path current = Path.of("").toAbsolutePath();
-    while (current != null && !Files.isRegularFile(current.resolve("mvnw.cmd")))
+    String wrapper = isWindows() ? "mvnw.cmd" : "mvnw";
+    while (current != null && !Files.isRegularFile(current.resolve(wrapper)))
       current = current.getParent();
     if (current == null) throw new IllegalStateException("repository Maven Wrapper is unavailable");
     return current;
+  }
+
+  private static boolean isWindows() {
+    return System.getProperty("os.name").startsWith("Windows");
   }
 
   private static Map<Path, String> protectedHashes(Path sut, Path automation) throws IOException {
