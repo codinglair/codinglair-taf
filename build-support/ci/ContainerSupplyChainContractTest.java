@@ -22,6 +22,11 @@ public final class ContainerSupplyChainContractTest {
     var workflow = read(".github/workflows/container-images.yml");
     var publication = read(".github/workflows/mcp-image-release.yml");
 
+    String approvedJdk =
+        "eclipse-temurin:25-jdk-noble@sha256:ba0f0e1a33864105e1d454e88105c617ab40f71062db1f306bf58be32a3f8e5e";
+    String approvedJre =
+        "eclipse-temurin:25-jre-noble@sha256:3f2223fe04b750aa5a8179e29b5c9a1ddf7665fc9bb08bfe11ad01d143bc13a5";
+
     for (var dockerfile : List.of(control, worker, mcp)) {
       require(dockerfile.contains("@sha256:"), "base images must be digest pinned");
       require(dockerfile.contains("USER 1000"), "runtime must use a numeric non-root identity");
@@ -32,6 +37,10 @@ public final class ContainerSupplyChainContractTest {
               && !dockerfile.contains("install &&"),
           "build and dependency copy must share one revision-aware Maven reactor");
       require(!dockerfile.matches("(?s).*ARG\\s+.*(?i:password|secret|token).*"), "secret build arg forbidden");
+      require(dockerfile.contains(approvedJdk), "approved patched Java 25/Noble JDK image missing");
+    }
+    for (var dockerfile : List.of(control, mcp)) {
+      require(dockerfile.contains(approvedJre), "approved patched Java 25/Noble JRE image missing");
     }
     require(workerEntrypoint.contains("umask 0077"), "worker must default to private created files");
     require(worker.contains("TAF_WORKSPACE=/workspace"), "worker workspace boundary missing");

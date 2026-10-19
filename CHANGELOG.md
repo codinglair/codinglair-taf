@@ -10,6 +10,8 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 - Added exhaustive staged-SBOM Jackson scanning, bundled-class checks and HIGH/CRITICAL coverage
   for container and MCP image vulnerability gates. Consumers require no Jackson exclusions or
   mapper replacement.
+- Aligned Cucumber modules on 7.34.9 to remove its relocated Jackson 2.17.0 runtime from container
+  images, and refreshed the pinned Java 25/Noble Temurin images for patched OpenSSL packages.
 
 ## [1.3.1] - 2026-10-13
 

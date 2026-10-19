@@ -50,6 +50,7 @@ at that baseline; the staged scan demonstrated that it required convergence to 3
 | `taf-mcp-contracts` | test-only databind | 2.21.7 |
 | MCP STDIO and HTTP transports | Jackson 3 plus compatible annotations | Jackson 3.1.7 and annotations 2.21 from the TAF BOM; no local override |
 | REST/schema validators | validator-owned transitive graph; YAML excluded where already required | resolved graph and staged SBOM gate |
+| Cucumber runner/tool graph | Cucumber 7.17.0 embedded relocated Jackson 2.17.0 classes that BOM management could not override | Cucumber 7.34.9, whose embedded Jackson BOM is patched at 2.22.3 |
 
 The root dependency management and the published `codinglair-taf-bom` explicitly manage core,
 Jackson 2 core, databind, annotations, CSV and YAML plus Jackson 3 core, databind and YAML. This
@@ -87,6 +88,10 @@ requirements matrix.
 
 No third-party runtime is approved to pin an older Jackson 2 version. A future exception requires
 an introducing path, owner, isolation proof, expiry and removal assignment in this table.
+
+The Cucumber upgrade retains the existing MIT license and 7.x public line. Its purpose is to
+remove the scanner-visible, relocated Jackson 2.17.0 copy; risk is bounded by the TestNG
+orchestration, TAF hook, scenario-session ownership and reporting integration suites.
 
 ## Reproduction
 

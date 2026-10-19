@@ -19,6 +19,7 @@ public final class JacksonDependencyPolicyTest {
     check(property(root, "jackson.version").equals("2.21.7"), "Jackson runtime is not the approved patched LTS version");
     check(property(root, "jackson.annotations.version").equals("2.21"), "Jackson annotations are not converged on 2.21");
     check(property(root, "jackson3.version").equals("3.1.7"), "Jackson 3 runtime is not the approved patched LTS version");
+    check(property(root, "cucumber.version").equals("7.34.9"), "Cucumber still embeds a vulnerable relocated Jackson runtime");
     for (String artifact : List.of("jackson-core", "jackson-databind", "jackson-dataformat-csv", "jackson-dataformat-yaml")) {
       check(managedWithVersion(bom, artifact, "${jackson.version}"), artifact + " is not explicitly managed by the published BOM");
     }
