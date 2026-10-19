@@ -36,12 +36,10 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server</artifactId>
         </dependency>
-        <!-- Spring AI 2.x uses Jackson 3; isolate its compatible annotations from the
-             repository's legacy Jackson 2.19 dependency-management baseline. -->
+        <!-- Jackson 3 intentionally consumes the BOM-managed Jackson 2 annotations artifact. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${jackson3.annotations.version}</version>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>

@@ -2,6 +2,21 @@
 
 All notable user-visible changes to Codinglair TAF will be documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project intends to use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published releases.
 
+## 1.3.2
+
+- Converged published Jackson 2 runtime and data-format surfaces on 2.21.7 LTS, Jackson 3 runtime
+  and YAML surfaces on 3.1.7 LTS, and shared annotations on 2.21; removed MCP-local annotations
+  overrides and made the constraints explicit in the public BOM.
+- Added exhaustive staged-SBOM Jackson scanning, bundled-class checks and HIGH/CRITICAL coverage
+  for container and MCP image vulnerability gates. Consumers require no Jackson exclusions or
+  mapper replacement.
+- Aligned Cucumber modules on 7.34.9 to remove its relocated Jackson 2.17.0 runtime from container
+  images, and refreshed the pinned Java 25/Noble Temurin images for patched OpenSSL packages.
+- Added an expiring, exact-scope MCP STDIO disposition for two genuine HttpCore 5.3.6 findings
+  embedded in the required Testcontainers Docker transport. Raw Trivy/SBOM evidence remains
+  unsuppressed; the gate reports accepted findings separately and still rejects every unapproved
+  HIGH/CRITICAL finding.
+
 ## [1.3.1] - 2026-10-13
 
 ### Fixed
