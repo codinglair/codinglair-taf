@@ -4,11 +4,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codinglair.taf.runtime.core.TestSession;
+import com.codinglair.taf.runtime.core.controller.ArtifactReason;
+import com.codinglair.taf.runtime.core.controller.ControllerContext;
+import com.codinglair.taf.runtime.core.controller.ControllerIdentity;
+import com.codinglair.taf.runtime.core.controller.ControllerState;
+import com.codinglair.taf.runtime.core.controller.HealthResult;
+import com.codinglair.taf.runtime.core.controller.TestController;
+import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class TestSessionLifecycleTest {
@@ -122,7 +131,82 @@ class TestSessionLifecycleTest {
     assertThat(lifecycle.activeOwnerships()).isEmpty();
   }
 
+  @Test
+  void retainedControllerRejectsClosedAndWrongInvocationBeforeSideEffects() {
+    TestSessionLifecycle lifecycle = new TestSessionLifecycle(TestSession::create);
+    InvocationDescriptor first = descriptor("first");
+    TestSession firstSession = lifecycle.open(first);
+    RecordingCapability implementation = new RecordingCapability("capability");
+    firstSession
+        .getControllerRegistry()
+        .register(Capability.class, "capability", implementation);
+    Capability retained = firstSession.getController(Capability.class, "capability");
+
+    retained.execute();
+    lifecycle.close(first, InvocationOutcome.passed());
+    assertThatThrownBy(retained::execute)
+        .isInstanceOf(LifecycleViolationException.class)
+        .hasMessageContaining(LifecycleViolationException.ERROR_CODE);
+
+    InvocationDescriptor second = descriptor("second");
+    lifecycle.open(second);
+    assertThatThrownBy(retained::execute)
+        .isInstanceOf(LifecycleViolationException.class)
+        .hasMessageContaining("capability belongs to session");
+    assertThat(implementation.sideEffects).hasValue(1);
+    lifecycle.close(second, InvocationOutcome.passed());
+  }
+
   private static InvocationDescriptor descriptor(String id) {
     return new InvocationDescriptor(id, id, "test-owner");
+  }
+
+  private interface Capability extends TestController {
+    void execute();
+  }
+
+  private static final class RecordingCapability implements Capability {
+    private final String name;
+    private final AtomicInteger sideEffects = new AtomicInteger();
+    private ControllerState state = ControllerState.NEW;
+
+    private RecordingCapability(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public void execute() {
+      sideEffects.incrementAndGet();
+    }
+
+    @Override
+    public ControllerIdentity identity() {
+      return new ControllerIdentity(Capability.class, name);
+    }
+
+    @Override
+    public ControllerState state() {
+      return state;
+    }
+
+    @Override
+    public void initialize(ControllerContext context) {
+      state = ControllerState.READY;
+    }
+
+    @Override
+    public HealthResult health() {
+      return HealthResult.unknown("test");
+    }
+
+    @Override
+    public Stream<TestArtifact> collectArtifacts(ArtifactReason reason) {
+      return Stream.empty();
+    }
+
+    @Override
+    public void close() {
+      state = ControllerState.CLOSED;
+    }
   }
 }

@@ -177,13 +177,16 @@ bounded repeated receives and the configured DLQ, not by purging a queue.
 
 ## Controller walkthrough
 
-Acquire both named controllers from the same session. The logical names must match configuration.
+Acquire both named controllers from the same invocation-owned session. The logical names must match
+configuration; `TafBaseTest` owns creation and cleanup.
 
 ```java
-try (TestSession session = sessionFactory.create()) {
-  SqsController sqs = session.getController(SqsController.class, "orders-target");
+public final class OrdersMessagingTest extends TafBaseTest {
+ @Test
+ public void routesOrderEvent() {
+  SqsController sqs = controller(SqsController.class, "orders-target");
   EventBridgeController events =
-      session.getController(EventBridgeController.class, "orders-events");
+      controller(EventBridgeController.class, "orders-events");
 
   var event = new EventPublishRequest(
       "orders.created",
@@ -205,6 +208,7 @@ try (TestSession session = sessionFactory.create()) {
               List.of(), Map.of(), "doc-order-43", null),
           Duration.ofSeconds(2)),
       sqs);
+  }
 }
 ```
 
