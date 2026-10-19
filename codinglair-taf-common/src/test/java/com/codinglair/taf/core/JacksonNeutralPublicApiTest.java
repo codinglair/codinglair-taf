@@ -48,8 +48,10 @@ class JacksonNeutralPublicApiTest {
     String pom = Files.readString(repositoryRoot().resolve("codinglair-taf-common/pom.xml"));
     assertThat(pom)
         .doesNotContain("<artifactId>jackson-annotations</artifactId>")
-        .containsSubsequence("<artifactId>jackson-databind</artifactId>", "<optional>true</optional>")
-        .containsSubsequence("<artifactId>jackson-dataformat-csv</artifactId>", "<optional>true</optional>");
+        .containsSubsequence(
+            "<artifactId>jackson-databind</artifactId>", "<optional>true</optional>")
+        .containsSubsequence(
+            "<artifactId>jackson-dataformat-csv</artifactId>", "<optional>true</optional>");
   }
 
   private static void inspect(Path source, List<String> leaks) throws IOException {
