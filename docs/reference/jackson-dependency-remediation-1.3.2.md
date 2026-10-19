@@ -86,6 +86,39 @@ requirements matrix.
 | TAF-owned JSON/YAML/CSV implementation modules listed above | Existing TAF implementation code | Patched BOM-managed 2.21.7 only; no bundled copy or consumer exclusion; public contracts must not gain mapper/tree/parser types | SER-132-001 structural slice, with remaining enumerated migration in SER-133-001 |
 | Jackson 2 annotations used by Jackson 3 consumers | Jackson 3 compatibility contract | Exactly one BOM-managed 2.21 annotations artifact; annotations alone are not a Jackson 2 runtime | Permanent compatibility allowance under ADR-038; reassess with Jackson upstream |
 
+## SER-132-001 serializer ownership and compatibility
+
+| Format/use | Implementation owner after SER-132-001 | Runtime | Compatibility disposition |
+| --- | --- | --- | --- |
+| JSON/YAML versioned file definitions | `taf-test-definitions` | Jackson 3.1.7 | Public repository/configuration contracts remain Java-only; serialized schema, ordering and defaults are covered by the repository contract corpus |
+| JSON structured-file comparison | `taf-file` | Jackson 3.1.7 | Comparator contracts remain Java-only; null, numeric and collection/tree behavior remains format-local |
+| OpenAPI/AsyncAPI JSON/YAML parsing | `taf-contracts` | Jackson 3.1.7 | Jackson tree parameters were reduced from protected to package-private implementation hooks; public adapter contracts are unchanged |
+| CSV secret-reference normalization | `taf-test-definitions` | Patched Jackson 2.21.7 CSV | Jackson 3.1.7 does not provide the CSV artifact in the approved dependency set; quoting, headers, line endings, invalid input and secret-reference safety remain covered here pending SER-133-001 |
+| Legacy `CsvFileDataProvider` | `codinglair-taf-common` compatibility facade | Patched Jackson 2.21.7 CSV, optional/non-exporting | Class, constructors and behavior are retained; mapper and CSV dependencies are optional so common no longer exports them transitively. Removal or package relocation requires a separately approved compatibility disposition |
+
+TAF creates these mappers directly inside their owning implementation classes. None is a Spring
+bean and none can become the SUT application's primary mapper.
+
+### Exact SER-133-001 remainder
+
+The following TAF-owned Jackson 2 call sites are the complete post-SER-132-001 remainder. They are
+not a reason to export Jackson from common and may not grow:
+
+- `codinglair-taf-common/.../CsvFileDataProvider.java`: legacy public compatibility implementation;
+- `taf-test-definitions/.../CsvSecretNormalizer.java`: CSV data-format implementation unavailable
+  in the approved Jackson 3 set;
+- `taf-test-definitions-mongodb`: repository/synchronizer private implementation plus three
+  existing mapper-injection constructor signatures;
+- `taf-data-migration`: Flyway structured output and Mongo migration implementation, including the
+  existing `MongoContextMigration.containerized` mapper parameter;
+- `taf-messaging-aws`, `taf-consumer-conformance`, `taf-mcp-resources`, and MCP contract tests:
+  separately owned JSON implementation/test call sites recorded by DEP-132-001.
+
+SER-133-001 owns migration or architecture-approved compatibility disposition of this exact list.
+The public-signature gate contains explicit entries only for the three pre-existing Mongo
+implementation signatures; every other supported public/protected contract is rejected if a
+Jackson runtime type appears.
+
 No third-party runtime is approved to pin an older Jackson 2 version. A future exception requires
 an introducing path, owner, isolation proof, expiry and removal assignment in this table.
 

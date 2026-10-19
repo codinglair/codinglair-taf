@@ -3,10 +3,10 @@ package com.codinglair.taf.contracts;
 import com.codinglair.taf.api.rest.RestContractValidator;
 import com.codinglair.taf.api.rest.RestRequest;
 import com.codinglair.taf.api.rest.RestResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -49,9 +49,7 @@ public final class OpenApiRestContractValidator implements RestContractValidator
   }
 
   private JsonNode findPath(String requestPath) {
-    var fields = paths.fields();
-    while (fields.hasNext()) {
-      var candidate = fields.next();
+    for (var candidate : paths.properties()) {
       var expression = pathExpression(candidate.getKey());
       if (requestPath.matches(expression)) return candidate.getValue();
     }
@@ -73,11 +71,11 @@ public final class OpenApiRestContractValidator implements RestContractValidator
 
   private static JsonNode parse(String content) {
     try {
-      return new ObjectMapper().readTree(content);
-    } catch (JsonProcessingException ignored) {
+      return JsonMapper.builder().build().readTree(content);
+    } catch (JacksonException _) {
       try {
-        return new ObjectMapper(new YAMLFactory()).readTree(content);
-      } catch (JsonProcessingException impossibleAfterValidation) {
+        return YAMLMapper.builder().build().readTree(content);
+      } catch (JacksonException impossibleAfterValidation) {
         throw new IllegalStateException(
             "Validated OpenAPI document could not be parsed", impossibleAfterValidation);
       }
