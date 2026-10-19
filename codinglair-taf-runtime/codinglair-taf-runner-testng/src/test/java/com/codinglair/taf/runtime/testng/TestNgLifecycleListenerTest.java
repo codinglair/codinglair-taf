@@ -22,6 +22,7 @@ import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.TestNG;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 
 class TestNgLifecycleListenerTest {
@@ -30,15 +31,34 @@ class TestNgLifecycleListenerTest {
     ParallelConsumer.sessionIds.clear();
     ParallelConsumer.cleanedSessionIds.clear();
     ParallelConsumer.cleanedScopes.clear();
+    ParallelConsumer.threadNames.clear();
     TestNG testng = testNg(ParallelConsumer.class);
+    testng.setDataProviderThreadCount(4);
 
     testng.run();
 
     assertThat(testng.hasFailure()).isFalse();
-    assertThat(ParallelConsumer.sessionIds).hasSize(8);
+    assertThat(ParallelConsumer.sessionIds).hasSize(24);
     assertThat(ParallelConsumer.cleanedSessionIds)
         .containsExactlyInAnyOrderElementsOf(ParallelConsumer.sessionIds);
     assertThat(ParallelConsumer.cleanedScopes).isEmpty();
+    assertThat(ParallelConsumer.threadNames).hasSizeBetween(2, 4);
+  }
+
+  @Test
+  void failedSetupStillClosesItsFrameworkOwnedSession() {
+    SetupFailureConsumer.sessions.clear();
+    SetupFailureConsumer.cleaned.clear();
+    SetupFailureConsumer.bodyInvocations.set(0);
+    TestNG testng = testNg(SetupFailureConsumer.class);
+
+    testng.run();
+
+    assertThat(testng.hasFailure()).isTrue();
+    assertThat(SetupFailureConsumer.bodyInvocations).hasValue(0);
+    assertThat(SetupFailureConsumer.sessions).hasSize(1);
+    assertThat(SetupFailureConsumer.cleaned)
+        .containsExactlyElementsOf(SetupFailureConsumer.sessions);
   }
 
   @Test
@@ -207,10 +227,11 @@ class TestNgLifecycleListenerTest {
     static final Set<String> sessionIds = ConcurrentHashMap.newKeySet();
     static final Set<String> cleanedSessionIds = ConcurrentHashMap.newKeySet();
     static final Set<String> cleanedScopes = ConcurrentHashMap.newKeySet();
+    static final Set<String> threadNames = ConcurrentHashMap.newKeySet();
 
     @DataProvider(parallel = true)
     public Object[][] values() {
-      Object[][] values = new Object[8][1];
+      Object[][] values = new Object[24][1];
       for (int i = 0; i < values.length; i++) values[i][0] = i;
       return values;
     }
@@ -220,8 +241,28 @@ class TestNgLifecycleListenerTest {
       ITestResult result = org.testng.Reporter.getCurrentTestResult();
       TestSession session = SessionFactory.getCurrentSession(result);
       sessionIds.add(session.getSessionId());
+      threadNames.add(Thread.currentThread().getName());
       session.addCleanupListener(cleanedSessionIds::add);
       if (invocation == 0) {}
+    }
+  }
+
+  public static class SetupFailureConsumer extends TafBaseTest {
+    static final Set<String> sessions = ConcurrentHashMap.newKeySet();
+    static final Set<String> cleaned = ConcurrentHashMap.newKeySet();
+    static final AtomicInteger bodyInvocations = new AtomicInteger();
+
+    @BeforeMethod
+    public void failSetup() {
+      TestSession session = testSession();
+      sessions.add(session.getSessionId());
+      session.addCleanupListener(cleaned::add);
+      throw new IllegalStateException("setup failed");
+    }
+
+    @org.testng.annotations.Test
+    public void neverRuns() {
+      bodyInvocations.incrementAndGet();
     }
   }
 

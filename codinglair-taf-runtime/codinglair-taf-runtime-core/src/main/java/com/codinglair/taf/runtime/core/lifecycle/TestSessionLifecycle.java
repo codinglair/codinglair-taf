@@ -33,6 +33,7 @@ public final class TestSessionLifecycle implements CurrentTestSession {
       Ownership ownership = new Ownership(descriptor, session, reservation.threadId);
       active.replace(descriptor.id(), reservation, ownership);
       current.set(ownership);
+      session.bindInvocationGuard(this);
       return session;
     } catch (Throwable failure) {
       active.remove(descriptor.id(), reservation);
