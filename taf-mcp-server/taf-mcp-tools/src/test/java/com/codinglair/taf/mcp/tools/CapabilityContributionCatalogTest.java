@@ -19,7 +19,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("Capability contribution catalog")
 class CapabilityContributionCatalogTest {
-  private static final String TAF_VERSION = "1.1.0";
+  private static final String TAF_VERSION = "1.3.1";
   private final BlueprintCompositionEngine engine = new BlueprintCompositionEngine();
 
   @Nested
@@ -36,7 +36,7 @@ class CapabilityContributionCatalogTest {
       assertThat(plan.valid()).isTrue();
       assertThat(plan.dependencies())
           .extracting(BlueprintCompositionEngine.Dependency::artifactId)
-          .containsExactly(expectedArtifact)
+          .containsExactly(expectedArtifact, "codinglair-taf-runner-testng")
           .noneMatch(artifact -> artifact.contains("mcp"));
       assertThat(paths(plan))
           .contains("pom.xml", "src/test/java/com/example/generated/BlueprintPreflightTest.java")
@@ -102,8 +102,7 @@ class CapabilityContributionCatalogTest {
     void generatesStandaloneMavenWrapper() {
       CompositionPlan plan = plan(List.of("WEB"), null);
 
-      assertThat(paths(plan))
-          .contains("mvnw", "mvnw.cmd", ".mvn/wrapper/maven-wrapper.properties");
+      assertThat(paths(plan)).contains("mvnw", "mvnw.cmd", ".mvn/wrapper/maven-wrapper.properties");
       assertThat(content(plan, ".mvn/wrapper/maven-wrapper.properties"))
           .contains("wrapperVersion=3.3.4", "distributionType=only-script", "apache-maven-3.9.16")
           .doesNotContain("file:");
@@ -111,6 +110,41 @@ class CapabilityContributionCatalogTest {
       assertThat(content(plan, "mvnw.cmd")).contains("distributionUrl", "Invoke-WebRequest");
       assertThat(content(plan, "mvnw") + content(plan, "mvnw.cmd"))
           .doesNotContain("command -v mvn", "where mvn");
+    }
+
+    @Test
+    @DisplayName("Generated consumers bind provider and compiled conformance before tests")
+    void bindsMandatoryTestNgConformance() {
+      CompositionPlan plan = plan(List.of("API"), null);
+
+      assertThat(content(plan, "pom.xml"))
+          .contains(
+              "org.apache.maven.surefire",
+              "surefire-testng",
+              "taf-consumer-conformance-maven-plugin",
+              "<goal>validate</goal>",
+              "<goal>validate-compiled-tests</goal>");
+      assertThat(content(plan, "src/test/resources/taf-project.json"))
+          .contains("\"schemaVersion\": \"1.2\"");
+      assertThat(content(plan, "src/test/java/com/example/generated/BlueprintPreflightTest.java"))
+          .contains("extends com.codinglair.taf.runtime.testng.TafBaseTest")
+          .doesNotContain("TestSession.create()");
+    }
+
+    @Test
+    @DisplayName("Generated Cucumber glue relies on the framework scenario lifecycle")
+    void generatesFrameworkOwnedCucumberLifecycle() {
+      CompositionPlan plan = cucumberPlan(Path.of("target", "not-written"));
+
+      assertThat(plan.valid()).isTrue();
+      assertThat(
+              content(plan, "src/test/java/com/example/generated/bdd/GeneratedCucumberRunner.java"))
+          .contains("extends AbstractCucumberRunner", "com.codinglair.taf.runtime.cucumber")
+          .doesNotContain("AbstractTestNGCucumberTests");
+      assertThat(content(plan, "src/test/java/com/example/generated/bdd/GeneratedSteps.java"))
+          .contains("CucumberScenarioSession", "scenarioSession.session()")
+          .doesNotContain("@Before", "@After");
+      assertThat(paths(plan)).contains("src/test/resources/testng-bdd.xml");
     }
   }
 
@@ -171,6 +205,41 @@ class CapabilityContributionCatalogTest {
       writeFixture(root.resolve(capability.toLowerCase()), List.of(capability), provider);
     }
     writeFixture(root.resolve("web-api-database"), List.of("WEB", "API", "DATABASE"), null);
+  }
+
+  @Test
+  @DisplayName("Writes a generated Cucumber-TestNG acceptance fixture when explicitly requested")
+  void writesCucumberTestNgAcceptanceFixture(@TempDir Path unused) throws Exception {
+    String configuredRoot = System.getProperty("scf.cucumber.fixture.root");
+    if (configuredRoot == null) {
+      assertThat(unused).exists();
+      return;
+    }
+    Path destination = Path.of(configuredRoot).toAbsolutePath().normalize();
+    CompositionPlan plan = cucumberPlan(destination);
+    assertThat(plan.valid()).as(plan.diagnostics().toString()).isTrue();
+    assertThat(engine.write(plan, destination).status())
+        .isEqualTo(BlueprintCompositionEngine.WriteStatus.WRITTEN);
+  }
+
+  private CompositionPlan cucumberPlan(Path destination) {
+    return engine.plan(
+        new Request(
+            "com.example",
+            "generated-cucumber-project",
+            "com.example.generated",
+            TAF_VERSION,
+            List.of("API"),
+            null,
+            null,
+            null,
+            "CUCUMBER_TESTNG",
+            "NONE",
+            null),
+        CapabilityContributionCatalog.BLUEPRINT_VERSION,
+        CapabilityContributionCatalog.contributions(),
+        CapabilityContributionCatalog.starterManifest(),
+        destination);
   }
 
   private void writeFixture(Path destination, List<String> capabilities, String provider)

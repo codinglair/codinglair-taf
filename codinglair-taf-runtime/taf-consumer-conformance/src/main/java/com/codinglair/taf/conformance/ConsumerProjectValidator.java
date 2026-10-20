@@ -18,6 +18,7 @@ import java.util.stream.Stream;
 public final class ConsumerProjectValidator {
   public static final String BLUEPRINT_VERSION = "1.0";
   public static final String STANDALONE_BLUEPRINT_VERSION = "1.1";
+  public static final String GOVERNED_BLUEPRINT_VERSION = "1.2";
   private static final Pattern PACKAGE = Pattern.compile("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+");
   private static final Pattern PROJECT = Pattern.compile("[a-z][a-z0-9-]{0,99}");
   private static final Set<String> CAPABILITIES =
@@ -136,13 +137,14 @@ public final class ConsumerProjectValidator {
   private static void validateDescriptor(
       Path root, BlueprintDescriptor d, List<ConformanceViolation> out) {
     Path file = root.resolve("src/test/resources/taf-project.json");
-    if (!Set.of(BLUEPRINT_VERSION, STANDALONE_BLUEPRINT_VERSION).contains(d.schemaVersion()))
+    if (!Set.of(BLUEPRINT_VERSION, STANDALONE_BLUEPRINT_VERSION, GOVERNED_BLUEPRINT_VERSION)
+        .contains(d.schemaVersion()))
       violation(
           out,
           "descriptor.version",
           file,
           "Unsupported blueprint version",
-          "Use schemaVersion 1.0 or the standalone 1.1 schema");
+          "Use schemaVersion 1.0, standalone 1.1, or governed runner schema 1.2");
     if (d.project() == null
         || !PROJECT.matcher(orEmpty(d.project().name())).matches()
         || !PACKAGE.matcher(orEmpty(d.project().basePackage())).matches()
@@ -154,7 +156,7 @@ public final class ConsumerProjectValidator {
           file,
           "Project metadata does not satisfy blueprint 1.0",
           "Use a valid project name, type, and dotted lowercase base package");
-    if (STANDALONE_BLUEPRINT_VERSION.equals(d.schemaVersion())
+    if (Set.of(STANDALONE_BLUEPRINT_VERSION, GOVERNED_BLUEPRINT_VERSION).contains(d.schemaVersion())
         && (!"standalone-test-automation".equals(d.project().type())
             || !"external".equals(d.project().sutInteraction())
             || !".".equals(d.project().expectedBuildRoot())

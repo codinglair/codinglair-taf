@@ -137,9 +137,7 @@ class TestSessionLifecycleTest {
     InvocationDescriptor first = descriptor("first");
     TestSession firstSession = lifecycle.open(first);
     RecordingCapability implementation = new RecordingCapability("capability");
-    firstSession
-        .getControllerRegistry()
-        .register(Capability.class, "capability", implementation);
+    firstSession.getControllerRegistry().register(Capability.class, "capability", implementation);
     Capability retained = firstSession.getController(Capability.class, "capability");
 
     retained.execute();

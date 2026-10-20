@@ -42,6 +42,7 @@
         <module>codinglair-taf-runner-testng</module>
         <module>codinglair-taf-runner-cucumber</module>
         <module>taf-consumer-conformance</module>
+        <module>taf-consumer-conformance-maven-plugin</module>
     </modules>
 
     <dependencyManagement>
@@ -60,6 +61,11 @@
             <dependency>
                 <groupId>com.codinglair.taf</groupId>
                 <artifactId>taf-consumer-conformance</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>taf-consumer-conformance-maven-plugin</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
