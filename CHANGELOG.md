@@ -4,6 +4,8 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 
 ## 1.3.2
 
+- Restored bounded, sanitized REST request, response, timing, and transport-failure evidence and
+  associated optional Allure attachments with their owning method/route operation step.
 - Converged published Jackson 2 runtime and data-format surfaces on 2.21.7 LTS, Jackson 3 runtime
   and YAML surfaces on 3.1.7 LTS, and shared annotations on 2.21; removed MCP-local annotations
   overrides and made the constraints explicit in the public BOM.

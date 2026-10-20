@@ -20,6 +20,7 @@ public class ArtifactCollector {
   private final TafTest test;
   private final List<TestStep> steps = new CopyOnWriteArrayList<>();
   private final List<TestArtifact> artifacts = new CopyOnWriteArrayList<>();
+  private final List<ReporterDispatcher> activeDispatchers = new CopyOnWriteArrayList<>();
   private final AtomicLong sequenceNumber = new AtomicLong(0);
   private final AtomicInteger rerunAttempt = new AtomicInteger(0);
   private final java.util.concurrent.atomic.AtomicBoolean finalized =
@@ -83,7 +84,21 @@ public class ArtifactCollector {
     TestArtifact artifact =
         TestArtifact.of(safeName, safeType, safeContent, safeContentType, safeStep, hash);
     artifacts.add(artifact);
+    activeDispatchers.forEach(dispatcher -> dispatcher.reportArtifact(artifact));
     return this;
+  }
+
+  /**
+   * Publishes subsequently collected evidence synchronously while the owning reporting lifecycle
+   * remains active. Evidence is still retained by this collector when no dispatcher is bound.
+   */
+  public void publishDuringCollection(Iterable<ReporterDispatcher> dispatchers) {
+    Objects.requireNonNull(dispatchers, "dispatchers");
+    dispatchers.forEach(
+        dispatcher -> {
+          Objects.requireNonNull(dispatcher, "dispatcher");
+          if (!activeDispatchers.contains(dispatcher)) activeDispatchers.add(dispatcher);
+        });
   }
 
   /** Finalizes sanitized failure evidence through the neutral reporter boundary. */
@@ -98,7 +113,8 @@ public class ArtifactCollector {
     dispatchers.forEach(
         dispatcher -> {
           steps.forEach(dispatcher::reportStep);
-          artifacts.forEach(dispatcher::reportArtifact);
+          if (!activeDispatchers.contains(dispatcher))
+            artifacts.forEach(dispatcher::reportArtifact);
         });
   }
 
