@@ -97,8 +97,8 @@ name=""
     '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"image-smoke","version":"1"}}}' \
     '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
     '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-  # Keep stdin open long enough for the production JVM to start and drain all queued frames.
-  sleep 5
+  # Keep stdin open for the same bounded startup window allowed to the HTTP profile.
+  sleep 30
 } |
   docker run --rm -i "${common[@]}" --network none "$image" stdio >"$config_dir/stdio.out" 2>"$config_dir/stdio.err"
 grep -q '"id":1' "$config_dir/stdio.out"
