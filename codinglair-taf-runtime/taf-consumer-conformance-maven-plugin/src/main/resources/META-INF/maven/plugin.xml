@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+  <name>TAF Consumer Conformance Maven Plugin</name>
+  <description>Mandatory effective-build and compiled-test conformance for governed consumers</description>
+  <groupId>com.codinglair.taf</groupId>
+  <artifactId>taf-consumer-conformance-maven-plugin</artifactId>
+  <version>1.3.1</version>
+  <goalPrefix>taf-conformance</goalPrefix>
+  <isolatedRealm>false</isolatedRealm>
+  <inheritedByDefault>true</inheritedByDefault>
+  <requiredJavaVersion>25</requiredJavaVersion>
+  <requiredMavenVersion>3.9.0</requiredMavenVersion>
+  <mojos>
+    <mojo>
+      <goal>validate</goal>
+      <description>Validates the effective provider and resolved consumer classpath.</description>
+      <requiresDependencyResolution>test</requiresDependencyResolution>
+      <requiresDirectInvocation>false</requiresDirectInvocation>
+      <requiresProject>true</requiresProject>
+      <requiresReports>false</requiresReports>
+      <aggregator>false</aggregator>
+      <requiresOnline>false</requiresOnline>
+      <inheritedByDefault>true</inheritedByDefault>
+      <phase>validate</phase>
+      <implementation>com.codinglair.taf.conformance.maven.ValidateConsumerMojo</implementation>
+      <language>java</language>
+      <instantiationStrategy>per-lookup</instantiationStrategy>
+      <executionStrategy>once-per-session</executionStrategy>
+      <threadSafe>true</threadSafe>
+      <parameters>
+        <parameter><name>project</name><type>org.apache.maven.project.MavenProject</type><required>true</required><readonly>true</readonly></parameter>
+        <parameter><name>skip</name><type>boolean</type><required>false</required><editable>true</editable></parameter>
+        <parameter><name>session</name><type>org.apache.maven.execution.MavenSession</type><required>true</required><readonly>true</readonly></parameter>
+      </parameters>
+      <configuration>
+        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
+        <skip implementation="boolean" default-value="false">${taf.conformance.skip}</skip>
+        <session implementation="org.apache.maven.execution.MavenSession" default-value="${session}"/>
+      </configuration>
+      <requirements>
+        <requirement>
+          <role>org.apache.maven.plugin.MavenPluginManager</role>
+          <field-name>pluginManager</field-name>
+        </requirement>
+      </requirements>
+    </mojo>
+    <mojo>
+      <goal>validate-compiled-tests</goal>
+      <description>Validates compiled consumer test annotations and lifecycle ownership.</description>
+      <requiresDependencyResolution>test</requiresDependencyResolution>
+      <requiresDirectInvocation>false</requiresDirectInvocation>
+      <requiresProject>true</requiresProject>
+      <requiresReports>false</requiresReports>
+      <aggregator>false</aggregator>
+      <requiresOnline>false</requiresOnline>
+      <inheritedByDefault>true</inheritedByDefault>
+      <phase>process-test-classes</phase>
+      <implementation>com.codinglair.taf.conformance.maven.ValidateCompiledTestsMojo</implementation>
+      <language>java</language>
+      <instantiationStrategy>per-lookup</instantiationStrategy>
+      <executionStrategy>once-per-session</executionStrategy>
+      <threadSafe>true</threadSafe>
+      <parameters>
+        <parameter><name>project</name><type>org.apache.maven.project.MavenProject</type><required>true</required><readonly>true</readonly></parameter>
+        <parameter><name>skip</name><type>boolean</type><required>false</required><editable>true</editable></parameter>
+      </parameters>
+      <configuration>
+        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
+        <skip implementation="boolean" default-value="false">${taf.conformance.skip}</skip>
+      </configuration>
+    </mojo>
+  </mojos>
+  <dependencies/>
+</plugin>

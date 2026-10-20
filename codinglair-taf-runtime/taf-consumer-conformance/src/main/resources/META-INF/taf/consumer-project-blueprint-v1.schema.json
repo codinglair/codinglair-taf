@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "project", "runtime", "capabilities", "runners", "testDefinitions", "reporting"],
   "properties": {
-    "schemaVersion": { "enum": ["1.0", "1.1"] },
+    "schemaVersion": { "enum": ["1.0", "1.1", "1.2"] },
     "project": {
       "type": "object", "additionalProperties": false,
       "required": ["name", "type", "basePackage"],
@@ -25,7 +25,7 @@
     "reporting": { "type": "object", "additionalProperties": false, "required": ["adapter"], "properties": { "adapter": { "enum": ["allure", "custom"] } } }
   },
   "allOf": [{
-    "if": { "properties": { "schemaVersion": { "const": "1.1" } } },
+    "if": { "properties": { "schemaVersion": { "enum": ["1.1", "1.2"] } } },
     "then": {
       "properties": {
         "project": {

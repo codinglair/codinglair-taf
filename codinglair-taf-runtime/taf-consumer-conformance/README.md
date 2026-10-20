@@ -1,5 +1,8 @@
 # TAF Consumer Conformance
 
+Provider and compiled-test enforcement for governed Maven consumers is documented in
+[`docs/reference/testng-consumer-conformance.md`](../../docs/reference/testng-consumer-conformance.md).
+
 Reusable blueprint 1.0 validation for generated, migrated, and golden consumer projects. The main
 artifact contains the validator, CLI, result contracts, and authoritative schema resource. Its own
 fixture tests remain ordinary module test classes and are not published in the main artifact.

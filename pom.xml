@@ -28,6 +28,7 @@
         <module>codinglair-taf-mcp</module>
         <module>taf-mcp-server</module>
         <module>demos/playwright-sauce-demo</module>
+        <module>demos/playwright-sauce-demo-verification</module>
     </modules>
 
     <properties>
@@ -97,6 +98,7 @@
         <maven.spotless.plugin.version>2.46.1</maven.spotless.plugin.version>
         <google.java.format.version>1.28.0</google.java.format.version>
         <maven.invoker.plugin.version>3.10.1</maven.invoker.plugin.version>
+        <maven.version>3.2.5</maven.version>
         <cyclonedx.maven.plugin.version>2.9.2</cyclonedx.maven.plugin.version>
         <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <central.skipPublishing>false</central.skipPublishing>
