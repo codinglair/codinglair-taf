@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "targetRelease": "1.3.2",
+  "requiredFields": [
+    "sessionId",
+    "testId",
+    "stepId",
+    "attempt",
+    "contentType",
+    "sha256"
+  ],
+  "diagnosticPolicy": "Required for failure and diagnostic evidence; capability expectations declare diagnostic fields explicitly.",
+  "capabilities": [
+    {
+      "id": "web-playwright",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "browser installation and target SUT required",
+      "visualPolicy": "explicit-permission-or-omission"
+    },
+    {
+      "id": "rest",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "available",
+      "failureCases": [
+        "http-error",
+        "assertion",
+        "transport"
+      ],
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "soap",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "available",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "kafka",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "container or broker required",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "rabbitmq",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "container or broker required",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "jms",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "consumer-provided JMS provider required",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "aws-eventbridge",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "LocalStack or authorized AWS required",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "aws-sqs",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "LocalStack or authorized AWS required",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "database",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "JDBC target or container required",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "files",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "available",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "mobile-appium-android",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "Appium server and emulator/device required",
+      "visualPolicy": "explicit-permission-or-omission"
+    },
+    {
+      "id": "mobile-appium-apple",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "unavailable-infrastructure",
+      "reason": "macOS, Xcode, Appium and simulator/device required",
+      "visualPolicy": "explicit-permission-or-omission"
+    },
+    {
+      "id": "contracts",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "available",
+      "visualPolicy": "omitted"
+    },
+    {
+      "id": "virtualization-wiremock",
+      "success": "required",
+      "failure": "required",
+      "ciAvailability": "available",
+      "visualPolicy": "omitted"
+    }
+  ],
+  "executionCases": [
+    "parallel",
+    "rerun-attempt",
+    "setup-failure",
+    "expected-transport-failure",
+    "duplicate-event"
+  ],
+  "retainedArtifacts": [
+    "allure-results",
+    "standalone-html",
+    "validator-json",
+    "expectation-matrix",
+    "sha256-manifest"
+  ]
+}

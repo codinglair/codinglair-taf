@@ -8,8 +8,9 @@ import com.codinglair.taf.runtime.core.history.AttemptHistoryService;
 import com.codinglair.taf.runtime.core.history.DisabledExecutionHistoryRepository;
 import com.codinglair.taf.runtime.core.history.ExecutionAttemptSummary;
 import com.codinglair.taf.runtime.core.history.HistoryConfiguration;
+import com.codinglair.taf.runtime.core.reporting.ArtifactCollector;
 import com.codinglair.taf.runtime.core.reporting.RedactionPipeline;
-import com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact;
+import com.codinglair.taf.runtime.core.reporting.abstraction.TafTest;
 import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.EmbedEvent;
 import io.cucumber.plugin.event.EventPublisher;
@@ -96,14 +97,8 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
             ? redaction.redact(new String(event.getData(), StandardCharsets.UTF_8))
             : "[BINARY CONTENT OMITTED]";
     String name = event.getName() == null ? "scenario-evidence" : event.getName();
-    state.artifacts.add(
-        TestArtifact.of(
-            name,
-            "cucumber-attachment",
-            content,
-            event.getMediaType(),
-            state.currentStep,
-            TestArtifact.computeHash(content)));
+    state.artifacts.addArtifact(
+        name, "cucumber-attachment", content, event.getMediaType(), state.currentStep);
   }
 
   private static boolean isTextual(String mediaType) {
@@ -164,7 +159,7 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
         event.getResult().getStatus().name(),
         state.testCase.getTags(),
         state.steps,
-        state.artifacts,
+        state.artifacts.getArtifacts(),
         analysis);
   }
 
@@ -184,12 +179,16 @@ public final class CucumberBusinessReportPlugin implements ConcurrentEventListen
   private static final class ScenarioState {
     private final TestCase testCase;
     private final List<BusinessStepResult> steps = new ArrayList<>();
-    private final List<TestArtifact> artifacts = new ArrayList<>();
+    private final ArtifactCollector artifacts;
     private volatile String currentStep;
     private final Instant startedAt = Instant.now();
 
     private ScenarioState(TestCase testCase) {
       this.testCase = testCase;
+      String id = testCase.getId().toString();
+      this.artifacts =
+          new ArtifactCollector(
+              TafTest.of(testCase.getName(), testCase.getUri().toString()), id, id);
     }
   }
 
