@@ -47,13 +47,15 @@ class AllureReporterTest {
     reporter.beginTest(test);
     reporter.reportStep(TestStep.of("submit order", "passed", "business action"));
     reporter.reportArtifact(
-        TestArtifact.of("request", "payload", "password=hunter2", "text/plain"));
+        TestArtifact.of(
+            "request", "payload", "password=hunter2", "text/plain", "POST /orders", null));
     reporter.reportArtifact(TestArtifact.of("response", "payload", "ok", "text/plain"));
     reporter.endTest(test);
 
     String results = readResults();
     assertThat(results)
-        .contains("checkout", "submit order", "business action", "request", "response");
+        .contains(
+            "checkout", "submit order", "business action", "POST /orders", "request", "response");
     assertThat(results).doesNotContain("hunter2");
     assertThat(reporter.reportedSteps()).isOne();
     assertThat(reporter.reportedArtifacts()).isEqualTo(2);
