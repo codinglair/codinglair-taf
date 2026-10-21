@@ -24,7 +24,11 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $dependencies = Get-Content -Raw -LiteralPath (Join-Path $module "target/evidence-validator-classpath.txt")
 $classpath = "$module/target/classes$([IO.Path]::PathSeparator)$dependencies"
-$outputPath = [IO.Path]::GetFullPath((Join-Path (Get-Location) $Output))
+$outputPath = if ([IO.Path]::IsPathRooted($Output)) {
+    [IO.Path]::GetFullPath($Output)
+} else {
+    [IO.Path]::GetFullPath((Join-Path (Get-Location) $Output))
+}
 
 & java -cp $classpath com.codinglair.taf.runtime.core.reporting.impl.allure.AllureEvidenceValidatorCli `
     ([IO.Path]::GetFullPath($Results)) `

@@ -1,0 +1,10 @@
+taf:
+  api:
+    rest:
+      enabled: false
+      instances:
+        primary:
+          base-url: https://example.invalid
+    soap:
+      enabled: false
+

@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "1.0",
+  "assignment": "VER-132-001",
+  "candidate": {
+    "baselineSha": "a402e56f2d712e7efb8b11b0ed2151e88d129034",
+    "version": "1.3.1",
+    "manifest": "target/ver-132-001/candidate-manifest.json"
+  },
+  "publications": [
+    {
+      "id": "codinglair-taf-starter-web",
+      "fixture": "starter-web",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-api",
+      "fixture": "starter-api",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-database",
+      "fixture": "starter-database",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-mobile",
+      "fixture": "starter-mobile",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-messaging",
+      "fixture": "starter-messaging",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-messaging-kafka",
+      "fixture": "starter-messaging-kafka",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-messaging-rabbitmq",
+      "fixture": "starter-messaging-rabbitmq",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-messaging-jms",
+      "fixture": "starter-messaging-jms",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "codinglair-taf-starter-messaging-aws",
+      "fixture": "starter-messaging-aws",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "maximal-starter-graph",
+      "fixture": "starter-maximal",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "generated-web-api-database",
+      "fixture": "generated-web-api-database",
+      "status": "targeted-pass",
+      "testCount": 5,
+      "evidence": "target/ver-132-generated-test/target/surefire-reports"
+    },
+    {
+      "id": "generated-cucumber",
+      "fixture": "generated-cucumber",
+      "status": "targeted-pass",
+      "testCount": 2
+    },
+    {
+      "id": "deterministic-public-capabilities",
+      "fixture": "deterministic-capabilities",
+      "status": "targeted-pass",
+      "testCount": 6
+    },
+    {
+      "id": "runtime-core",
+      "fixture": "runtime-core",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "web-playwright",
+      "fixture": "web-playwright",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "mobile-appium",
+      "fixture": "mobile-appium",
+      "status": "implemented",
+      "testCount": null
+    },
+    {
+      "id": "mcp-http",
+      "fixture": "mcp-http",
+      "status": "implemented",
+      "testCount": null
+    }
+  ],
+  "processBoundaries": [
+    {
+      "id": "spring-boot-3-java-17-bytecode",
+      "status": "pass",
+      "fixture": "release/sut-boundary/boot3"
+    },
+    {
+      "id": "spring-boot-4-java-25",
+      "status": "pass",
+      "fixture": "release/sut-boundary/boot4"
+    }
+  ],
+  "negativeCases": [
+    {
+      "id": "junit-only-or-mixed-provider",
+      "status": "implemented",
+      "diagnostic": "provider.testng"
+    },
+    {
+      "id": "missing-testng-integration",
+      "status": "implemented",
+      "diagnostic": "integration.base-test"
+    },
+    {
+      "id": "missing-cucumber-integration",
+      "status": "implemented",
+      "diagnostic": "integration.cucumber-hooks"
+    },
+    {
+      "id": "consumer-owned-lifecycle",
+      "status": "implemented",
+      "diagnostic": "lifecycle.consumer-owned"
+    },
+    {
+      "id": "skip-tests-bypass",
+      "status": "implemented",
+      "diagnostic": "integration.base-test"
+    },
+    {
+      "id": "sut-taf-dependency",
+      "status": "targeted-pass",
+      "diagnostic": "sut.dependency"
+    },
+    {
+      "id": "sut-taf-bom",
+      "status": "targeted-pass",
+      "diagnostic": "sut.bom"
+    },
+    {
+      "id": "sut-reactor-registration",
+      "status": "targeted-pass",
+      "diagnostic": "sut.reactor"
+    },
+    {
+      "id": "sut-packaged-taf-class",
+      "status": "targeted-pass",
+      "diagnostic": "sut.package"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "aws-eventbridge-sqs",
+      "target": "LocalStack",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/ver-132-001/evidence-validator-after-fix.json"
+    },
+    {
+      "id": "rest",
+      "target": "standalone Boot 3/4 HTTP processes",
+      "status": "pass",
+      "testCount": 2,
+      "evidence": "target/ver-132-001/boot3-external-automation.log"
+    },
+    {
+      "id": "soap",
+      "target": "JDK local HTTP SOAP service",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/consumer-smoke/deterministic-capabilities/target/surefire-reports"
+    },
+    {
+      "id": "file",
+      "target": "temporary local filesystem sandbox",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/consumer-smoke/deterministic-capabilities/target/surefire-reports"
+    },
+    {
+      "id": "database",
+      "target": "PostgreSQL 17 Testcontainer",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/consumer-smoke/deterministic-capabilities/target/surefire-reports"
+    },
+    {
+      "id": "contract",
+      "target": "local OpenAPI 3.1 document",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/consumer-smoke/deterministic-capabilities/target/surefire-reports"
+    },
+    {
+      "id": "virtualization",
+      "target": "local WireMock HTTP server",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/consumer-smoke/deterministic-capabilities/target/surefire-reports"
+    },
+    {
+      "id": "observability",
+      "target": "bounded deterministic local Prometheus provider",
+      "status": "targeted-pass",
+      "testCount": 1,
+      "evidence": "target/consumer-smoke/deterministic-capabilities/target/surefire-reports"
+    }
+  ],
+  "liveInfrastructure": [
+    {
+      "id": "android",
+      "status": "not-run",
+      "lane": "existing Android emulator workflow",
+      "ownerAction": "Run the existing Android emulator qualification lane."
+    },
+    {
+      "id": "apple",
+      "status": "unavailable-local",
+      "lane": "existing Apple owner-managed lane",
+      "ownerAction": "Run on the approved Apple host; protocol fixtures are not live qualification."
+    },
+    {
+      "id": "browser",
+      "status": "not-run",
+      "lane": "existing browser matrix",
+      "ownerAction": "Run the established browser workflow with its approved images."
+    },
+    {
+      "id": "kafka-rabbitmq-jms",
+      "status": "not-run",
+      "lane": "existing broker workflows",
+      "ownerAction": "Run established container-backed messaging lanes."
+    }
+  ],
+  "generatedEvidence": "target/ver-132-001/consumer-evidence-matrix.json",
+  "qualificationStatus": "deterministic-local-pass-live-lanes-owner-managed"
+}

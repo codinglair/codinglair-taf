@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.2",
+  "project": {
+    "name": "starter-database-consumer",
+    "type": "standalone-test-automation",
+    "basePackage": "com.codinglair.taf",
+    "expectedBuildRoot": ".",
+    "sutInteraction": "external"
+  },
+  "runtime": {
+    "version": "@taf.version@"
+  },
+  "capabilities": [
+    "database"
+  ],
+  "runners": [
+    "testng"
+  ],
+  "testDefinitions": {
+    "provider": "file-csv",
+    "authoritative": true
+  },
+  "reporting": {
+    "adapter": "allure"
+  }
+}

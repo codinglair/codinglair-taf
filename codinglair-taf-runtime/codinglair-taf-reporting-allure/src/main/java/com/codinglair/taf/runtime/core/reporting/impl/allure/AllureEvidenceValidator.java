@@ -128,7 +128,7 @@ final class AllureEvidenceValidator {
 
   private static List<AttachmentRef> validateContainers(
       Path directory, Set<String> resultIds, List<Violation> out) {
-    Map<String, String> owners = new HashMap<>();
+    Map<String, ContainerEvidence> containers = new LinkedHashMap<>();
     List<AttachmentRef> attachments = new ArrayList<>();
     try (var files = Files.list(directory)) {
       for (Path file :
@@ -139,15 +139,30 @@ final class AllureEvidenceValidator {
         JsonNode container = readJson(file, "container.invalid", out);
         if (container == null) continue;
         String containerId = text(container, "uuid");
+        if (containerId == null || containerId.isBlank()) {
+          out.add(new Violation("container.uuid.missing", file.getFileName().toString()));
+          continue;
+        }
+        List<String> children = new ArrayList<>();
+        container.path("children").forEach(child -> children.add(child.asText()));
+        if (containers.putIfAbsent(containerId, new ContainerEvidence(containerId, children))
+            != null) {
+          out.add(new Violation("container.uuid.duplicate", containerId));
+          continue;
+        }
         collectStepAttachments(container.path("befores"), containerId, attachments);
         collectStepAttachments(container.path("afters"), containerId, attachments);
-        for (JsonNode child : container.path("children")) {
-          String resultId = child.asText();
-          if (!resultIds.contains(resultId))
-            out.add(new Violation("container.child.dangling", resultId));
-          String previous = owners.putIfAbsent(resultId, containerId);
-          if (previous != null && !previous.equals(containerId))
-            out.add(new Violation("result.owner.duplicate", resultId));
+      }
+      Set<String> containerIds = containers.keySet();
+      for (ContainerEvidence container : containers.values()) {
+        Set<String> uniqueChildren = new HashSet<>();
+        for (String childId : container.children()) {
+          if (!uniqueChildren.add(childId)) {
+            out.add(new Violation("result.owner.duplicate", childId));
+          }
+          if (!resultIds.contains(childId) && !containerIds.contains(childId)) {
+            out.add(new Violation("container.child.dangling", childId));
+          }
         }
       }
     } catch (IOException failure) {
@@ -296,17 +311,17 @@ final class AllureEvidenceValidator {
     String html = readText(report, out);
     if (html == null || !html.toLowerCase(Locale.ROOT).contains("<html"))
       out.add(new Violation("report.invalid", report.toString()));
+    Map<String, byte[]> embedded = html == null ? Map.of() : readEmbeddedData(html, out);
     for (JsonNode marker : matrix.path("standaloneRequiredMarkers")) {
-      if (html == null || !html.contains(marker.asText()))
+      if (!containsReportMarker(html, embedded, marker.asText()))
         out.add(new Violation("report.attachment.unavailable", marker.asText()));
     }
     if (html != null) {
-      validateEmbeddedAttachments(results, html, actual, out);
+      validateEmbeddedAttachments(results, embedded, actual, out);
     }
   }
 
-  private static void validateEmbeddedAttachments(
-      Path results, String html, Map<String, ResultEvidence> actual, List<Violation> out) {
+  private static Map<String, byte[]> readEmbeddedData(String html, List<Violation> out) {
     Map<String, byte[]> embedded = new HashMap<>();
     var matcher = EMBEDDED_DATA.matcher(html);
     while (matcher.find()) {
@@ -316,6 +331,21 @@ final class AllureEvidenceValidator {
         out.add(new Violation("report.data.invalid", matcher.group(1)));
       }
     }
+    return embedded;
+  }
+
+  private static boolean containsReportMarker(
+      String html, Map<String, byte[]> embedded, String marker) {
+    if (html != null && html.contains(marker)) return true;
+    return embedded.values().stream()
+        .anyMatch(content -> new String(content, StandardCharsets.UTF_8).contains(marker));
+  }
+
+  private static void validateEmbeddedAttachments(
+      Path results,
+      Map<String, byte[]> embedded,
+      Map<String, ResultEvidence> actual,
+      List<Violation> out) {
     List<JsonNode> testCases =
         embedded.entrySet().stream()
             .filter(entry -> entry.getKey().startsWith("data/test-cases/"))
@@ -467,4 +497,6 @@ final class AllureEvidenceValidator {
       String name, String source, String type, String owner, String step) {}
 
   private record EmbeddedAttachment(String source) {}
+
+  private record ContainerEvidence(String uuid, List<String> children) {}
 }

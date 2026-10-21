@@ -4,16 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codinglair.taf.messaging.rabbitmq.RabbitController;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
-
-@DisplayName("External RabbitMQ starter")
-class RabbitStarterConformanceTest {
+class RabbitStarterConformanceTest extends com.codinglair.taf.runtime.testng.TafBaseTest {
   @Test
-  @DisplayName("starts inert and registers a selected lazy controller")
   void startsInertAndRegistersSelectedController() {
     var runner = new ApplicationContextRunner()
         .withUserConfiguration(ConsumerConfiguration.class)

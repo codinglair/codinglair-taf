@@ -32,7 +32,9 @@ public final class SutBoundaryVerifier {
     String name = file.getFileName().toString();
     if (name.equals("pom.xml") || name.endsWith(".gradle") || name.endsWith(".gradle.kts")) {
       String build = read(file);
-      if (build.contains("com.codinglair.taf"))
+      if (build.contains("com.codinglair.taf") && build.contains("<dependencyManagement>"))
+        violation(violations, "sut.bom", file, "SUT build imports the TAF BOM");
+      else if (build.contains("com.codinglair.taf"))
         violation(violations, "sut.dependency", file, "SUT build resolves a TAF artifact");
       String relativeAutomation = sut.relativize(automation).toString().replace('\\', '/');
       if (!relativeAutomation.startsWith("..")
