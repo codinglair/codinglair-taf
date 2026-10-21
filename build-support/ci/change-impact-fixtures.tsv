@@ -19,4 +19,6 @@ standalone example|M:examples/apple-appium-consumer/pom.xml||examples/apple-appi
 standalone Apple qualification|M:qualification/apple-simulator/pom.xml||qualification/apple-simulator|false|false|false|false|false
 mobile module and standalone Apple qualification|M:codinglair-taf-runtime/taf-mobile-appium/src/main/java/example.java;M:qualification/apple-simulator/pom.xml|codinglair-taf-runtime/taf-mobile-appium|qualification/apple-simulator|true|true|false|true|false
 reactor and standalone example|M:codinglair-taf-starter-mobile/pom.xml;M:examples/apple-appium-consumer/src/test/java/Example.java|codinglair-taf-starter-mobile|examples/apple-appium-consumer|true|false|false|false|false
+standalone Boot 3 SUT|M:release/sut-boundary/boot3/pom.xml||release/sut-boundary/boot3|true|false|false|false|false
+standalone Boot 4 SUT source|M:release/sut-boundary/boot4/src/main/java/example/sut/Application.java||release/sut-boundary/boot4|true|false|false|false|false
 AWS module|M:codinglair-taf-runtime/taf-messaging-aws/src/main/java/example.java|codinglair-taf-runtime/taf-messaging-aws||true|true|false|false|true

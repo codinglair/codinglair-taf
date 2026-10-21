@@ -162,6 +162,17 @@ final class WorkflowContractTest {
           "Empty-module Apple simulator selection must be " + expected + " but was " + output);
     }
     verifyCandidateReactor(output);
+
+    String sutSelection =
+        StandaloneCandidateModules.select(
+            "codinglair-taf-runtime/codinglair-taf-reporting-allure",
+            "release/sut-boundary/boot3,release/sut-boundary/boot4");
+    String expectedSutSelection =
+        "codinglair-taf-runtime/codinglair-taf-reporting-allure";
+    if (!sutSelection.equals(expectedSutSelection)) {
+      throw new AssertionError(
+          "Standalone SUT selection must retain only reactor modules but was " + sutSelection);
+    }
   }
 
   private static void verifyCandidateReactor(String modules) throws Exception {

@@ -65,11 +65,13 @@ final class ChangeImpact {
         paths.stream()
             .map(path -> moduleFor(path, repository))
             .flatMap(Optional::stream)
-            .filter(ChangeImpact::isStandaloneConsumer)
+            .filter(ChangeImpact::isStandaloneVerificationBuild)
             .distinct()
             .sorted()
             .toList();
     boolean productChange = paths.stream().anyMatch(ChangeImpact::isProductPath);
+    boolean sutBoundaryChange =
+        paths.stream().anyMatch(path -> path.startsWith("release/sut-boundary/"));
     boolean runtimeOrMcp =
         global
             || paths.stream()
@@ -116,7 +118,7 @@ final class ChangeImpact {
         List.copyOf(paths),
         modules,
         standaloneBuilds,
-        global || productChange,
+        global || productChange || sutBoundaryChange,
         runtimeOrMcp,
         browser,
         appium,
@@ -204,11 +206,14 @@ final class ChangeImpact {
   }
 
   private static boolean isStandaloneBuild(String module) {
-    return module.startsWith("release/consumer-smoke/") || isStandaloneConsumer(module);
+    return module.startsWith("release/consumer-smoke/")
+        || isStandaloneVerificationBuild(module);
   }
 
-  private static boolean isStandaloneConsumer(String module) {
-    return module.startsWith("examples/") || module.equals("qualification/apple-simulator");
+  private static boolean isStandaloneVerificationBuild(String module) {
+    return module.startsWith("examples/")
+        || module.equals("qualification/apple-simulator")
+        || module.startsWith("release/sut-boundary/");
   }
 
   private static Optional<String> moduleFor(String path, Path repository) {
