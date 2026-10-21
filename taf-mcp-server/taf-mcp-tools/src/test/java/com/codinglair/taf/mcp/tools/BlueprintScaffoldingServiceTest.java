@@ -109,6 +109,31 @@ class BlueprintScaffoldingServiceTest {
   @DisplayName("approved publication and preflight")
   class Publication {
     @Test
+    @DisplayName("publishes for an authorized caller without inventing an approval ceremony")
+    void publishesWhenPolicyDoesNotRequireApproval() {
+      var fixture = fixture(_ -> new ScaffoldCompiler.CompilationResult(true, "passed"));
+
+      var result =
+          fixture.service().execute(request("authorized", List.of("WEB"), null, true, null, null));
+
+      assertThat(result.status()).isEqualTo(BlueprintScaffoldResult.Status.APPLIED);
+      assertThat(root.resolve("authorized/pom.xml")).isRegularFile();
+    }
+
+    @Test
+    @DisplayName("retains policy-driven approval for dependency and scaffold writes")
+    void requiresApprovalWhenPolicyRequiresIt() {
+      var fixture = fixture(_ -> new ScaffoldCompiler.CompilationResult(true, "passed"), true);
+
+      var result =
+          fixture.service().execute(request("governed", List.of("WEB"), null, true, null, null));
+
+      assertThat(result.status()).isEqualTo(BlueprintScaffoldResult.Status.APPROVAL_REQUIRED);
+      assertThat(result.summary()).isEqualTo("dependency approval required");
+      assertThat(root.resolve("governed")).doesNotExist();
+    }
+
+    @Test
     @DisplayName("publishes a composite project only after both approvals and runs preflight")
     void publishesAndPreflights() throws Exception {
       var preflightWorkspace = new java.util.concurrent.atomic.AtomicReference<Path>();
@@ -229,6 +254,10 @@ class BlueprintScaffoldingServiceTest {
   }
 
   private Fixture fixture(ScaffoldCompiler compiler) {
+    return fixture(compiler, false);
+  }
+
+  private Fixture fixture(ScaffoldCompiler compiler, boolean approvalRequired) {
     var approvals = new ApprovalService(CLOCK);
     var redactor = new ResponseRedactor(Set.of("integration-secret-canary"));
     var policy =
@@ -244,7 +273,7 @@ class BlueprintScaffoldingServiceTest {
                     Set.of("*"),
                     Set.of("*"),
                     Set.of("*"),
-                    false)));
+                    approvalRequired)));
     var enforcement =
         new McpEnforcementService(
             policy, approvals, new InMemoryAuditLog(CLOCK, redactor), redactor);

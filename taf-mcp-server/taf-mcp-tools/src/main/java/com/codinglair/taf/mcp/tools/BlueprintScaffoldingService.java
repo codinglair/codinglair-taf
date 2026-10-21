@@ -47,10 +47,30 @@ public final class BlueprintScaffoldingService {
 
     String digest = digest(plan);
     var dependencyContext = context(request, "dependency.add", "taf:dependency:write");
-    if (request.dependencyApprovalId() == null
-        || !approvals.permits(request.dependencyApprovalId(), dependencyContext, digest)) {
-      return result(
-          BlueprintScaffoldResult.Status.APPROVAL_REQUIRED, plan, "dependency approval required");
+    var dependencyAuthorization =
+        enforcement.enforce(
+            new EnforcementRequest(
+                request.requestId(),
+                request.transport(),
+                dependencyContext,
+                digest,
+                request.dependencyApprovalId(),
+                Map.of("blueprintVersion", plan.blueprintVersion())),
+            () -> Boolean.TRUE);
+    switch (dependencyAuthorization.status()) {
+      case ALLOWED -> {
+        // Continue to the separately authorized working-tree write.
+      }
+      case APPROVAL_REQUIRED -> {
+        return result(
+            BlueprintScaffoldResult.Status.APPROVAL_REQUIRED, plan, "dependency approval required");
+      }
+      case DENIED -> {
+        return result(BlueprintScaffoldResult.Status.DENIED, plan, "authorization denied");
+      }
+      case INPUT_REJECTED, FAILED -> {
+        return result(BlueprintScaffoldResult.Status.FAILED, plan, "scaffold failed safely");
+      }
     }
     var enforced =
         enforcement.enforce(

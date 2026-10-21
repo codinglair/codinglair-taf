@@ -8,6 +8,7 @@ import com.codinglair.taf.mcp.prompts.McpPromptReportService;
 import com.codinglair.taf.mcp.resources.McpResourceService;
 import com.codinglair.taf.mcp.security.ApprovalService;
 import com.codinglair.taf.mcp.security.McpEnforcementService;
+import com.codinglair.taf.mcp.security.PolicyRule;
 import com.codinglair.taf.mcp.tools.BlueprintCompositionEngine;
 import com.codinglair.taf.mcp.tools.BlueprintScaffoldingService;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
@@ -34,6 +35,26 @@ import org.springframework.context.annotation.Bean;
     havingValue = "true",
     matchIfMissing = true)
 public class TafMcpStdioAutoConfiguration {
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "taf.mcp.stdio",
+      name = "scaffold-authorized",
+      havingValue = "true")
+  PolicyRule tafMcpStdioScaffoldWritePolicy(TafMcpStdioProperties properties) {
+    return localScaffoldPolicy(
+        "stdio-local-scaffold-write", "scaffold", "taf:working-tree:write", properties);
+  }
+
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "taf.mcp.stdio",
+      name = "scaffold-authorized",
+      havingValue = "true")
+  PolicyRule tafMcpStdioDependencyWritePolicy(TafMcpStdioProperties properties) {
+    return localScaffoldPolicy(
+        "stdio-local-dependency-write", "dependency.add", "taf:dependency:write", properties);
+  }
+
   @Bean
   @ConditionalOnMissingBean(name = "tafMcpToolCatalogIntegrity")
   Set<String> tafMcpToolCatalogIntegrity(
@@ -94,5 +115,20 @@ public class TafMcpStdioAutoConfiguration {
   StdioShutdownCoordinator stdioShutdownCoordinator(
       McpWorkflowTools workflows, JobService jobs, JobRepository repository) {
     return new StdioShutdownCoordinator(workflows, jobs, repository, Clock.systemUTC());
+  }
+
+  private static PolicyRule localScaffoldPolicy(
+      String id, String action, String permission, TafMcpStdioProperties properties) {
+    return new PolicyRule(
+        id,
+        PolicyRule.Effect.ALLOW,
+        Set.of(properties.getUserId()),
+        properties.getRoles(),
+        Set.of(properties.getProject()),
+        Set.of(properties.getEnvironment()),
+        Set.of(action),
+        Set.of(properties.getAgentId()),
+        Set.of(permission),
+        false);
   }
 }

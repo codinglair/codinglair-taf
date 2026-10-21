@@ -17,8 +17,11 @@ remain an additional outer control, not a replacement for this boundary.
 `AuthorizationContext` binds the user, roles, agent identity, project, environment, action, and
 permission. `AuthorizationPolicyEngine` selects every applicable rule. No applicable allow rule is
 a denial, and any applicable deny rule overrides every allow rule. Matching approval requirements
-are combined restrictively. `scaffold` is always consequential and approval-required; deployments
-may configure additional consequential actions such as external publication.
+are combined restrictively. `scaffold` is always authorization-controlled. A deployment may grant
+an explicitly configured local identity permission to write within its canonical automation root
+without an additional human-approval ceremony. Policy rules may still require digest-bound approval
+for scaffold or dependency writes, and deployments may configure other consequential actions such
+as external publication as approval-required.
 
 An `ApprovalRequest` is bound by SHA-256 to the complete authorization context and an
 adapter-supplied canonical operation digest. Only a separate human identity can decide it. A

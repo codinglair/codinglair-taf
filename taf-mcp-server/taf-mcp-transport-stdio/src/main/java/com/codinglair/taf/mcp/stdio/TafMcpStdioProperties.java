@@ -19,6 +19,7 @@ public final class TafMcpStdioProperties {
   private Set<String> roles = new LinkedHashSet<>(Set.of("mcp-local"));
   private String project = "local";
   private String environment = "local";
+  private boolean scaffoldAuthorized;
 
   public boolean isEnabled() {
     return enabled;
@@ -79,6 +80,14 @@ public final class TafMcpStdioProperties {
 
   public void setEnvironment(String environment) {
     this.environment = text(environment, "environment");
+  }
+
+  public boolean isScaffoldAuthorized() {
+    return scaffoldAuthorized;
+  }
+
+  public void setScaffoldAuthorized(boolean scaffoldAuthorized) {
+    this.scaffoldAuthorized = scaffoldAuthorized;
   }
 
   CallerIdentity identity() {
