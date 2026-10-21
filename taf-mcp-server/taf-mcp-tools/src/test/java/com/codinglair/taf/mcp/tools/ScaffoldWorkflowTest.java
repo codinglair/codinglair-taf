@@ -304,7 +304,7 @@ class ScaffoldWorkflowTest {
             false);
     var enforcement =
         new McpEnforcementService(
-            new AuthorizationPolicyEngine(List.of(allow)),
+            new AuthorizationPolicyEngine(List.of(allow), Set.of("scaffold")),
             approvals,
             new InMemoryAuditLog(clock, redactor),
             redactor);

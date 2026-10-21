@@ -7,6 +7,7 @@ import com.codinglair.taf.mcp.prompts.McpPromptReportService;
 import com.codinglair.taf.mcp.resources.McpResourceService;
 import com.codinglair.taf.mcp.security.McpEnforcementService;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
+import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,6 +30,9 @@ class McpProductionServiceAutoConfigurationTest {
               assertThat(context).hasSingleBean(McpResourceService.class);
               assertThat(context).hasSingleBean(McpPromptReportService.class);
               assertThat(context).hasSingleBean(McpEnforcementService.class);
+              assertThat(context).hasSingleBean(ScaffoldCompiler.class);
+              assertThat(context.getBean(ScaffoldCompiler.class))
+                  .isInstanceOf(MavenWrapperScaffoldCompiler.class);
               assertThat(context).hasSingleBean(JobService.class);
             });
   }

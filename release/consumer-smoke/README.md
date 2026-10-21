@@ -39,6 +39,19 @@ records SHA-256 hashes for every staged artifact in `target/ver-132-001/candidat
 and invokes the EVD-132-001 validator against the packaged evidence consumer. Use `-SkipStage`
 only to diagnose a candidate already produced by the exact prepared checkout.
 
+The independent QE safety acceptance entry point consumes that exact candidate and its retained
+dependency/security records, reruns the public packaged-consumer paths, and rejects missing or
+zero-test evidence:
+
+```powershell
+pwsh -NoProfile -File build-support/verification/qe-132-001.ps1
+```
+
+Use `-SkipCandidateRun` only after candidate qualification completed in the same prepared checkout.
+QE evidence is written to `target/qe-132-001/acceptance-matrix.json`,
+`candidate-identity.json`, and `summary.json`. A negative case passes only when its expected public
+conformance diagnostic is present and its test-body sentinel is absent.
+
 The Apple release-candidate gate additionally compiles the standalone native/hybrid/Safari example
 with its `taf-candidate` profile and a separate local repository. Run the complete local contract,
 Android regression, consumer, and MCP image-profile gate with:

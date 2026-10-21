@@ -67,14 +67,27 @@ class McpSecurityTest {
     }
 
     @Test
-    @DisplayName("requires approval for a consequential action even when an allow rule omits it")
-    void consequentialActionDefaultsToApproval() {
+    @DisplayName("requires approval for an explicitly configured consequential action")
+    void configuredConsequentialActionRequiresApproval() {
+      var allow = rule("allow", PolicyRule.Effect.ALLOW, Set.of("developer"), Set.of("*"), false);
+
+      var decision =
+          new AuthorizationPolicyEngine(List.of(allow), Set.of("scaffold"))
+              .decide(context("scaffold"));
+
+      assertThat(decision.allowed()).isTrue();
+      assertThat(decision.approvalRequired()).isTrue();
+    }
+
+    @Test
+    @DisplayName("does not invent approval when an authorized scaffold policy omits it")
+    void authorizedScaffoldDoesNotImplicitlyRequireApproval() {
       var allow = rule("allow", PolicyRule.Effect.ALLOW, Set.of("developer"), Set.of("*"), false);
 
       var decision = new AuthorizationPolicyEngine(List.of(allow)).decide(context("scaffold"));
 
       assertThat(decision.allowed()).isTrue();
-      assertThat(decision.approvalRequired()).isTrue();
+      assertThat(decision.approvalRequired()).isFalse();
     }
   }
 

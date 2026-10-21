@@ -23,9 +23,7 @@ public final class AuthorizationPolicyEngine {
       List<ResourcePolicyRule> resourceRules) {
     this.rules = List.copyOf(rules);
     this.resourceRules = List.copyOf(resourceRules);
-    var configured = new java.util.HashSet<>(consequentialActions);
-    configured.add("scaffold");
-    this.consequentialActions = Set.copyOf(configured);
+    this.consequentialActions = Set.copyOf(consequentialActions);
   }
 
   /** Legacy action-only rules do not implicitly grant access to arbitrary resource identifiers. */
