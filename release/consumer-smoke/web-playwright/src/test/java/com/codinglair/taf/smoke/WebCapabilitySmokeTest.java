@@ -1,16 +1,12 @@
 package com.codinglair.taf.smoke;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codinglair.taf.web.playwright.PlaywrightController;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-@DisplayName("Playwright staged consumer")
-class WebCapabilitySmokeTest {
+import org.testng.annotations.Test;
+class WebCapabilitySmokeTest extends com.codinglair.taf.runtime.testng.TafBaseTest {
   @Test
-  @DisplayName("resolves the optional capability without internal fixtures")
   void resolvesTheOptionalCapabilityWithoutInternalFixtures() {
-    assertNotNull(PlaywrightController.class);
+    assertThat(PlaywrightController.class).isNotNull();
   }
 }

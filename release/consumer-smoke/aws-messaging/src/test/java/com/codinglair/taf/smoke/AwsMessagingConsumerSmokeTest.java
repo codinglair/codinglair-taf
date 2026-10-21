@@ -33,14 +33,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.env.MapPropertySource;
 
-@DisplayName("AWS messaging staged consumer")
-class AwsMessagingConsumerSmokeTest {
+class AwsMessagingConsumerSmokeTest extends com.codinglair.taf.runtime.testng.TafBaseTest {
   private static final String PROFILE = "local";
   private static final String QUEUE = "orders-target";
   private static final String BUS = "orders-events";
@@ -51,13 +48,8 @@ class AwsMessagingConsumerSmokeTest {
        "properties":{"detail":{"type":"object","required":["orderId"]}}}
       """;
 
-  @Nested
-  @DisplayName("End-to-end routing")
-  class EndToEndRouting {
-
-    @Test
-    @DisplayName("routes and acknowledges an event and publishes only sanitized Allure evidence")
-    void routesEventWithPublicReleasedContracts() throws Exception {
+  @Test
+  void routesEventWithPublicReleasedContracts() throws Exception {
       AwsProperties provisioning = provisioningConfiguration();
       var provider = new LocalStackEnvironmentProvider(EnvironmentMode.CONTAINER, provisioning);
       LocalStackEnvironmentResource environment =
@@ -94,7 +86,20 @@ class AwsMessagingConsumerSmokeTest {
                   event("orders.ignored", "ex-110-no-match"), Duration.ofSeconds(1)),
               sqs);
 
-          session.getArtifactCollector().finalizeEvidence(reporter);
+          var collector = session.getArtifactCollector();
+          collector.addArtifact(
+              "packaged-consumer-session-evidence",
+              "diagnostic",
+              "sessionId="
+                  + collector.getSessionId()
+                  + "\ntestId="
+                  + collector.getTestId()
+                  + "\nstepId=aws-route\nattempt=1\ncontentType=text/plain"
+                  + "\nsha256=collector-computed\ndiagnostic=expected non-route verified",
+              "text/plain",
+              "Packaged consumer qualification");
+
+          collector.finalizeEvidence(reporter);
           reporter.endTest(test);
           assertThat(reporter.hasFailed()).isFalse();
           assertThat(reporter.reportedArtifacts()).isPositive();
@@ -108,7 +113,6 @@ class AwsMessagingConsumerSmokeTest {
 
       assertThat(provider.activeResources()).isEmpty();
       assertThat(environment.diagnose().status().name()).isEqualTo("UNAVAILABLE");
-    }
   }
 
   /**

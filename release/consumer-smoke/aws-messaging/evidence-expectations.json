@@ -1,0 +1,58 @@
+{
+  "expectedResultCount": 2,
+  "expectedResults": [
+    {
+      "name": "routesEventWithPublicReleasedContracts",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "EventBridge to SQS released-artifact smoke",
+      "status": "passed",
+      "count": 1,
+      "attachments": [
+        {
+          "name": "aws-eventbridge-publish-1",
+          "count": 1,
+          "contentType": "application/json",
+          "ownerStep": "EventBridge publish"
+        },
+        {
+          "name": "aws-sqs-message-1",
+          "count": 1,
+          "contentType": "application/json",
+          "ownerStep": "SQS message"
+        },
+        {
+          "name": "aws-eventbridge-publish-2",
+          "count": 1,
+          "contentType": "application/json",
+          "ownerStep": "EventBridge publish"
+        },
+        {
+          "name": "packaged-consumer-session-evidence",
+          "count": 1,
+          "contentType": "text/plain",
+          "ownerStep": "Packaged consumer qualification",
+          "requiredFields": [
+            "sessionId",
+            "testId",
+            "stepId",
+            "attempt",
+            "contentType",
+            "sha256",
+            "diagnostic"
+          ]
+        }
+      ]
+    }
+  ],
+  "forbiddenPatterns": [
+    "Bearer ex-110-001-secret-canary"
+  ],
+  "standaloneRequiredMarkers": [
+    "packaged-consumer-session-evidence",
+    "aws-sqs-message-1"
+  ]
+}

@@ -8,7 +8,6 @@
   <version>1</version>
   <properties>
     <maven.compiler.release>25</maven.compiler.release>
-    <junit.version>5.11.4</junit.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -27,9 +26,8 @@
       <artifactId>codinglair-taf-runtime-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>${junit.version}</version>
+      <groupId>com.codinglair.taf</groupId>
+      <artifactId>codinglair-taf-runner-testng</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -39,12 +37,38 @@
       <url>file:///@taf.staging.repository@</url>
     </repository>
   </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>taf-staged-plugins</id>
+      <url>file:///@taf.staging.repository@</url>
+    </pluginRepository>
+  </pluginRepositories>
   <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>3.5.2</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>taf-consumer-conformance-maven-plugin</artifactId>
+        <version>@taf.version@</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>validate</goal>
+              <goal>validate-compiled-tests</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

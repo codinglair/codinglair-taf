@@ -36,6 +36,31 @@ class AllureEvidenceValidatorTest {
       assertThat(report.attachmentCount()).isEqualTo(3);
       assertThat(report.violations()).isEmpty();
     }
+
+    @Test
+    @DisplayName("accepts the nested and shared fixture containers emitted by Allure TestNG")
+    void acceptsRealAllureTestNgContainerGraph() throws Exception {
+      Fixture fixture = fixture();
+      Files.writeString(
+          fixture.results().resolve("test-container.json"),
+          container("test-container", "attempt-1"));
+      Files.writeString(
+          fixture.results().resolve("suite-parent-container.json"),
+          container("suite-parent-container", "test-container"));
+      Files.writeString(
+          fixture.results().resolve("before-method-container.json"),
+          container("before-method-container", "attempt-1"));
+      Files.writeString(
+          fixture.results().resolve("after-method-container.json"),
+          container("after-method-container", "attempt-1"));
+
+      var report =
+          new AllureEvidenceValidator()
+              .validate(fixture.results(), fixture.report(), fixture.matrix());
+
+      assertThat(report.valid()).isTrue();
+      assertThat(report.violations()).isEmpty();
+    }
   }
 
   @Nested
@@ -100,7 +125,21 @@ class AllureEvidenceValidatorTest {
                   fixture ->
                       Files.writeString(
                           fixture.results().resolve("attempt-1-result.json"),
-                          result("attempt-1", "passed", "../outside.txt", "REST attempt"))));
+                          result("attempt-1", "passed", "../outside.txt", "REST attempt"))),
+          Arguments.of(
+              "result.owner.duplicate",
+              (Mutation)
+                  fixture ->
+                      Files.writeString(
+                          fixture.results().resolve("suite-container.json"),
+                          "{\"uuid\":\"suite\",\"children\":[\"attempt-1\",\"attempt-1\"]}")),
+          Arguments.of(
+              "container.child.dangling",
+              (Mutation)
+                  fixture ->
+                      Files.writeString(
+                          fixture.results().resolve("suite-container.json"),
+                          container("suite", "unknown-result-or-container"))));
     }
   }
 
@@ -145,6 +184,10 @@ class AllureEvidenceValidatorTest {
         + "\",\"type\":\"text/plain\"}]}]}";
   }
 
+  private static String container(String uuid, String child) {
+    return "{\"uuid\":\"" + uuid + "\",\"children\":[\"" + child + "\"]}";
+  }
+
   private static String matrix(String ownerStep, int count) {
     return """
         {
@@ -152,7 +195,7 @@ class AllureEvidenceValidatorTest {
           "expectedResultCount": 2,
           "requiredFields": ["sessionId", "testId", "stepId", "attempt", "sha256"],
           "forbiddenPatterns": ["secret-canary"],
-          "standaloneRequiredMarkers": ["embedded-request", "embedded-failure"],
+          "standaloneRequiredMarkers": ["exchange"],
           "expectedResults": [
             {"name":"REST evidence","status":"passed","count":1,
              "attachments":[{"name":"exchange","count":1,"contentType":"text/plain","ownerStep":"%s","nonEmpty":true,"maxBytes":1024}]},
