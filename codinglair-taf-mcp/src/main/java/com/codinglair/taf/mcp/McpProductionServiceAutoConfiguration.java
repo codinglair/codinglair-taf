@@ -15,6 +15,7 @@ import com.codinglair.taf.mcp.security.ApprovalService;
 import com.codinglair.taf.mcp.security.AuthorizationPolicyEngine;
 import com.codinglair.taf.mcp.security.InMemoryAuditLog;
 import com.codinglair.taf.mcp.security.McpEnforcementService;
+import com.codinglair.taf.mcp.security.PolicyRule;
 import com.codinglair.taf.mcp.security.ResponseRedactor;
 import com.codinglair.taf.mcp.tools.McpWorkflowTools;
 import com.codinglair.taf.mcp.tools.ScaffoldCompiler;
@@ -55,8 +56,8 @@ public class McpProductionServiceAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  AuthorizationPolicyEngine mcpAuthorizationPolicyEngine() {
-    return new AuthorizationPolicyEngine(List.of());
+  AuthorizationPolicyEngine mcpAuthorizationPolicyEngine(List<PolicyRule> policyRules) {
+    return new AuthorizationPolicyEngine(policyRules);
   }
 
   @Bean
@@ -123,7 +124,7 @@ public class McpProductionServiceAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   ScaffoldCompiler mcpScaffoldCompiler() {
-    return _ -> new ScaffoldCompiler.CompilationResult(false, "compiler is not configured");
+    return new MavenWrapperScaffoldCompiler();
   }
 
   @Bean

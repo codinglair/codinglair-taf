@@ -66,6 +66,7 @@ public final class CucumberScenarioSession implements AutoCloseable {
     currentReporting.bind(reporting.context);
     try {
       session = lifecycle.open(invocation);
+      session.getArtifactCollector().publishDuringCollection(reporting.dispatchers);
       session
           .getControllerRegistry()
           .enableReporting(new ReportingActionInterceptor(currentReporting));

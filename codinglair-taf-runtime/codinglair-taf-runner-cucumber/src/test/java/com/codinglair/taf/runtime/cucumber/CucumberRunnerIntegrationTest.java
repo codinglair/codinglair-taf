@@ -52,6 +52,10 @@ class CucumberRunnerIntegrationTest {
                         assertThat(artifact.content())
                             .doesNotContain("business-secret")
                             .contains("****");
+                        assertThat(artifact.hash())
+                            .isEqualTo(
+                                com.codinglair.taf.runtime.core.reporting.abstraction.TestArtifact
+                                    .computeHash(artifact.content()));
                       });
             });
     assertThat(listener.results).containsExactlyElementsOf(plugin.results());

@@ -33,8 +33,13 @@ done
 [[ "$(docker inspect --format '{{.HostConfig.SecurityOpt}}' "$name")" == '[no-new-privileges]' ]]
 [[ "$(docker inspect --format '{{.HostConfig.CapDrop}}' "$name")" == '[ALL]' ]]
 if [[ "$target" == control-plane ]]; then
-  docker exec "$name" test -d /var/lib/taf-mcp/jobs
-  docker exec "$name" test -w /var/lib/taf-mcp/jobs
+  # Liveness can turn healthy just before the application state initializer completes.
+  for _ in {1..15}; do
+    docker exec "$name" sh -c 'test -d /var/lib/taf-mcp/jobs && test -w /var/lib/taf-mcp/jobs' \
+      && break
+    sleep 1
+  done
+  docker exec "$name" sh -c 'test -d /var/lib/taf-mcp/jobs && test -w /var/lib/taf-mcp/jobs'
   docker exec "$name" test -w /workspace
   if docker exec "$name" test -w /opt/taf; then
     echo '/opt/taf unexpectedly writable' >&2

@@ -181,14 +181,29 @@ public final class AllureReporter implements TestReporter {
   @Override
   public void reportArtifact(TestArtifact artifact) {
     Objects.requireNonNull(artifact, "artifact");
-    requireActiveTest();
+    String testUuid = requireActiveTest();
     String content = Objects.requireNonNullElse(artifact.content(), "");
-    lifecycle.addAttachment(
-        Objects.requireNonNullElse(artifact.name(), "artifact"),
-        Objects.requireNonNullElse(artifact.contentType(), "text/plain"),
-        null,
-        redactionService.redact(content).getBytes(StandardCharsets.UTF_8));
-    artifactCount.incrementAndGet();
+    String associationStep = artifact.stepName();
+    String stepUuid = null;
+    if (associationStep != null && !associationStep.isBlank()) {
+      stepUuid = UUID.randomUUID().toString();
+      lifecycle.startStep(
+          testUuid,
+          stepUuid,
+          new StepResult()
+              .setName(redactionService.redact(associationStep))
+              .setStatus(Status.PASSED));
+    }
+    try {
+      lifecycle.addAttachment(
+          Objects.requireNonNullElse(artifact.name(), "artifact"),
+          Objects.requireNonNullElse(artifact.contentType(), "text/plain"),
+          null,
+          redactionService.redact(content).getBytes(StandardCharsets.UTF_8));
+      artifactCount.incrementAndGet();
+    } finally {
+      if (stepUuid != null) lifecycle.stopStep(stepUuid);
+    }
   }
 
   @Override

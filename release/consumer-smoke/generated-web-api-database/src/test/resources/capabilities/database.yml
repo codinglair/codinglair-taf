@@ -1,0 +1,9 @@
+taf:
+  database:
+    enabled: false
+    connections:
+      primary:
+        jdbc-url: jdbc:postgresql://localhost:5432/example
+        username-secret: secret://local/database/username
+        password-secret: secret://local/database/password
+

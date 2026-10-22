@@ -60,6 +60,14 @@ frames only; banners, diagnostics, and logs go to stderr. Health is a successful
 exchange followed by ping. EOF requests graceful shutdown; fatal framing/configuration errors exit
 non-zero. Process lifetime is the session lifetime.
 
+When the STDIO process is explicitly configured for Testcontainers-backed environment
+provisioning, its Docker endpoint is an operator-owned privileged boundary. Through 2026-12-18,
+the approved DEP-132-001 exception permits only a trusted local Unix socket, a trusted Windows
+named pipe, or an administratively controlled mutually authenticated TLS endpoint. Plaintext or
+untrusted remote Docker endpoints are unsupported. MCP requests cannot override the Docker
+endpoint. See the DEP-132-001 remediation record for the exact shaded HttpCore findings, expiry,
+and removal trigger.
+
 ## Streamable HTTP profile
 
 This profile runs detached for Docker, CI services, Kubernetes, and future hosted deployments. It

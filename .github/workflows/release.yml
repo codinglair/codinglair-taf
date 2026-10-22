@@ -41,14 +41,33 @@ jobs:
       - name: Stage community Maven artifacts
         run: ./mvnw -B -ntp clean deploy -Prelease-staging -Dproject.build.outputTimestamp="$(git show -s --format=%cI HEAD)"
       - name: Verify clean consumers from staged artifacts
-        run: ./mvnw -B -ntp -Pconsumer-smoke verify
+        shell: pwsh
+        run: ./build-support/verification/ver-132-001.ps1 -SkipStage
+      - name: Retain packaged-consumer evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-consumer-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/ver-132-001/
+            target/consumer-smoke/**/build.log
+            target/consumer-smoke/**/target/surefire-reports/
+            target/consumer-smoke/**/target/dependency-tree.txt
+            target/consumer-smoke/**/target/effective-pom.xml
+            target/consumer-smoke/**/target/allure-results/
+            target/consumer-smoke/**/target/allure-report/
+          if-no-files-found: error
+          retention-days: 90
       - name: Verify release contract and staged evidence
         run: |
           mkdir -p target/release-contract
-          javac -d target/release-contract build-support/release/ReleaseContractTest.java build-support/release/ReleaseLicensePolicy.java build-support/release/ReleaseLicensePolicyTest.java
+          javac -d target/release-contract build-support/release/ReleaseContractTest.java build-support/release/ReleaseLicensePolicy.java build-support/release/ReleaseLicensePolicyTest.java build-support/release/JacksonDependencyPolicyTest.java
+          java -cp target/release-contract JacksonDependencyPolicyTest
           java -cp target/release-contract ReleaseLicensePolicyTest
           java -cp target/release-contract ReleaseContractTest target/staging-repository
           java -cp target/release-contract ReleaseLicensePolicy target/staging-repository
+      - name: Scan every staged publication surface for Jackson vulnerabilities
+        run: bash build-support/scripts/scan-jackson-surfaces.sh target/staging-repository target/dep-132-001
       - name: Retain staged repository
         uses: actions/upload-artifact@v4
         with:
@@ -56,6 +75,14 @@ jobs:
           path: target/staging-repository/
           if-no-files-found: error
           retention-days: 30
+      - name: Retain Jackson dependency evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jackson-surface-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/dep-132-001/
+          if-no-files-found: error
+          retention-days: 90
       - name: Create ephemeral signing identity
         run: |
           gpg --batch --passphrase '' --quick-generate-key \

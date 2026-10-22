@@ -41,6 +41,14 @@ final class VerificationMatrixContractTest {
     require(matrix, "-Pmcp-e2e,security-it");
     require(matrix, "uses: ./.github/workflows/mob-003-qualification.yml");
     require(matrix, "uses: ./.github/workflows/aws-capability.yml");
+    require(matrix, "name: QE-132-002 standalone report qualification");
+    require(matrix, "npm install --global allure-commandline@2.36.0");
+    require(matrix, "test \"$(allure --version)\" = '2.36.0'");
+    require(matrix, "./build-support/verification/qe-132-002.ps1");
+    require(matrix, "target/qe-132-002/candidate-identity.json");
+    require(matrix, "target/qe-132-002/summary.json");
+    require(matrix, "${{ needs.qe-132-002-qualification.result }}");
+    prohibit(matrix, "-SkipStage");
     require(matrix, "${{ needs.aws-capability.result }}");
     require(matrix, "name: Release verification gate");
     require(matrix, "if: ${{ always() }}");

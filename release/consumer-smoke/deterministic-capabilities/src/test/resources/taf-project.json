@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.2",
+  "project": {
+    "name": "deterministic-capabilities-consumer",
+    "type": "standalone-test-automation",
+    "basePackage": "com.codinglair.taf",
+    "expectedBuildRoot": ".",
+    "sutInteraction": "external"
+  },
+  "runtime": {
+    "version": "@taf.version@"
+  },
+  "capabilities": [
+    "soap",
+    "file",
+    "database",
+    "contracts",
+    "virtualization",
+    "observability"
+  ],
+  "runners": [
+    "testng"
+  ],
+  "testDefinitions": {
+    "provider": "file-csv",
+    "authoritative": true
+  },
+  "reporting": {
+    "adapter": "allure"
+  }
+}

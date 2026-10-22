@@ -1,0 +1,49 @@
+{
+  "assignment": "QE-132-002",
+  "executed": [
+    {
+      "capability": "REST",
+      "fixture": "testng",
+      "success": true,
+      "failure": true,
+      "diagnostics": "request, response, 4xx, 5xx, validation, connection/read timeout, bounded body, redaction"
+    },
+    {
+      "capability": "ArtifactCollector without Allure",
+      "fixture": "no-allure",
+      "success": true,
+      "failure": true,
+      "diagnostics": "sanitized retained public collector evidence and missing-session rejection"
+    },
+    {
+      "capability": "Cucumber reporting",
+      "fixture": "cucumber",
+      "success": true,
+      "failure": true,
+      "diagnostics": "separate business audience and exact expected status"
+    }
+  ],
+  "prerequisiteCandidateCoverage": [
+    "SOAP",
+    "file",
+    "PostgreSQL",
+    "contract",
+    "virtualization",
+    "observability",
+    "AWS EventBridge/SQS"
+  ],
+  "unavailableLiveQualification": [
+    {
+      "capability": "browser matrix",
+      "reason": "owner-managed live lane; no browser environment is supplied by this assignment"
+    },
+    {
+      "capability": "Android/Apple devices",
+      "reason": "owner-managed device lanes; no device infrastructure is supplied"
+    },
+    {
+      "capability": "external Kafka/RabbitMQ/JMS",
+      "reason": "owner-managed broker lanes; packaged fixture availability is not a live-infrastructure claim"
+    }
+  ]
+}

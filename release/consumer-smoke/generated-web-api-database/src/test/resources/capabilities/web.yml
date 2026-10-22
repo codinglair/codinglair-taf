@@ -1,0 +1,8 @@
+taf:
+  web:
+    playwright:
+      enabled: false
+      instances:
+        primary:
+          browser: chromium
+

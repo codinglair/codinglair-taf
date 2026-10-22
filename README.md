@@ -18,6 +18,7 @@ The platform has two independently usable layers:
 ## Highlights
 
 - Java 25 and Spring Boot 4 modular architecture
+- Standalone automation build/runtime boundary; same-repository SUT layouts remain supported
 - One isolated `TestSession` per TestNG invocation or Cucumber scenario
 - Typed, named, lazily initialized controllers with deterministic reverse-order cleanup
 - Conditional Spring Boot auto-configuration for independently consumable capabilities
@@ -40,7 +41,7 @@ The platform has two independently usable layers:
 | Mobile | Android/UiAutomator2 and Apple/XCUITest through Appium; typed native, hybrid, and Safari selections; simulator, authorized physical-device, and external-provider modes |
 | Virtualization | WireMock-backed service virtualization provider |
 | Observability | Log, metric, and trace assertions with bounded evidence |
-| Runners | Independent TestNG and Cucumber lifecycle integrations |
+| Runners | TestNG consumer execution; Cucumber through TestNG with independent scenario hooks; JUnit for framework implementation tests only |
 | Reporting | TAF-neutral actions and evidence, failure classification/history, optional Allure single-file publishing |
 | Environments | Preflight, external resources, isolated/shared Testcontainers lifecycles, dynamic connection metadata |
 | MCP | Discovery, validation, scaffolding, build, execution, inspection, retrieval, cancellation, reporting, curated resources and prompts |
@@ -90,6 +91,7 @@ Its default tests are deterministic; live profiles require authorized external p
 - [Full reference documentation](docs/reference/README.md)
 - [Runtime and configuration](docs/reference/runtime-and-configuration.md)
 - [TestNG and Cucumber separation](docs/reference/testng-cucumber-separation.md)
+- [1.3.2 corrective migration](docs/reference/migration-1.3.2.md)
 - [Android and Appium setup](docs/reference/android-appium-setup.md)
 - [Apple Appium consumer guide](docs/reference/apple-appium-consumer-guide.md)
 - [Apple operations and platform differences](docs/reference/apple-appium-operations.md)

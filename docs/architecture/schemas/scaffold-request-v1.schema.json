@@ -17,6 +17,16 @@
     "testDefinitions"
   ],
   "properties": {
+    "automationRoot": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical root owned by the standalone automation build. Preferred over the legacy destination field."
+    },
+    "sutRoot": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SUT build root protected from scaffold writes."
+    },
     "schemaVersion": {
       "const": "1.0"
     },

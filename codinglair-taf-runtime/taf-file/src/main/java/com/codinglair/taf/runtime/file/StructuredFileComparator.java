@@ -1,8 +1,6 @@
 package com.codinglair.taf.runtime.file;
 
 import com.codinglair.taf.runtime.file.FileSandbox.CheckedFile;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
@@ -14,10 +12,13 @@ import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 final class StructuredFileComparator {
   private final FileSandbox sandbox;
-  private final ObjectMapper json = new ObjectMapper();
+  private final ObjectMapper json = JsonMapper.builder().build();
 
   StructuredFileComparator(FileSandbox sandbox) {
     this.sandbox = sandbox;
@@ -82,7 +83,7 @@ final class StructuredFileComparator {
   private static void flattenJson(JsonNode node, String path, Map<String, String> values) {
     if (node.isObject()) {
       var names = new ArrayList<String>();
-      node.fieldNames().forEachRemaining(names::add);
+      names.addAll(node.propertyNames());
       names.stream()
           .sorted()
           .forEach(name -> flattenJson(node.get(name), path + "." + name, values));

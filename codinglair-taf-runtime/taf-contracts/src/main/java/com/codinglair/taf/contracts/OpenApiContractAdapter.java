@@ -1,7 +1,7 @@
 package com.codinglair.taf.contracts;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
+import tools.jackson.databind.JsonNode;
 
 /** Dependency-light OpenAPI 3.x structural validator and Runtime scaffold adapter. */
 public final class OpenApiContractAdapter extends StructuredContractAdapter {
@@ -18,7 +18,7 @@ public final class OpenApiContractAdapter extends StructuredContractAdapter {
   }
 
   @Override
-  protected List<ContractDiagnostic> validateRoot(JsonNode root, ContractDocument document) {
+  List<ContractDiagnostic> validateRoot(JsonNode root, ContractDocument document) {
     if (!root.isObject() || !root.path("openapi").asText("").startsWith("3.")) {
       return List.of(
           ContractDiagnostic.error(
@@ -31,7 +31,7 @@ public final class OpenApiContractAdapter extends StructuredContractAdapter {
   }
 
   @Override
-  protected GeneratedContractAsset generate(ContractScaffoldRequest request, JsonNode root) {
+  GeneratedContractAsset generate(ContractScaffoldRequest request, JsonNode root) {
     StringBuilder sb = new StringBuilder();
     var source =
         sb.append("package ")

@@ -113,6 +113,21 @@ function Invoke-CommandCheck {
     }
 }
 
+function Invoke-GitleaksCheck {
+    $container = @(
+        'run', '--rm', '--network', 'none',
+        '--mount', "type=bind,source=$((Get-Location).Path),target=/repo,readonly",
+        '--workdir', '/repo',
+        'ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f'
+    )
+    $scan = @('--no-banner', '--redact=100', '--config', '/repo/.gitleaks.toml')
+
+    # Scan the current directory first so modified and untracked files are checked
+    # before they can be committed. The Git scan then covers committed history.
+    Invoke-CommandCheck docker ($container + @('dir') + $scan + @('/repo')) Leaks
+    Invoke-CommandCheck docker ($container + @('git') + $scan + @('--log-opts=--all', '/repo')) Leaks
+}
+
 function Get-ComposeResources {
     param([string] $Project, [switch] $Networks)
     $arguments = if ($Networks) { @('network', 'ls', '--quiet', '--filter', "label=com.docker.compose.project=$Project") }
@@ -162,7 +177,7 @@ function Invoke-PlaywrightCheck {
 
 function Invoke-LocalVerification {
     $checks = [ordered]@{
-        'GitLeaks' = { Invoke-CommandCheck docker @('run', '--rm', '--network', 'none', '--mount', "type=bind,source=$((Get-Location).Path),target=/repo,readonly", '--workdir', '/repo', 'ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f', 'git', '--no-banner', '--redact=100', '--config', '/repo/.gitleaks.toml', '--log-opts=--all', '/repo') Leaks }
+        'GitLeaks' = { Invoke-GitleaksCheck }
         'Full reactor' = { Invoke-CommandCheck .\mvnw.cmd @('clean', 'install', '-am') Maven }
         'Full reactor with containers' = { Invoke-CommandCheck .\mvnw.cmd @('clean', 'install', '-am', '-Pcontainers') Maven }
         'Conformance test' = { Invoke-CommandCheck .\mvnw.cmd @('-pl', 'codinglair-taf-runtime/taf-consumer-conformance', '-am', '-Pdependency-analysis,architecture', 'verify') Maven }

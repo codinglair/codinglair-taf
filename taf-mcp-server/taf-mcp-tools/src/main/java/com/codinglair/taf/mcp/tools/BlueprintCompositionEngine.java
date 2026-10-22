@@ -90,7 +90,9 @@ public final class BlueprintCompositionEngine {
       return new WriteResult(WriteStatus.FAILED, "destination parent is unavailable");
     }
     if (Files.exists(absolute, LinkOption.NOFOLLOW_LINKS)) {
-      return new WriteResult(WriteStatus.CONFLICT, "destination already exists");
+      return matchesRecognizedProject(plan, absolute)
+          ? new WriteResult(WriteStatus.UNCHANGED, "recognized composition is unchanged")
+          : new WriteResult(WriteStatus.CONFLICT, "destination already exists or differs");
     }
     Path staging = null;
     try {
@@ -115,6 +117,54 @@ public final class BlueprintCompositionEngine {
         return new WriteResult(WriteStatus.CONFLICT, "destination already exists");
       }
       return new WriteResult(WriteStatus.FAILED, "composition write failed safely");
+    }
+  }
+
+  /** Removes only a newly created composition whose owned files still match the plan. */
+  public boolean rollbackOwned(CompositionPlan plan, Path destination) {
+    Path root = destination.toAbsolutePath().normalize();
+    try {
+      if (!root.toRealPath().equals(root) || Files.isSymbolicLink(root)) return false;
+    } catch (IOException failure) {
+      return false;
+    }
+    if (!matchesRecognizedProject(plan, root)) return false;
+    try {
+      for (var write : plan.writes().reversed()) {
+        Path target = root.resolve(write.path()).normalize();
+        Files.delete(target);
+        deleteEmptyParents(target.getParent(), root);
+      }
+      Files.deleteIfExists(root);
+      return true;
+    } catch (IOException failure) {
+      return false;
+    }
+  }
+
+  private static void deleteEmptyParents(Path directory, Path root) throws IOException {
+    Path current = directory;
+    while (current != null && !current.equals(root)) {
+      try (var entries = Files.list(current)) {
+        if (entries.findAny().isPresent()) return;
+      }
+      Files.delete(current);
+      current = current.getParent();
+    }
+  }
+
+  private static boolean matchesRecognizedProject(CompositionPlan plan, Path root) {
+    if (!Files.isRegularFile(root.resolve("src/test/resources/taf-project.json"))) return false;
+    try {
+      for (var write : plan.writes()) {
+        Path target = root.resolve(write.path()).normalize();
+        if (!target.startsWith(root)
+            || !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+            || !write.sha256().equals(sha256(Files.readAllBytes(target)))) return false;
+      }
+      return true;
+    } catch (IOException failure) {
+      return false;
     }
   }
 
@@ -382,6 +432,11 @@ public final class BlueprintCompositionEngine {
             "__BASE_PACKAGE__", request.basePackage(),
             "__PACKAGE_PATH__", request.basePackage().replace('.', '/'),
             "__TAF_VERSION__", request.tafVersion(),
+            "__RUNNERS__",
+                request.runner() == Runner.TESTNG
+                    ? "\"testng\""
+                    : "\"testng\", \"cucumber-testng\"",
+            "__CAPABILITIES__", descriptorCapabilities(request),
             "__TAF_DEPENDENCIES__", dependencyDeclarations(dependencies),
             "__TAF_REPORTING_DEPENDENCIES__", reportingDependencyDeclarations(request.reporting()));
     for (var contribution : selected) {
@@ -440,7 +495,7 @@ public final class BlueprintCompositionEngine {
       return;
     }
     Path target = destinationRoot.resolve(path).normalize();
-    if (!target.startsWith(destinationRoot) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+    if (!target.startsWith(destinationRoot)) {
       diagnostics.add(
           error(
               "SCF_PATH_COLLISION",
@@ -448,9 +503,38 @@ public final class BlueprintCompositionEngine {
               contribution.id(),
               path,
               null,
-              "target already exists or escapes the destination",
-              "Choose an empty destination."));
+              "target escapes the destination",
+              "Choose a confined destination."));
       return;
+    }
+    if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+      try {
+        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+            || !java.util.Arrays.equals(
+                Files.readAllBytes(target), content.getBytes(StandardCharsets.UTF_8))) {
+          diagnostics.add(
+              error(
+                  "SCF_PATH_COLLISION",
+                  Phase.PATH,
+                  contribution.id(),
+                  path,
+                  null,
+                  "recognized target differs from the deterministic blueprint",
+                  "Preserve the user file or restore the generated content before updating."));
+          return;
+        }
+      } catch (IOException failure) {
+        diagnostics.add(
+            error(
+                "SCF_PATH_UNREADABLE",
+                Phase.PATH,
+                contribution.id(),
+                path,
+                null,
+                "recognized target cannot be read",
+                "Make the generated target readable before updating."));
+        return;
+      }
     }
     byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
     writes.put(
@@ -476,6 +560,30 @@ public final class BlueprintCompositionEngine {
                     .stripTrailing())
         .reduce((left, right) -> left + "\n" + right)
         .orElse("");
+  }
+
+  private static String descriptorCapabilities(NormalizedRequest request) {
+    return request.capabilities().stream()
+        .flatMap(
+            capability ->
+                switch (capability) {
+                  case API -> java.util.stream.Stream.of("rest", "soap");
+                  case DATABASE -> java.util.stream.Stream.of("database");
+                  case MESSAGING ->
+                      java.util.stream.Stream.of(
+                          request
+                              .messagingProvider()
+                              .orElseThrow()
+                              .name()
+                              .toLowerCase(Locale.ROOT));
+                  case MOBILE -> java.util.stream.Stream.of("mobile-appium");
+                  case WEB -> java.util.stream.Stream.of("web-playwright");
+                })
+        .distinct()
+        .sorted()
+        .map(value -> "\"" + value + "\"")
+        .reduce((left, right) -> left + ", " + right)
+        .orElse("\"files\"");
   }
 
   private static String reportingDependencyDeclarations(Reporting reporting) {
@@ -746,6 +854,7 @@ public final class BlueprintCompositionEngine {
 
   public enum WriteStatus {
     WRITTEN,
+    UNCHANGED,
     CONFLICT,
     FAILED
   }

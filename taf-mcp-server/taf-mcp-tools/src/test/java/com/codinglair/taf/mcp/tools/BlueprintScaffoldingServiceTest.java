@@ -81,11 +81,58 @@ class BlueprintScaffoldingServiceTest {
                       null, "1.0", List.of(), List.of(), List.of(), null, List.of()))
           .isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    @DisplayName("rejects the SUT build root before protected mutation or preflight")
+    void rejectsSutRootBeforeMutation() throws Exception {
+      Path sut = Files.createDirectory(root.resolve("sut"));
+      Path protectedPom = sut.resolve("pom.xml");
+      Files.writeString(protectedPom, "protected");
+      var compiled = new java.util.concurrent.atomic.AtomicBoolean();
+      var fixture =
+          fixture(
+              _ -> {
+                compiled.set(true);
+                return new ScaffoldCompiler.CompilationResult(true, "compiled");
+              });
+      var request = withSut(request("sut", List.of("WEB"), null, true, null, null), sut);
+
+      assertThatThrownBy(() -> fixture.service().execute(request))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("must not be the SUT build root");
+      assertThat(compiled).isFalse();
+      assertThat(Files.readString(protectedPom)).isEqualTo("protected");
+    }
   }
 
   @Nested
   @DisplayName("approved publication and preflight")
   class Publication {
+    @Test
+    @DisplayName("publishes for an authorized caller without inventing an approval ceremony")
+    void publishesWhenPolicyDoesNotRequireApproval() {
+      var fixture = fixture(_ -> new ScaffoldCompiler.CompilationResult(true, "passed"));
+
+      var result =
+          fixture.service().execute(request("authorized", List.of("WEB"), null, true, null, null));
+
+      assertThat(result.status()).isEqualTo(BlueprintScaffoldResult.Status.APPLIED);
+      assertThat(root.resolve("authorized/pom.xml")).isRegularFile();
+    }
+
+    @Test
+    @DisplayName("retains policy-driven approval for dependency and scaffold writes")
+    void requiresApprovalWhenPolicyRequiresIt() {
+      var fixture = fixture(_ -> new ScaffoldCompiler.CompilationResult(true, "passed"), true);
+
+      var result =
+          fixture.service().execute(request("governed", List.of("WEB"), null, true, null, null));
+
+      assertThat(result.status()).isEqualTo(BlueprintScaffoldResult.Status.APPROVAL_REQUIRED);
+      assertThat(result.summary()).isEqualTo("dependency approval required");
+      assertThat(root.resolve("governed")).doesNotExist();
+    }
+
     @Test
     @DisplayName("publishes a composite project only after both approvals and runs preflight")
     void publishesAndPreflights() throws Exception {
@@ -126,9 +173,91 @@ class BlueprintScaffoldingServiceTest {
               "codinglair-taf-starter-database")
           .doesNotContain("taf-mcp");
     }
+
+    @Test
+    @DisplayName("recognized identical projects update without replacing user files")
+    void updatesRecognizedProjectDeterministically() throws Exception {
+      var fixture = fixture(_ -> new ScaffoldCompiler.CompilationResult(true, "compiled"));
+      var initial =
+          approved(fixture, request("recognized", List.of("WEB"), null, true, null, null));
+      assertThat(fixture.service().execute(initial).status())
+          .isEqualTo(BlueprintScaffoldResult.Status.APPLIED);
+      Files.writeString(root.resolve("recognized/user-notes.txt"), "preserve");
+      var update = approved(fixture, request("recognized", List.of("WEB"), null, true, null, null));
+
+      var result = fixture.service().execute(update);
+
+      assertThat(result.status()).isEqualTo(BlueprintScaffoldResult.Status.APPLIED);
+      assertThat(result.summary()).contains("unchanged");
+      assertThat(Files.readString(root.resolve("recognized/user-notes.txt"))).isEqualTo("preserve");
+    }
+
+    @Test
+    @DisplayName("protected SUT mutation fails and rolls back only owned files")
+    void detectsProtectedMutationAndRollsBackOwnedFiles() throws Exception {
+      Path sut = Files.createDirectory(root.resolve("sut"));
+      Path protectedPom = sut.resolve("pom.xml");
+      Files.writeString(protectedPom, "before");
+      var fixture =
+          fixture(
+              _ -> {
+                try {
+                  Files.writeString(protectedPom, "changed-by-preflight");
+                } catch (java.io.IOException failure) {
+                  throw new IllegalStateException(failure);
+                }
+                return new ScaffoldCompiler.CompilationResult(true, "compiled");
+              });
+      var request = withSut(request("automation", List.of("WEB"), null, true, null, null), sut);
+
+      var result = fixture.service().execute(approved(fixture, request));
+
+      assertThat(result.status()).isEqualTo(BlueprintScaffoldResult.Status.FAILED);
+      assertThat(result.summary()).contains("protected SUT files changed");
+      assertThat(root.resolve("automation/pom.xml")).doesNotExist();
+      assertThat(Files.readString(protectedPom)).isEqualTo("changed-by-preflight");
+    }
+  }
+
+  private BlueprintScaffoldRequest approved(Fixture fixture, BlueprintScaffoldRequest request) {
+    String dependency = fixture.service().requestDependencyApproval(request, Duration.ofMinutes(5));
+    String write = fixture.service().requestWriteApproval(request, Duration.ofMinutes(5));
+    fixture.approvals().decide(dependency, APPROVER, true);
+    fixture.approvals().decide(write, APPROVER, true);
+    return new BlueprintScaffoldRequest(
+        request.requestId(),
+        request.projectId(),
+        request.environment(),
+        request.destination(),
+        request.blueprint(),
+        request.publish(),
+        write,
+        dependency,
+        request.identity(),
+        request.transport(),
+        request.sutRoot());
+  }
+
+  private static BlueprintScaffoldRequest withSut(BlueprintScaffoldRequest request, Path sutRoot) {
+    return new BlueprintScaffoldRequest(
+        request.requestId(),
+        request.projectId(),
+        request.environment(),
+        request.destination(),
+        request.blueprint(),
+        request.publish(),
+        request.writeApprovalId(),
+        request.dependencyApprovalId(),
+        request.identity(),
+        request.transport(),
+        sutRoot);
   }
 
   private Fixture fixture(ScaffoldCompiler compiler) {
+    return fixture(compiler, false);
+  }
+
+  private Fixture fixture(ScaffoldCompiler compiler, boolean approvalRequired) {
     var approvals = new ApprovalService(CLOCK);
     var redactor = new ResponseRedactor(Set.of("integration-secret-canary"));
     var policy =
@@ -144,7 +273,7 @@ class BlueprintScaffoldingServiceTest {
                     Set.of("*"),
                     Set.of("*"),
                     Set.of("*"),
-                    false)));
+                    approvalRequired)));
     var enforcement =
         new McpEnforcementService(
             policy, approvals, new InMemoryAuditLog(CLOCK, redactor), redactor);

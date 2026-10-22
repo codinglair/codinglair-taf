@@ -1,6 +1,5 @@
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.nio.file.Path;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 /**
  * CI entry point that fails closed when an executable workflow is not a YAML mapping.
@@ -15,7 +14,7 @@ final class WorkflowYamlParse {
     if (args.length != 1) {
       throw new IllegalArgumentException("Expected one workflow path");
     }
-    var root = new ObjectMapper(new YAMLFactory()).readTree(Path.of(args[0]).toFile());
+    var root = YAMLMapper.builder().build().readTree(Path.of(args[0]).toFile());
     if (root == null || !root.isObject()) {
       throw new IllegalStateException("Workflow YAML root must be a mapping");
     }

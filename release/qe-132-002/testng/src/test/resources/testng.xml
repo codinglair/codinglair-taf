@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="qe-132-002-technical" parallel="methods" thread-count="2">
+  <test name="technical-audience">
+    <classes>
+      <class name="com.codinglair.taf.qualification.RestDiagnosticsTest" />
+    </classes>
+  </test>
+</suite>

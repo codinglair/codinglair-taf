@@ -45,6 +45,7 @@ jobs:
     outputs:
       maven_modules: ${{ steps.classify.outputs.maven_modules }}
       standalone_builds: ${{ steps.classify.outputs.standalone_builds }}
+      qe132002: ${{ steps.classify.outputs.qe132002 }}
       integration: ${{ steps.classify.outputs.integration }}
       cross_module: ${{ steps.classify.outputs.cross_module }}
       browser: ${{ steps.classify.outputs.browser }}
@@ -160,6 +161,61 @@ jobs:
             **/target/allure-results/**
           if-no-files-found: warn
           retention-days: 7
+
+  qe-132-002-qualification:
+    name: QE-132-002 standalone report qualification
+    needs: change-impact
+    if: needs.change-impact.outputs.qe132002 == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Provision repository-approved Allure CLI
+        run: |
+          npm install --global allure-commandline@2.36.0
+          test "$(allure --version)" = '2.36.0'
+      - name: Run strict QE-132-002 qualification
+        shell: pwsh
+        run: >-
+          ./build-support/verification/qe-132-002.ps1
+          -AllureExecutable allure
+      - name: Report missing QE-132-002 evidence
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $required = @(
+            'target/qe-132-002/candidate-identity.json',
+            'target/qe-132-002/no-allure.log',
+            'target/qe-132-002/testng.log',
+            'target/qe-132-002/cucumber.log',
+            'target/qe-132-002/testng-validator.json',
+            'target/qe-132-002/cucumber-validator.json',
+            'target/qe-132-002/testng-report/index.html',
+            'target/qe-132-002/cucumber-report/index.html',
+            'target/qe-132-002/summary.json'
+          )
+          $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
+          if ($missing.Count -gt 0) {
+            Write-Output "::error title=Incomplete QE-132-002 evidence::Missing: $($missing -join ', ')"
+          }
+      - name: Retain QE-132-002 qualification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: qe-132-002-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/qe-132-002/
+            release/qe-132-002/**/target/surefire-reports/
+            release/qe-132-002/**/target/allure-results/
+          if-no-files-found: warn
+          retention-days: 30
 
   cross-module-smoke:
     name: Cross-module smoke
@@ -584,6 +640,7 @@ jobs:
       - change-impact
       - unit-tests
       - affected-verification
+      - qe-132-002-qualification
       - cross-module-smoke
       - browser-smoke
       - appium-smoke
@@ -607,6 +664,7 @@ jobs:
           | Change impact | always | ${{ needs.change-impact.result }} |
           | Unit tests | always | ${{ needs.unit-tests.result }} |
           | Affected verification | ${{ needs.change-impact.outputs.integration }} | ${{ needs.affected-verification.result }} |
+          | QE-132-002 qualification | ${{ needs.change-impact.outputs.qe132002 }} | ${{ needs.qe-132-002-qualification.result }} |
           | Cross-module smoke | ${{ needs.change-impact.outputs.cross_module }} | ${{ needs.cross-module-smoke.result }} |
           | Browser smoke | ${{ needs.change-impact.outputs.browser }} | ${{ needs.browser-smoke.result }} |
           | Android emulator Appium smoke | ${{ needs.change-impact.outputs.appium }} | ${{ needs.appium-smoke.result }} |
@@ -620,10 +678,12 @@ jobs:
             '${{ needs.change-impact.result }}' \
             '${{ needs.unit-tests.result }}' \
             '${{ needs.affected-verification.result }}' \
+            '${{ needs.qe-132-002-qualification.result }}' \
             '${{ needs.cross-module-smoke.result }}' \
             '${{ needs.browser-smoke.result }}' \
             '${{ needs.appium-smoke.result }}' \
             '${{ needs.change-impact.outputs.integration }}' \
+            '${{ needs.change-impact.outputs.qe132002 }}' \
             '${{ needs.change-impact.outputs.cross_module }}' \
             '${{ needs.change-impact.outputs.browser }}' \
             '${{ needs.change-impact.outputs.appium }}'

@@ -35,7 +35,7 @@ validation or execution.
 - Java 25
 - Git
 - the Maven Wrapper copied into the consumer project (`mvnw`, `mvnw.cmd`, and `.mvn/wrapper`)
-- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.3.1`, or an approved locally
+- access to an approved repository containing Codinglair TAF <!-- taf-version -->`1.3.2`, or an approved locally
   staged build
 - Docker only for capabilities that provision containers
 - external infrastructure for opt-in capabilities such as Appium, Android devices, databases, and
@@ -95,8 +95,9 @@ TAF source checkout. This is a framework-source action, not a normal consumer co
 ./mvnw clean deploy -Prelease-staging
 ```
 
-Copy the golden project into a clean repository. If the corrected DOC-001 standalone POM is present
-in the source checkout, use it because it has no reactor-relative parent:
+Copy the golden project into a dedicated automation root. Use the standalone POM because it has no
+reactor-relative parent; the directory may share a repository with the SUT but must not join its
+reactor or production dependency graph:
 
 ```powershell
 New-Item -ItemType Directory my-taf-tests
@@ -120,7 +121,7 @@ the TAF source reactor.
 
 ### 3.2 Select capability starters
 
-For normal <!-- taf-version -->`1.3.1` consumption, import `codinglair-taf-bom` and add the starter that matches the
+For normal <!-- taf-version -->`1.3.2` consumption, import `codinglair-taf-bom` and add the starter that matches the
 capability. The BOM aligns versions only; it installs no capability. Use provider starters for
 operational messaging—`codinglair-taf-starter-messaging` alone is provider-neutral.
 
@@ -138,8 +139,10 @@ operational messaging—`codinglair-taf-starter-messaging` alone is provider-neu
 Starters can be combined in one project; their common Runtime, TestSession, environment,
 test-definition, secrets, reporting, and TestNG foundation resolves once through normal dependency
 mediation. Each capability remains inactive until explicitly configured. Copy/paste Maven, Gradle
-Groovy, and Gradle Kotlin declarations, supported exclusions, direct-module choices, and the list
+Groovy, and Gradle Kotlin declarations, direct-module choices, and the list
 of internal artifacts to avoid are in the [consumer dependency guide](reference/consumer-dependencies.md).
+Do not add Jackson exclusions or replace a framework mapper; TAF owns its managed serialization
+implementation and keeps it outside the SUT process.
 Gradle dependency consumption is supported, but Gradle blueprint/project generation is not
 supported in 1.2.0.
 

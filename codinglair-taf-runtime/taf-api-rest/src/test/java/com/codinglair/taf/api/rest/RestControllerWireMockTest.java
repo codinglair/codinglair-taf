@@ -2,6 +2,7 @@ package com.codinglair.taf.api.rest;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codinglair.taf.runtime.core.controller.ControllerContext;
 import com.codinglair.taf.runtime.core.controller.EnvironmentAccess;
@@ -123,18 +124,103 @@ class RestControllerWireMockTest {
     @Test
     @DisplayName("redacts sensitive headers and binary bodies from evidence")
     void redaction() {
-      stubFor(post("/secure").willReturn(ok("ok")));
+      stubFor(
+          post(urlPathEqualTo("/secure"))
+              .willReturn(
+                  okJson("{\"token\":\"response-canary\",\"result\":\"ok\"}")
+                      .withHeader("Set-Cookie", "sid=response-cookie-canary")));
       var fixture = controller("redaction");
       fixture.controller.execute(
           RestRequest.request(Method.POST, "/secure")
               .header("Authorization", "Bearer canary-secret")
-              .body(new byte[] {0, 1}, "application/octet-stream")
+              .cookie("sid", "cookie-canary")
+              .queryParameter("access-token", "query-canary")
+              .body("{\"password\":\"body-canary\",\"name\":\"safe\"}", "application/json")
               .build());
       String evidence =
           fixture.artifacts.getArtifacts().stream()
               .map(a -> a.content())
               .reduce("", String::concat);
-      assertThat(evidence).doesNotContain("canary-secret").contains("****", "[BINARY 2 bytes]");
+      assertThat(evidence)
+          .doesNotContain(
+              "canary-secret",
+              "cookie-canary",
+              "query-canary",
+              "body-canary",
+              "response-canary",
+              "response-cookie-canary")
+          .contains("[REDACTED]", "name", "safe", "result", "ok");
+    }
+
+    @Test
+    @DisplayName("retains the response when validation fails")
+    void assertionFailure() {
+      stubFor(get("/assertion").willReturn(okJson("{\"state\":\"wrong\"}")));
+      var fixture =
+          controller(
+              "assertion",
+              settings(),
+              (request, response) -> {
+                throw new AssertionError("contract expected ready");
+              });
+
+      assertThatThrownBy(
+              () ->
+                  fixture.controller.execute(RestRequest.request(Method.GET, "/assertion").build()))
+          .isInstanceOf(AssertionError.class);
+
+      assertThat(fixture.artifacts.getArtifacts())
+          .extracting(artifact -> artifact.type())
+          .containsExactly("http-request", "http-response", "http-failure");
+      assertThat(allEvidence(fixture)).contains("response-validation", "wrong");
+    }
+
+    @Test
+    @DisplayName("retains bounded diagnostics for a refused connection")
+    void connectionFailure() {
+      RestControllerSettings settings = new RestControllerSettings();
+      settings.setBaseUrl(URI.create("http://127.0.0.1:1"));
+      settings.setTimeout(Duration.ofMillis(200));
+      var fixture = controller("refused", settings, RestContractValidator.NONE);
+
+      assertThatThrownBy(
+              () ->
+                  fixture.controller.execute(
+                      RestRequest.request(Method.GET, "/unavailable").build()))
+          .isInstanceOf(java.net.ConnectException.class);
+
+      assertThat(fixture.artifacts.getArtifacts())
+          .extracting(artifact -> artifact.type())
+          .containsExactly("http-request", "http-failure");
+      assertThat(allEvidence(fixture))
+          .contains("connection-or-before-response", "operationId=refused-rest-1")
+          .doesNotContain("null");
+    }
+
+    @Test
+    @DisplayName("truncates text after redaction and safely omits binary bodies")
+    void bodyPolicy() {
+      stubFor(post("/large").willReturn(ok("done")));
+      RestControllerSettings settings = new RestControllerSettings();
+      settings.setBaseUrl(URI.create(server.baseUrl()));
+      settings.setMaxEvidenceBytes(256);
+      var textFixture = controller("large", settings, RestContractValidator.NONE);
+      textFixture.controller.execute(
+          RestRequest.request(Method.POST, "/large")
+              .body(
+                  "{\"password\":\"large-secret\",\"data\":\"" + "x".repeat(500) + "\"}",
+                  "application/json")
+              .build());
+      assertThat(allEvidence(textFixture))
+          .contains("[TRUNCATED after sanitization; originalSize=")
+          .doesNotContain("large-secret");
+
+      var binaryFixture = controller("binary");
+      binaryFixture.controller.execute(
+          RestRequest.request(Method.POST, "/large")
+              .body(new byte[] {0, 1, 2}, "application/octet-stream")
+              .build());
+      assertThat(allEvidence(binaryFixture)).contains("[BINARY OMITTED; originalSize=3]");
     }
 
     @Test
@@ -158,14 +244,28 @@ class RestControllerWireMockTest {
   }
 
   private Fixture controller(String name) {
+    return controller(name, settings(), RestContractValidator.NONE);
+  }
+
+  private RestControllerSettings settings() {
     RestControllerSettings settings = new RestControllerSettings();
     settings.setBaseUrl(URI.create(server.baseUrl()));
+    return settings;
+  }
+
+  private Fixture controller(
+      String name, RestControllerSettings settings, RestContractValidator validator) {
     ArtifactCollector artifacts =
         new ArtifactCollector(TafTest.of(name, getClass().getName()), name, name);
-    DefaultRestController controller =
-        new DefaultRestController(name, settings, RestContractValidator.NONE);
+    DefaultRestController controller = new DefaultRestController(name, settings, validator);
     controller.initialize(new ControllerContext(name, EnvironmentAccess.unavailable(), artifacts));
     return new Fixture(controller, artifacts);
+  }
+
+  private static String allEvidence(Fixture fixture) {
+    return fixture.artifacts.getArtifacts().stream()
+        .map(artifact -> artifact.content())
+        .reduce("", String::concat);
   }
 
   private record Fixture(DefaultRestController controller, ArtifactCollector artifacts) {}

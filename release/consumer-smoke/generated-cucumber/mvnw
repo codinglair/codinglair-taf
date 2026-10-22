@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+URL=$(sed -n 's/^distributionUrl=//p' "$BASE_DIR/.mvn/wrapper/maven-wrapper.properties")
+ARCHIVE=${URL##*/}
+MAVEN_HOME="$BASE_DIR/.mvn/wrapper/dists/${ARCHIVE%.zip}"
+if [ ! -x "$MAVEN_HOME/bin/mvn" ]; then
+  mkdir -p "$MAVEN_HOME.tmp"
+  if command -v curl >/dev/null 2>&1; then curl -fsSL "$URL" -o "$MAVEN_HOME.tmp/$ARCHIVE";
+  elif command -v wget >/dev/null 2>&1; then wget -q "$URL" -O "$MAVEN_HOME.tmp/$ARCHIVE";
+  else echo "Maven Wrapper requires curl or wget" >&2; exit 1; fi
+  unzip -q "$MAVEN_HOME.tmp/$ARCHIVE" -d "$MAVEN_HOME.tmp"
+  mv "$MAVEN_HOME.tmp"/apache-maven-* "$MAVEN_HOME"
+  rm -rf "$MAVEN_HOME.tmp"
+fi
+exec "$MAVEN_HOME/bin/mvn" "$@"
+

@@ -1,15 +1,16 @@
 package com.codinglair.taf.contracts;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.util.ArrayList;
 import java.util.List;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 abstract class StructuredContractAdapter implements ContractAdapter {
-  private final ObjectMapper json = new ObjectMapper();
-  private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
+  private final ObjectMapper json = JsonMapper.builder().build();
+  private final ObjectMapper yaml = YAMLMapper.builder().build();
 
   @Override
   public final ContractValidationResult validate(ContractDocument document) {
@@ -23,7 +24,7 @@ abstract class StructuredContractAdapter implements ContractAdapter {
               : ContractValidationResult.Status.INVALID,
           provider(),
           diagnostics);
-    } catch (JsonProcessingException failure) {
+    } catch (JacksonException failure) {
       return invalid(
           "MALFORMED_DOCUMENT",
           "$",
@@ -45,19 +46,17 @@ abstract class StructuredContractAdapter implements ContractAdapter {
           provider(),
           List.of(generate(request, parse(request.document().content()))),
           List.of());
-    } catch (JsonProcessingException impossibleAfterValidation) {
+    } catch (JacksonException impossibleAfterValidation) {
       throw new IllegalStateException(
           "Validated document could not be parsed", impossibleAfterValidation);
     }
   }
 
-  protected abstract List<ContractDiagnostic> validateRoot(
-      JsonNode root, ContractDocument document);
+  abstract List<ContractDiagnostic> validateRoot(JsonNode root, ContractDocument document);
 
-  protected abstract GeneratedContractAsset generate(
-      ContractScaffoldRequest request, JsonNode root);
+  abstract GeneratedContractAsset generate(ContractScaffoldRequest request, JsonNode root);
 
-  protected final List<ContractDiagnostic> requireObjectFields(JsonNode root, String... fields) {
+  final List<ContractDiagnostic> requireObjectFields(JsonNode root, String... fields) {
     var diagnostics = new ArrayList<ContractDiagnostic>();
     for (var field : fields) {
       if (!root.path(field).isObject()) {
@@ -72,10 +71,10 @@ abstract class StructuredContractAdapter implements ContractAdapter {
     return List.copyOf(diagnostics);
   }
 
-  private JsonNode parse(String content) throws JsonProcessingException {
+  private JsonNode parse(String content) throws JacksonException {
     try {
       return json.readTree(content);
-    } catch (JsonProcessingException ignored) {
+    } catch (JacksonException _) {
       return yaml.readTree(content);
     }
   }

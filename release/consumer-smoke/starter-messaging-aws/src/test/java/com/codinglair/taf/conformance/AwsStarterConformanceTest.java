@@ -5,16 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.codinglair.taf.messaging.aws.eventbridge.EventBridgeController;
 import com.codinglair.taf.messaging.aws.sqs.SqsController;
 import com.codinglair.taf.runtime.core.lifecycle.TestSessionFactory;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
-
-@DisplayName("External AWS messaging starter")
-class AwsStarterConformanceTest {
+class AwsStarterConformanceTest extends com.codinglair.taf.runtime.testng.TafBaseTest {
   @Test
-  @DisplayName("starts inert and registers selected lazy controllers")
   void startsInertAndRegistersSelectedControllers() {
     var runner = new ApplicationContextRunner()
         .withUserConfiguration(ConsumerConfiguration.class)
