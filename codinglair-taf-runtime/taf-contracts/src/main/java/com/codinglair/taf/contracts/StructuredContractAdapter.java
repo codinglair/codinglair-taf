@@ -1,12 +1,12 @@
 package com.codinglair.taf.contracts;
 
+import java.util.ArrayList;
+import java.util.List;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
-import java.util.ArrayList;
-import java.util.List;
 
 abstract class StructuredContractAdapter implements ContractAdapter {
   private final ObjectMapper json = JsonMapper.builder().build();

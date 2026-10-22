@@ -5,16 +5,26 @@ migrated project. A checked item requires build evidence; compilation alone is i
 
 ## Build and execution evidence
 
-- Descriptor validates against blueprint schema 1.0 and declares one authoritative provider.
+- Project descriptor validates at governed schema 1.2, declares
+  `project.type: standalone-test-automation`, an external SUT interaction model, TestNG, and one
+  authoritative provider. Schema 1.0/1.1 inputs are migration sources, not governed-run results.
+- The automation project owns its Maven wrapper and POM, is absent from the SUT reactor and
+  production graph, and builds/runs as a separate process even when both roots share a repository.
 - Only selected starters/runners and their vendor libraries resolve in the dependency tree.
 - Local and CI Spring contexts load; unselected auto-configurations and beans remain absent.
 - Typed named configuration binds, and unresolved values fail one aggregated `ConsumerPreflight`
   before controller initialization without exposing values.
 - TestNG methods use `TafBaseTest`; Cucumber scenarios use `TafCucumberHooks`; observers create no
   session. Parallel, failed, cancelled, and partially initialized invocations clean up exactly once.
+- The POM explicitly selects the Surefire TestNG provider and binds both consumer-conformance
+  goals. JUnit-only, mixed-engine, missing-integration, and copied lifecycle ownership fail before
+  a test body runs; JUnit remains permitted only in TAF's separate implementation-test builds.
 - Traceability identifiers are unique and resolve to typed input and expected-output definitions.
 - Neutral and adapter output preserves audience-appropriate hierarchy, unique event identity,
   duplicate suppression, validation context, and sanitized artifact references.
+- Capability evidence crosses `ArtifactCollector`, not an Allure API. The evidence policy records
+  independent metadata/payload redaction, size bounds, visual allow/omit decisions, attachment
+  ownership before result closure, and machine plus manual report qualification.
 
 ## Subject-aware abstraction evidence
 

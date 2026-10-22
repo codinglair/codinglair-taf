@@ -4,7 +4,7 @@
   <description>Mandatory effective-build and compiled-test conformance for governed consumers</description>
   <groupId>com.codinglair.taf</groupId>
   <artifactId>taf-consumer-conformance-maven-plugin</artifactId>
-  <version>1.3.1</version>
+  <version>${project.version}</version>
   <goalPrefix>taf-conformance</goalPrefix>
   <isolatedRealm>false</isolatedRealm>
   <inheritedByDefault>true</inheritedByDefault>
@@ -28,14 +28,29 @@
       <executionStrategy>once-per-session</executionStrategy>
       <threadSafe>true</threadSafe>
       <parameters>
-        <parameter><name>project</name><type>org.apache.maven.project.MavenProject</type><required>true</required><readonly>true</readonly></parameter>
-        <parameter><name>skip</name><type>boolean</type><required>false</required><editable>true</editable></parameter>
-        <parameter><name>session</name><type>org.apache.maven.execution.MavenSession</type><required>true</required><readonly>true</readonly></parameter>
+        <parameter>
+          <name>project</name>
+          <type>org.apache.maven.project.MavenProject</type>
+          <required>true</required>
+          <readonly>true</readonly>
+        </parameter>
+        <parameter>
+          <name>skip</name>
+          <type>boolean</type>
+          <required>false</required>
+          <editable>true</editable>
+        </parameter>
+        <parameter>
+          <name>session</name>
+          <type>org.apache.maven.execution.MavenSession</type>
+          <required>true</required>
+          <readonly>true</readonly>
+        </parameter>
       </parameters>
       <configuration>
-        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
+        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}" />
         <skip implementation="boolean" default-value="false">${taf.conformance.skip}</skip>
-        <session implementation="org.apache.maven.execution.MavenSession" default-value="${session}"/>
+        <session implementation="org.apache.maven.execution.MavenSession" default-value="${session}" />
       </configuration>
       <requirements>
         <requirement>
@@ -61,14 +76,24 @@
       <executionStrategy>once-per-session</executionStrategy>
       <threadSafe>true</threadSafe>
       <parameters>
-        <parameter><name>project</name><type>org.apache.maven.project.MavenProject</type><required>true</required><readonly>true</readonly></parameter>
-        <parameter><name>skip</name><type>boolean</type><required>false</required><editable>true</editable></parameter>
+        <parameter>
+          <name>project</name>
+          <type>org.apache.maven.project.MavenProject</type>
+          <required>true</required>
+          <readonly>true</readonly>
+        </parameter>
+        <parameter>
+          <name>skip</name>
+          <type>boolean</type>
+          <required>false</required>
+          <editable>true</editable>
+        </parameter>
       </parameters>
       <configuration>
-        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
+        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}" />
         <skip implementation="boolean" default-value="false">${taf.conformance.skip}</skip>
       </configuration>
     </mojo>
   </mojos>
-  <dependencies/>
+  <dependencies />
 </plugin>

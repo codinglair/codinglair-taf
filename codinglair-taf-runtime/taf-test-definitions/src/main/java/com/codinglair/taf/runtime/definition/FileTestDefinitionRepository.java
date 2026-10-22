@@ -1,12 +1,6 @@
 package com.codinglair.taf.runtime.definition;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.dataformat.yaml.YAMLMapper;
-import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
@@ -20,6 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 
 /** Thread-safe JSON/YAML provider that retains every immutable definition version. */
 public final class FileTestDefinitionRepository implements TestDefinitionRepository {
@@ -354,7 +354,8 @@ public final class FileTestDefinitionRepository implements TestDefinitionReposit
                   .enable(YAMLWriteFeature.MINIMIZE_QUOTES)
                   .build();
         };
-    return result.rebuild()
+    return result
+        .rebuild()
         .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
         .enable(SerializationFeature.INDENT_OUTPUT)
         .build();

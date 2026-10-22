@@ -1,10 +1,10 @@
-# MCP container deployment for Codinglair TAF <!-- taf-version -->`1.3.1`
+# MCP container deployment for Codinglair TAF <!-- taf-version -->`1.3.2`
 
-The official image is `codinglair/codinglair-taf-mcp`. Use immutable tag `1.2.0` for CI and
+The official image is `codinglair/codinglair-taf-mcp`. Use immutable tag `1.3.2` for CI and
 supported deployments:
 
 ```bash
-docker pull codinglair/codinglair-taf-mcp:1.2.0
+docker pull codinglair/codinglair-taf-mcp:1.3.2
 ```
 
 `latest` is a movable convenience alias. It is not reproducible and must not be used in CI or

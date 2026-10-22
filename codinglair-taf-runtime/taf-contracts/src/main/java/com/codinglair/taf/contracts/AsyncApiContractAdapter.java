@@ -1,7 +1,7 @@
 package com.codinglair.taf.contracts;
 
-import tools.jackson.databind.JsonNode;
 import java.util.List;
+import tools.jackson.databind.JsonNode;
 
 /** Dependency-light AsyncAPI 2.x/3.x structural validator and Runtime scaffold adapter. */
 public final class AsyncApiContractAdapter extends StructuredContractAdapter {

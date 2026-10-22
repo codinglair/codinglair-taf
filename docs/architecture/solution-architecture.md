@@ -1,4 +1,4 @@
-# Codinglair TAF <!-- taf-version -->`1.3.1` public solution architecture
+# Codinglair TAF <!-- taf-version -->`1.3.2` public solution architecture
 
 ## Scope
 
@@ -153,15 +153,29 @@ See the [container guide](../operations/mcp-container-deployment.md) and
 
 ## Compatibility and authoritative references
 
-Java 25 and Spring Boot 4 are the public platform baseline. TestNG and Cucumber remain independent;
-the new typed/named controller lifecycle is the approved lifecycle. Public compatibility is
+Java 25 and Spring Boot 4 are the public platform baseline. Official automation is a standalone
+Maven build and runtime process, even when it shares a repository with a Boot 3 or Boot 4 SUT.
+It never joins the SUT reactor, dependency graph, mapper or application context. TestNG is the
+ordinary consumer runner; Cucumber uses the approved TestNG orchestration while retaining its own
+`TafCucumberHooks` scenario ownership. JUnit is confined to TAF implementation tests. Every
+capability requires the active invocation-owned session and fails with `TAF-LIFECYCLE-001` instead
+of creating a fallback session.
+
+Public serialization contracts are Jackson-neutral. Module-local TAF implementations use the
+managed patched Jackson 2/3 versions; the Jackson 2 annotations artifact remains intentionally
+shared with Jackson 3. Consumers must not add exclusions or mapper overrides, and TAF never
+registers a mapper as the SUT's primary mapper. Public compatibility is
 governed by published contracts and the accepted ADRs, especially
 [ADR-026](adrs/ADR-026_publish-capability-oriented-starters-with-provider-specific-messaging-starters.md),
 [ADR-029](adrs/ADR-029_distribute-one-mcp-image-with-stdio-and-streamable-http-profiles.md), and
 [ADR-030](adrs/ADR-030_gate-releases-with-external-starter-and-blueprint-conformance.md).
+The corrective boundary decisions are
+[ADR-036](adrs/ADR-036_enforce-a-standalone-test-automation-build-and-runtime-boundary.md),
+[ADR-037](adrs/ADR-037_enforce-testng-execution-and-mandatory-taf-session-lifecycle.md), and
+[ADR-038](adrs/ADR-038_migrate-taf-serialization-internals-to-jackson-3-behind-jackson-neutral-contracts.md).
 
 Consumer entry points are the [Quick Start](../quick-start.md),
 [dependency guide](../reference/consumer-dependencies.md),
 [blueprint architecture](consumer-project-blueprint.md), and MCP operational guides. The general
-documents describe supported 1.2.0 behavior. The explicitly versioned Apple sections describe the
-1.3.0 candidate scope and do not imply publication or completed live qualification.
+documents describe current behavior at the root Maven revision. Explicitly versioned release and
+qualification records remain historical evidence and do not imply broader live qualification.
