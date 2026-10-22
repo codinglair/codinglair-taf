@@ -4,8 +4,6 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
 
 ## 1.3.2
 
-- Release preparation is in progress; this section records the tested candidate and is not a
-  publication, CI-pass, device-certification, or version-promotion claim.
 - Enforced independent automation build roots for official scaffolding, including canonical-path,
   traversal/link, SUT-root, protected-file, dependency-graph, reactor and packaged-content checks.
   Same-repository layouts remain supported when the automation build and process stay separate.
@@ -35,6 +33,13 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
   SUT processes, 26 standalone/runner safety scenarios, and separate TestNG, Cucumber and no-Allure
   evidence consumers. Hosted CI reruns, manual Allure readability, full browser/device and external
   broker qualification remain owner-managed and are not claimed here.
+
+### Known Security Issues
+
+- **Testcontainers / docker-java Zerodep:** The upstream `docker-java-transport-zerodep:3.7.1` dependency contains bundled components associated with reported security vulnerabilities. Upstream remediation is not yet available.
+- Codinglair TAF currently suppresses the identified Trivy findings in its own security scans. These suppressions do not apply automatically to downstream consumers.
+- Consumer security scans may independently report these vulnerabilities when the affected dependency is present. Consumers should evaluate the findings against their execution environment and security policies.
+- This issue remains open pending an upstream fix or an approved alternative mitigation.
 
 ## [1.3.1] - 2026-10-13
 
