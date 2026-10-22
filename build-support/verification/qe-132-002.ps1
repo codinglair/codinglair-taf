@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $false
 $root = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 $output = Join-Path $root "target/qe-132-002"
 $staging = Join-Path $root "target/staging-repository"
