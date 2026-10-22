@@ -38,6 +38,7 @@ final class ChangeImpact {
       List<String> paths,
       List<String> modules,
       List<String> standaloneBuilds,
+      boolean qe132002,
       boolean integration,
       boolean crossModule,
       boolean browser,
@@ -57,7 +58,7 @@ final class ChangeImpact {
         paths.stream()
             .map(path -> moduleFor(path, repository))
             .flatMap(Optional::stream)
-            .filter(module -> !isStandaloneBuild(module))
+            .filter(module -> !isStandaloneBuild(module) && !isQe132002Build(module))
             .distinct()
             .sorted()
             .toList();
@@ -70,6 +71,7 @@ final class ChangeImpact {
             .sorted()
             .toList();
     boolean productChange = paths.stream().anyMatch(ChangeImpact::isProductPath);
+    boolean qe132002 = paths.stream().anyMatch(ChangeImpact::affectsQe132002);
     boolean sutBoundaryChange =
         paths.stream().anyMatch(path -> path.startsWith("release/sut-boundary/"));
     boolean runtimeOrMcp =
@@ -118,6 +120,7 @@ final class ChangeImpact {
         List.copyOf(paths),
         modules,
         standaloneBuilds,
+        qe132002,
         global || productChange || sutBoundaryChange,
         runtimeOrMcp,
         browser,
@@ -210,6 +213,31 @@ final class ChangeImpact {
         || isStandaloneVerificationBuild(module);
   }
 
+  private static boolean isQe132002Build(String module) {
+    return module.startsWith("release/qe-132-002/");
+  }
+
+  private static boolean affectsQe132002(String path) {
+    return path.startsWith("release/qe-132-002/")
+        || path.equals("build-support/verification/qe-132-002.ps1")
+        || path.equals("build-support/verification/verify-consumer-evidence.ps1")
+        || path.equals(".github/workflows/pull-request.yml")
+        || path.equals(".github/workflows/verification-matrix.yml")
+        || path.startsWith("containers/taf-test-runner/")
+        || path.equals("pom.xml")
+        || path.equals("codinglair-taf-runtime/pom.xml")
+        || path.startsWith("codinglair-taf-bom/")
+        || path.startsWith("codinglair-taf-common/")
+        || path.startsWith("codinglair-taf-runtime/codinglair-taf-runtime-core/")
+        || path.startsWith("codinglair-taf-runtime/taf-contracts/")
+        || path.startsWith("codinglair-taf-runtime/taf-api-rest/")
+        || path.startsWith("codinglair-taf-runtime/codinglair-taf-runner-testng/")
+        || path.startsWith("codinglair-taf-runtime/codinglair-taf-runner-cucumber/")
+        || path.startsWith("codinglair-taf-runtime/codinglair-taf-reporting-allure/")
+        || path.startsWith("codinglair-taf-runtime/taf-consumer-conformance/")
+        || path.startsWith("codinglair-taf-runtime/taf-consumer-conformance-maven-plugin/");
+  }
+
   private static boolean isStandaloneVerificationBuild(String module) {
     return module.startsWith("examples/")
         || module.equals("qualification/apple-simulator")
@@ -245,6 +273,7 @@ final class ChangeImpact {
         List.of(
             "maven_modules=" + String.join(",", result.modules()),
             "standalone_builds=" + String.join(",", result.standaloneBuilds()),
+            "qe132002=" + result.qe132002(),
             "integration=" + result.integration(),
             "cross_module=" + result.crossModule(),
             "browser=" + result.browser(),

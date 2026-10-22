@@ -1,24 +1,32 @@
-# name|changes (status:path; rename old->new)|modules|standalone_builds|integration|cross_module|browser|appium|aws
-documentation only|M:docs/README.md|||false|false|false|false|false
-playwright module|M:codinglair-taf-runtime/taf-web-playwright/src/main/java/example.java|codinglair-taf-runtime/taf-web-playwright||true|true|true|false|false
-mobile module|M:codinglair-taf-runtime/taf-mobile-appium/src/test/java/example.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
-root build|M:pom.xml|||true|true|true|true|true
-Windows separators|M:taf-mcp-server\taf-mcp-tools\pom.xml|taf-mcp-server/taf-mcp-tools||true|true|false|false|false
-deleted mobile file|D:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Deleted.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
-mobile rename out|R100:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Old.java->docs/Old.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
-mobile rename in|R087:docs/New.java->codinglair-taf-runtime/taf-mobile-appium/src/main/java/New.java|codinglair-taf-runtime/taf-mobile-appium||true|true|false|true|false
-deleted root build|D:pom.xml|||true|true|true|true|true
-compose asset|M:containers/android-emulator/compose.yaml|||false|false|false|true|false
-shared runtime core|M:codinglair-taf-runtime/codinglair-taf-runtime-core/src/main/java/Core.java|codinglair-taf-runtime/codinglair-taf-runtime-core||true|true|false|true|false
-MOB-003 approval contract|M:docs/decisions/MOB-003-reference-qualification-approval.md|||false|false|false|true|false
-MOB-003 evidence contract|M:docs/assignments/MOB-003-handoff.md|||false|false|false|true|false
-Android emulator approval policy|M:docs/operations/android-emulator-image-approval-policy.md|||false|false|false|true|false
-standalone release consumer|M:release/consumer-smoke/mcp-http/pom.xml|||true|true|false|false|false
-reactor and standalone builds|M:codinglair-taf-bom/pom.xml;M:release/consumer-smoke/runtime-core/pom.xml|codinglair-taf-bom||true|true|false|false|true
-standalone example|M:examples/apple-appium-consumer/pom.xml||examples/apple-appium-consumer|true|false|false|false|false
-standalone Apple qualification|M:qualification/apple-simulator/pom.xml||qualification/apple-simulator|false|false|false|false|false
-mobile module and standalone Apple qualification|M:codinglair-taf-runtime/taf-mobile-appium/src/main/java/example.java;M:qualification/apple-simulator/pom.xml|codinglair-taf-runtime/taf-mobile-appium|qualification/apple-simulator|true|true|false|true|false
-reactor and standalone example|M:codinglair-taf-starter-mobile/pom.xml;M:examples/apple-appium-consumer/src/test/java/Example.java|codinglair-taf-starter-mobile|examples/apple-appium-consumer|true|false|false|false|false
-standalone Boot 3 SUT|M:release/sut-boundary/boot3/pom.xml||release/sut-boundary/boot3|true|false|false|false|false
-standalone Boot 4 SUT source|M:release/sut-boundary/boot4/src/main/java/example/sut/Application.java||release/sut-boundary/boot4|true|false|false|false|false
-AWS module|M:codinglair-taf-runtime/taf-messaging-aws/src/main/java/example.java|codinglair-taf-runtime/taf-messaging-aws||true|true|false|false|true
+# name|changes (status:path; rename old->new)|modules|standalone_builds|qe132002|integration|cross_module|browser|appium|aws
+documentation only|M:docs/README.md|||false|false|false|false|false|false
+playwright module|M:codinglair-taf-runtime/taf-web-playwright/src/main/java/example.java|codinglair-taf-runtime/taf-web-playwright||false|true|true|true|false|false
+mobile module|M:codinglair-taf-runtime/taf-mobile-appium/src/test/java/example.java|codinglair-taf-runtime/taf-mobile-appium||false|true|true|false|true|false
+root build|M:pom.xml|||true|true|true|true|true|true
+Windows separators|M:taf-mcp-server\taf-mcp-tools\pom.xml|taf-mcp-server/taf-mcp-tools||false|true|true|false|false|false
+deleted mobile file|D:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Deleted.java|codinglair-taf-runtime/taf-mobile-appium||false|true|true|false|true|false
+mobile rename out|R100:codinglair-taf-runtime/taf-mobile-appium/src/main/java/Old.java->docs/Old.java|codinglair-taf-runtime/taf-mobile-appium||false|true|true|false|true|false
+mobile rename in|R087:docs/New.java->codinglair-taf-runtime/taf-mobile-appium/src/main/java/New.java|codinglair-taf-runtime/taf-mobile-appium||false|true|true|false|true|false
+deleted root build|D:pom.xml|||true|true|true|true|true|true
+compose asset|M:containers/android-emulator/compose.yaml|||false|false|false|false|true|false
+shared runtime core|M:codinglair-taf-runtime/codinglair-taf-runtime-core/src/main/java/Core.java|codinglair-taf-runtime/codinglair-taf-runtime-core||true|true|true|false|true|false
+MOB-003 approval contract|M:docs/decisions/MOB-003-reference-qualification-approval.md|||false|false|false|false|true|false
+MOB-003 evidence contract|M:docs/assignments/MOB-003-handoff.md|||false|false|false|false|true|false
+Android emulator approval policy|M:docs/operations/android-emulator-image-approval-policy.md|||false|false|false|false|true|false
+standalone release consumer|M:release/consumer-smoke/mcp-http/pom.xml|||false|true|true|false|false|false
+reactor and standalone builds|M:codinglair-taf-bom/pom.xml;M:release/consumer-smoke/runtime-core/pom.xml|codinglair-taf-bom||true|true|true|false|false|true
+standalone example|M:examples/apple-appium-consumer/pom.xml||examples/apple-appium-consumer|false|true|false|false|false|false
+standalone Apple qualification|M:qualification/apple-simulator/pom.xml||qualification/apple-simulator|false|false|false|false|false|false
+mobile module and standalone Apple qualification|M:codinglair-taf-runtime/taf-mobile-appium/src/main/java/example.java;M:qualification/apple-simulator/pom.xml|codinglair-taf-runtime/taf-mobile-appium|qualification/apple-simulator|false|true|true|false|true|false
+reactor and standalone example|M:codinglair-taf-starter-mobile/pom.xml;M:examples/apple-appium-consumer/src/test/java/Example.java|codinglair-taf-starter-mobile|examples/apple-appium-consumer|false|true|false|false|false|false
+standalone Boot 3 SUT|M:release/sut-boundary/boot3/pom.xml||release/sut-boundary/boot3|false|true|false|false|false|false
+standalone Boot 4 SUT source|M:release/sut-boundary/boot4/src/main/java/example/sut/Application.java||release/sut-boundary/boot4|false|true|false|false|false|false
+AWS module|M:codinglair-taf-runtime/taf-messaging-aws/src/main/java/example.java|codinglair-taf-runtime/taf-messaging-aws||false|true|true|false|false|true
+QE TestNG consumer|M:release/qe-132-002/testng/src/test/java/Example.java|||true|false|false|false|false|false
+QE Cucumber expectation|M:release/qe-132-002/cucumber/evidence-expectations.json|||true|false|false|false|false|false
+QE no-Allure consumer|M:release/qe-132-002/no-allure/pom.xml|||true|false|false|false|false|false
+QE wrapper|M:build-support/verification/qe-132-002.ps1|||true|false|false|false|false|false
+QE validator|M:build-support/verification/verify-consumer-evidence.ps1|||true|false|false|false|false|false
+QE candidate dependency|M:codinglair-taf-runtime/taf-api-rest/src/main/java/Rest.java|codinglair-taf-runtime/taf-api-rest||true|true|true|false|false|false
+QE mixed reactor and standalone|M:release/qe-132-002/cucumber/pom.xml;M:codinglair-taf-runtime/taf-file/src/main/java/File.java;M:release/sut-boundary/boot3/pom.xml|codinglair-taf-runtime/taf-file|release/sut-boundary/boot3|true|true|true|false|false|false
+QE workflow route|M:.github/workflows/pull-request.yml|||true|true|true|true|true|true

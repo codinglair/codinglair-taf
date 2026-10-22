@@ -38,6 +38,7 @@ final class WorkflowContractTest {
         "      - change-impact",
         "      - unit-tests",
         "      - affected-verification",
+        "      - qe-132-002-qualification",
         "      - cross-module-smoke",
         "      - browser-smoke",
         "      - appium-smoke");
@@ -47,8 +48,9 @@ final class WorkflowContractTest {
     require(yaml, "uses: ./.github/workflows/aws-capability.yml");
     require(yaml, "aws: ${{ steps.classify.outputs.aws }}");
     require(yaml, "standalone_builds: ${{ steps.classify.outputs.standalone_builds }}");
+    require(yaml, "qe132002: ${{ steps.classify.outputs.qe132002 }}");
     String affectedVerification =
-        job(yaml, "  affected-verification:", "  cross-module-smoke:");
+        job(yaml, "  affected-verification:", "  qe-132-002-qualification:");
     requireInOrder(
         affectedVerification,
         "standalone_builds='${{ needs.change-impact.outputs.standalone_builds }}'",
@@ -57,6 +59,25 @@ final class WorkflowContractTest {
         "./mvnw $MAVEN_ARGS -pl \"$modules\" -am \"$goal\"",
         "TAF_VERSION=\"$(./mvnw -B -ntp -Dstyle.color=never help:evaluate -Dexpression=revision -q -DforceStdout)\"",
         "./mvnw $MAVEN_ARGS -f \"$build/pom.xml\" -Dtaf.version=\"$TAF_VERSION\" verify");
+    prohibit(affectedVerification, "release/qe-132-002");
+    String qeQualification =
+        job(yaml, "  qe-132-002-qualification:", "  cross-module-smoke:");
+    requireInOrder(
+        qeQualification,
+        "if: needs.change-impact.outputs.qe132002 == 'true'",
+        "java-version: '25'",
+        "npm install --global allure-commandline@2.36.0",
+        "test \"$(allure --version)\" = '2.36.0'",
+        "shell: pwsh",
+        "./build-support/verification/qe-132-002.ps1",
+        "if: ${{ always() }}",
+        "target/qe-132-002/candidate-identity.json",
+        "target/qe-132-002/summary.json",
+        "uses: actions/upload-artifact@v4");
+    prohibit(qeQualification, "-SkipStage");
+    prohibit(qeQualification, "continue-on-error");
+    require(yaml, "${{ needs.qe-132-002-qualification.result }}");
+    require(yaml, "${{ needs.change-impact.outputs.qe132002 }}");
     verifyStandaloneCandidateSelection();
     require(yaml, "name: Documentation version");
     require(yaml, "java build-support/scripts/SyncDocVersion.java --check");

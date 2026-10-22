@@ -1,0 +1,43 @@
+{
+  "expectedResultCount": 4,
+  "expectedResults": [
+    {
+      "name": "Business evidence is readable",
+      "status": "passed",
+      "count": 1,
+      "attachments": [
+        {
+          "name": "business-diagnostic",
+          "count": 1,
+          "contentType": "text/plain",
+          "ownerStep": "Business diagnostic"
+        }
+      ]
+    },
+    {
+      "name": "Expected business failure remains visible",
+      "status": "failed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "Runs Cucumber Scenarios",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "Runs Cucumber Scenarios",
+      "status": "failed",
+      "count": 1,
+      "attachments": []
+    }
+  ],
+  "forbiddenPatterns": [
+    "qe-132-002-secret-sentinel"
+  ],
+  "standaloneRequiredMarkers": [
+    "business-diagnostic",
+    "QE-132-002 expected business failure marker"
+  ]
+}
