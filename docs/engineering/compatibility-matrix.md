@@ -24,7 +24,7 @@ selected by a consumer.
 | Integration | Version | Boundary |
 | --- | --- | --- |
 | TestNG | 7.12.0 | Independent TestNG runner adapter |
-| Cucumber | 7.17.0 | Independent Cucumber runner adapter |
+| Cucumber | 7.34.9 | Cucumber executed through the approved TestNG runner and TAF hooks |
 | Allure | 2.29.0 | Optional reporting adapter |
 | AspectJ Weaver | 1.9.21.2 | Isolated to reporting integration; not a Runtime Core API |
 | Playwright | 1.57.0 | Optional browser capability |
@@ -45,6 +45,13 @@ verification and known limitations.
 - Runtime Core remains independently usable without MCP, Spring AI, provider adapters, or the
   proprietary-boundary module.
 - TestNG and Cucumber share lifecycle contracts but do not depend on one another.
+- TestNG is the only supported ordinary consumer runner. Cucumber remains supported through its
+  TestNG orchestration and `TafCucumberHooks`; JUnit remains valid only for TAF implementation
+  tests that do not represent or invoke the consumer lifecycle.
+- A supported consumer is a standalone Maven build and process. A Boot 3 or Boot 4 SUT may share
+  a repository with it, but never a reactor, dependency graph, mapper, or application context.
+- Consumer capability calls require the invocation-owned active session and otherwise fail with
+  `TAF-LIFECYCLE-001`; an implicit fallback session is not supported.
 - Provider-neutral contracts do not depend on their technology adapters.
 - STDIO and Streamable HTTP implement the same versioned MCP application contracts.
 - Optional container, browser, broker, database, and Android checks require the prerequisites
@@ -56,6 +63,9 @@ verification and known limitations.
 - Public API and schema changes are checked by the `api-compatibility` and
   `schema-compatibility` verification profiles. During the first public release these checks
   establish the baseline used by later releases.
+- Jackson 2.21 annotations are intentionally compatible with both Jackson generations and are not
+  a Jackson 2 runtime. Consumers must not exclude TAF-managed Jackson artifacts or replace TAF
+  mappers. TAF-owned mappers remain module-local and are never registered as the SUT primary mapper.
 
 ## Verification
 

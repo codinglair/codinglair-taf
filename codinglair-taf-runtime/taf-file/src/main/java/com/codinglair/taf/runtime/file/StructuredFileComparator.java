@@ -1,9 +1,6 @@
 package com.codinglair.taf.runtime.file;
 
 import com.codinglair.taf.runtime.file.FileSandbox.CheckedFile;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
@@ -15,6 +12,9 @@ import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 final class StructuredFileComparator {
   private final FileSandbox sandbox;

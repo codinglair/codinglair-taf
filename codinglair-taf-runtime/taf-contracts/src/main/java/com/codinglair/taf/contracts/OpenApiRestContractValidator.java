@@ -3,13 +3,13 @@ package com.codinglair.taf.contracts;
 import com.codinglair.taf.api.rest.RestContractValidator;
 import com.codinglair.taf.api.rest.RestRequest;
 import com.codinglair.taf.api.rest.RestResponse;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.regex.Pattern;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.regex.Pattern;
 
 /** Validates completed REST exchanges against paths, operations, and response codes in OpenAPI. */
 public final class OpenApiRestContractValidator implements RestContractValidator {
