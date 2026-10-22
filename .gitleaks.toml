@@ -34,3 +34,13 @@ regexes = ['''idempotency-key-aws-1''']
 description = "VER-120-002 evidence leak-scan synthetic marker"
 regexTarget = "match"
 regexes = ['''ver-120-002-secret-canary-7dcb7f''']
+
+# Exact synthetic marker used by QE-132-002 to prove that REST evidence and standalone reports
+# redact request secrets. The PR scanner examines the introducing commit as well as this repair
+# commit, so renaming the marker cannot remove the historical match. This value is not a credential
+# and is accepted only as this literal; generic-api-key detection remains active for every other
+# value and location.
+[[allowlists]]
+description = "QE-132-002 REST evidence redaction synthetic marker"
+regexTarget = "match"
+regexes = ['''qe-132-002-secret-sentinel''']

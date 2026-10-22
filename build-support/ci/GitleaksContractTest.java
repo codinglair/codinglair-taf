@@ -8,6 +8,7 @@ final class GitleaksContractTest {
   public static void main(String[] args) throws Exception {
     String workflow = Files.readString(Path.of(".github/workflows/secret-scanning.yml"));
     String script = Files.readString(Path.of("build-support/scripts/run-gitleaks.sh"));
+    String localVerifier = Files.readString(Path.of("build-support/local/local-verify.ps1"));
     String config = Files.readString(Path.of(".gitleaks.toml"));
     require(workflow, "pull_request:");
     require(workflow, "workflow_call:");
@@ -25,15 +26,23 @@ final class GitleaksContractTest {
     require(script, "--network none");
     require(script, "--redact=100");
     require(script, "--config /repo/.gitleaks.toml");
+    require(localVerifier, "Invoke-GitleaksCheck");
+    require(localVerifier, "@('dir')");
+    require(localVerifier, "@('git')");
+    require(localVerifier, "--log-opts=--all");
+    require(localVerifier, "--network', 'none'");
+    require(localVerifier, "target=/repo,readonly");
+    require(localVerifier, "--config', '/repo/.gitleaks.toml'");
+    require(localVerifier, "ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:");
     require(config, "useDefault = true");
     require(config, "reject-prior-api34\\.properties");
     require(config, "783a40134baf4f3012d4464fbe1571b1612a0dbd2e7a44d14bd8328923443833");
     require(config, "credential-reference=secret://env/ORDERS_API_TOKEN, outcome=FAILED");
     require(config, "ver-120-002-secret-canary-7dcb7f");
-    prohibit(workflow + script + config, "gitleaks/gitleaks-action");
-    prohibit(workflow + script, "secrets.");
-    prohibit(workflow + script, "privileged");
-    prohibit(workflow + script, "report-path");
+    prohibit(workflow + script + localVerifier + config, "gitleaks/gitleaks-action");
+    prohibit(workflow + script + localVerifier, "secrets.");
+    prohibit(workflow + script + localVerifier, "privileged");
+    prohibit(workflow + script + localVerifier, "report-path");
     System.out.println("Gitleaks workflow contract passed.");
   }
 
