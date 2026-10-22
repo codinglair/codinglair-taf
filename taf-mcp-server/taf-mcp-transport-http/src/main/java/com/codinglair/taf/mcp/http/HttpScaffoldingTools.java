@@ -28,17 +28,22 @@ public final class HttpScaffoldingTools {
       throw new IllegalArgumentException("Valid matching v1 request is required");
     caller.requireScope("taf.tools.scaffold");
     var arguments = request.arguments();
+    String automationRoot = BlueprintRequestArguments.string(arguments, "automationRoot", false);
+    if (automationRoot == null)
+      automationRoot = BlueprintRequestArguments.string(arguments, "destination", true);
+    String sutRoot = BlueprintRequestArguments.string(arguments, "sutRoot", false);
     return scaffolding.execute(
         new BlueprintScaffoldRequest(
             request.requestId(),
             caller.project(),
             caller.environment(),
-            Path.of(BlueprintRequestArguments.string(arguments, "destination", true)),
+            Path.of(automationRoot),
             BlueprintRequestArguments.blueprint(arguments),
             BlueprintRequestArguments.bool(arguments, "publish"),
             request.approvalReference().orElse(null),
             BlueprintRequestArguments.string(arguments, "dependencyApprovalReference", false),
             caller.identity(),
-            Transport.STREAMABLE_HTTP));
+            Transport.STREAMABLE_HTTP,
+            sutRoot == null ? null : Path.of(sutRoot)));
   }
 }

@@ -69,11 +69,13 @@ class DocumentationReferenceTest {
       }
     }
 
-    var artifactMatcher =
-        Pattern.compile("<artifactId>([^<]+)</artifactId>")
+    var dependencyMatcher =
+        Pattern.compile(
+                "(?s)<dependency>\\s*<groupId>com\\.codinglair\\.taf</groupId>\\s*"
+                    + "<artifactId>([^<]+)</artifactId>.*?</dependency>")
             .matcher(Files.readString(ROOT.resolve("codinglair-taf-bom/pom.xml")));
-    while (artifactMatcher.find()) {
-      String artifact = artifactMatcher.group(1);
+    while (dependencyMatcher.find()) {
+      String artifact = dependencyMatcher.group(1);
       if (!List.of("codinglair-taf", "codinglair-taf-bom").contains(artifact)
           && !reference.contains("`" + artifact + "`")) {
         failures.add("released BOM artifact has no reference entry: " + artifact);

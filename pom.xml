@@ -28,10 +28,11 @@
         <module>codinglair-taf-mcp</module>
         <module>taf-mcp-server</module>
         <module>demos/playwright-sauce-demo</module>
+        <module>demos/playwright-sauce-demo-verification</module>
     </modules>
 
     <properties>
-        <revision>1.3.1</revision>
+        <revision>1.3.2</revision>
         <!-- Platform baseline -->
         <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -49,7 +50,7 @@
         <junit.version>4.13.2</junit.version>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <testng.version>7.12.0</testng.version>
-        <cucumber.version>7.17.0</cucumber.version>
+        <cucumber.version>7.34.9</cucumber.version>
 
         <!-- Reporting -->
         <allure.version>2.29.0</allure.version>
@@ -60,8 +61,11 @@
         <selenium.version>4.43.0</selenium.version>
         <assertj.version>3.27.7</assertj.version>
         <jasypt.version>1.9.3</jasypt.version>
-        <jackson.version>2.19.2</jackson.version>
-        <jackson3.annotations.version>2.21</jackson3.annotations.version>
+        <!-- Jackson 2.21 is the supported LTS line. Since 2.20, annotations use
+        major.minor versioning while runtime and data-format artifacts retain patches. -->
+        <jackson.version>2.21.7</jackson.version>
+        <jackson.annotations.version>2.21</jackson.annotations.version>
+        <jackson3.version>3.1.7</jackson3.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <aws.sdk.version>2.42.15</aws.sdk.version>
         <localstack.image>localstack/localstack:4.14.0</localstack.image>
@@ -94,6 +98,7 @@
         <maven.spotless.plugin.version>2.46.1</maven.spotless.plugin.version>
         <google.java.format.version>1.28.0</google.java.format.version>
         <maven.invoker.plugin.version>3.10.1</maven.invoker.plugin.version>
+        <maven.version>3.2.5</maven.version>
         <cyclonedx.maven.plugin.version>2.9.2</cyclonedx.maven.plugin.version>
         <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <central.skipPublishing>false</central.skipPublishing>
@@ -401,7 +406,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -412,6 +417,21 @@
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson3.version}</version>
             </dependency>
 
             <!-- Secret Management -->

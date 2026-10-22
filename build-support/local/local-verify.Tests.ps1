@@ -57,6 +57,22 @@ Assert-Throws { Invoke-CommandCheck $pwsh @('-NoProfile', '-Command', "'no leaks
 Assert-Throws { Invoke-CommandCheck $pwsh @('-NoProfile', '-Command', "'scan incomplete'; exit 0") Leaks } 'Missing leak marker accepted.'
 Assert-Throws { Invoke-CommandCheck 'taf-nonexistent-command' @() Native } 'Missing executable accepted.'
 
+# The local Gitleaks gate checks both the current working directory and Git history.
+$script:gitleaksCalls = [System.Collections.Generic.List[string]]::new()
+function Invoke-CommandCheck {
+    param($Executable, $Arguments, $Kind)
+    $script:gitleaksCalls.Add("$Executable $($Arguments -join ' ') $Kind")
+}
+Invoke-GitleaksCheck
+Assert ($script:gitleaksCalls.Count -eq 2) 'Gitleaks did not run both scans.'
+Assert ($script:gitleaksCalls[0] -match ' dir .* /repo Leaks$') 'Gitleaks did not scan the working directory first.'
+Assert ($script:gitleaksCalls[1] -match ' git .*--log-opts=--all /repo Leaks$') 'Gitleaks did not scan Git history.'
+foreach ($call in $script:gitleaksCalls) {
+    Assert ($call -match '--network none') 'Gitleaks scan allows network access.'
+    Assert ($call -match 'target=/repo,readonly') 'Gitleaks scan does not use a read-only repository mount.'
+    Assert ($call -match '--config /repo/\.gitleaks\.toml') 'Gitleaks scan does not use the repository configuration.'
+}
+
 # Failed startup still tears down and verifies both resource types.
 $script:calls = [System.Collections.Generic.List[string]]::new()
 function Invoke-CommandCheck {

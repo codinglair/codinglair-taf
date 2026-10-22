@@ -10,10 +10,12 @@ the approved destination. Existing files, symbolic workspace roots, traversal pa
 create conflicts fail closed. This preserves unrelated dirty-tree content without attempting an
 unsafe textual merge.
 
-All writes pass the shared MCP-003 `scaffold` enforcement boundary and require its digest-bound
-working-tree approval. A template containing any `DEPENDENCY` asset additionally requires a
-separate approval bound to the `dependency.add` action, `taf:dependency:write` permission, and the
-same canonical template/destination digest. Neither approval substitutes for the other.
+All writes pass the shared MCP-003 `scaffold` enforcement boundary. The deployment policy decides
+whether an authorized working-tree write also requires digest-bound approval. A template containing
+any `DEPENDENCY` asset additionally passes the `dependency.add` action and
+`taf:dependency:write` permission boundary; that policy may independently require approval bound to
+the same canonical template/destination digest. When both approvals are policy-required, neither
+substitutes for the other.
 
 Successful writes return a bounded create summary, exact template identity, operation timestamp,
 relative created-file paths, asset kinds, and SHA-256 content digests. Template content is not echoed

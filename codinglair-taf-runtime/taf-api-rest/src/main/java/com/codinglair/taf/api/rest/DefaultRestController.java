@@ -6,16 +6,14 @@ import com.codinglair.taf.runtime.core.reporting.annotation.ControllerAction;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 final class DefaultRestController implements RestController {
-  private static final Set<String> SENSITIVE =
-      Set.of("authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key");
   private final ControllerIdentity identity;
   private final RestControllerSettings settings;
   private final RestContractValidator validator;
@@ -73,6 +71,10 @@ final class DefaultRestController implements RestController {
   public RestResponse execute(RestRequest request) {
     ensureReady();
     Objects.requireNonNull(request);
+    Instant startedAt = Instant.now();
+    long startedNanos = System.nanoTime();
+    RestResponse response = null;
+    Throwable executionFailure = null;
     try {
       RequestSpecification specification = nativeSpecification();
       specification
@@ -91,17 +93,29 @@ final class DefaultRestController implements RestController {
                       part.controlName(), part.fileName(), part.content(), part.contentType()));
       request.authentication().apply(specification);
       Response nativeResponse = specification.request(request.method(), request.path());
-      RestResponse response = new RestResponse(nativeResponse);
+      response = new RestResponse(nativeResponse);
       validator.validate(request, response);
-      capture(request, response);
       return response;
     } catch (AssertionError failure) {
+      executionFailure = failure;
       throw failure;
-    } catch (RuntimeException failure) {
-      throw new RestControllerException(
-          "execute " + request.method(),
-          "verify endpoint, request data, authentication, and network availability",
-          failure);
+    } catch (Throwable failure) {
+      executionFailure = failure;
+      if (failure instanceof RuntimeException runtimeFailure) {
+        throw new RestControllerException(
+            "execute " + request.method(),
+            "verify endpoint, request data, authentication, and network availability",
+            runtimeFailure);
+      }
+      throwUnchecked(failure);
+      return null;
+    } finally {
+      capture(
+          request,
+          response,
+          executionFailure,
+          startedAt,
+          Duration.ofNanos(System.nanoTime() - startedNanos));
     }
   }
 
@@ -138,23 +152,42 @@ final class DefaultRestController implements RestController {
                         .setParam("http.socket.timeout", (int) settings.getTimeout().toMillis())));
   }
 
-  private void capture(RestRequest request, RestResponse response) {
+  private void capture(
+      RestRequest request,
+      RestResponse response,
+      Throwable failure,
+      Instant startedAt,
+      Duration duration) {
+    String operationId = context.sessionId() + "-rest-" + context.artifacts().nextSequenceNumber();
+    String stepName = request.method() + " " + safeRoute(request.path());
     context
         .artifacts()
         .addArtifact(
-            "rest-request-" + context.artifacts().nextSequenceNumber() + ".txt",
+            operationId + "-request.txt",
             "http-request",
-            requestEvidence(request),
+            requestEvidence(request, operationId, startedAt, duration),
             "text/plain",
-            null);
-    context
-        .artifacts()
-        .addArtifact(
-            "rest-response-" + context.artifacts().nextSequenceNumber() + ".txt",
-            "http-response",
-            responseEvidence(response),
-            "text/plain",
-            null);
+            stepName);
+    if (response != null) {
+      context
+          .artifacts()
+          .addArtifact(
+              operationId + "-response.txt",
+              "http-response",
+              responseEvidence(response, operationId, duration),
+              "text/plain",
+              stepName);
+    }
+    if (failure != null) {
+      context
+          .artifacts()
+          .addArtifact(
+              operationId + "-failure.txt",
+              "http-failure",
+              failureEvidence(failure, operationId, duration, response == null),
+              "text/plain",
+              stepName);
+    }
   }
 
   private static void waitForNextAttempt(Duration interval, long deadline) {
@@ -168,19 +201,36 @@ final class DefaultRestController implements RestController {
     }
   }
 
-  private static String requestEvidence(RestRequest request) {
-    return request.method()
-        + " "
-        + request.path()
+  private String requestEvidence(
+      RestRequest request, String operationId, Instant startedAt, Duration duration) {
+    return "operationId="
+        + operationId
+        + "\nsessionId="
+        + context.sessionId()
+        + "\nstartedAt="
+        + startedAt
+        + "\ndurationMs="
+        + duration.toMillis()
+        + "\nmethod="
+        + request.method()
+        + "\nroute="
+        + safeRoute(request.path())
+        + "\npathParameters="
+        + RestEvidenceSanitizer.namedValues(request.pathParameters())
+        + "\nqueryParameters="
+        + RestEvidenceSanitizer.namedValues(request.queryParameters())
         + "\nheaders="
-        + sanitize(request.headers())
+        + RestEvidenceSanitizer.namedValues(request.headers())
         + "\ncookies="
         + (request.cookies().isEmpty() ? "{}" : "[REDACTED]")
+        + "\ncontentType="
+        + Objects.toString(request.contentType(), "unknown")
         + "\nbody="
-        + display(request.body(), request.contentType());
+        + RestEvidenceSanitizer.body(
+            request.body(), request.contentType(), settings.getMaxEvidenceBytes());
   }
 
-  private static String responseEvidence(RestResponse response) {
+  private String responseEvidence(RestResponse response, String operationId, Duration duration) {
     Map<String, String> headers =
         response.nativeResponse().headers().asList().stream()
             .collect(
@@ -189,30 +239,43 @@ final class DefaultRestController implements RestController {
                     io.restassured.http.Header::getValue,
                     (first, second) -> second,
                     LinkedHashMap::new));
-    return "status="
+    return "operationId="
+        + operationId
+        + "\ndurationMs="
+        + duration.toMillis()
+        + "\nstatus="
         + response.statusCode()
         + "\nheaders="
-        + sanitize(headers)
+        + RestEvidenceSanitizer.namedValues(headers)
+        + "\ncontentType="
+        + Objects.toString(response.nativeResponse().contentType(), "unknown")
         + "\nbody="
-        + display(response.body(), response.nativeResponse().contentType());
+        + RestEvidenceSanitizer.body(
+            response.body(),
+            response.nativeResponse().contentType(),
+            settings.getMaxEvidenceBytes());
   }
 
-  private static Map<String, Object> sanitize(Map<String, ?> source) {
-    Map<String, Object> safe = new LinkedHashMap<>();
-    source.forEach(
-        (key, value) ->
-            safe.put(key, SENSITIVE.contains(key.toLowerCase(Locale.ROOT)) ? "[REDACTED]" : value));
-    return safe;
+  private static String failureEvidence(
+      Throwable failure, String operationId, Duration duration, boolean beforeResponse) {
+    String phase = beforeResponse ? "connection-or-before-response" : "response-validation";
+    return "operationId="
+        + operationId
+        + "\ndurationMs="
+        + duration.toMillis()
+        + "\nphase="
+        + phase
+        + "\nexception="
+        + failure.getClass().getName()
+        + "\nmessage="
+        + RestEvidenceSanitizer.sanitizeText(
+            Objects.requireNonNullElse(failure.getMessage(), "(no message)"));
   }
 
-  private static String display(byte[] bytes, String contentType) {
-    if (bytes.length == 0) return "";
-    if (contentType == null
-        || !(contentType.startsWith("text/")
-            || contentType.contains("json")
-            || contentType.contains("xml")
-            || contentType.contains("form"))) return "[BINARY " + bytes.length + " bytes]";
-    return new String(bytes, StandardCharsets.UTF_8);
+  private static String safeRoute(String path) {
+    int query = path.indexOf('?');
+    String route = query < 0 ? path : path.substring(0, query);
+    return RestEvidenceSanitizer.sanitizeText(route.replaceAll("(?i)https?://[^/]+", ""));
   }
 
   private static void requirePositive(Duration value, String name) {
@@ -223,5 +286,14 @@ final class DefaultRestController implements RestController {
   private void ensureReady() {
     if (state.get() != ControllerState.READY)
       throw new IllegalStateException("REST controller is not READY: " + state.get());
+  }
+
+  private static void throwUnchecked(Throwable failure) {
+    DefaultRestController.<RuntimeException>throwAny(failure);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void throwAny(Throwable failure) throws E {
+    throw (E) failure;
   }
 }

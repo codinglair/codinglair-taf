@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.2",
+  "project": {
+    "name": "generated-cucumber-project",
+    "type": "standalone-test-automation",
+    "basePackage": "com.example.generated",
+    "expectedBuildRoot": ".",
+    "sutInteraction": "external"
+  },
+  "runtime": {
+    "version": "1.3.1"
+  },
+  "capabilities": [
+    "rest",
+    "soap"
+  ],
+  "runners": [
+    "testng",
+    "cucumber-testng"
+  ],
+  "testDefinitions": {
+    "provider": "file-csv",
+    "authoritative": true
+  },
+  "reporting": {
+    "adapter": "allure"
+  }
+}

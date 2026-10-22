@@ -1,6 +1,6 @@
-# Codinglair TAF <!-- taf-version -->`1.3.1` reference
+# Codinglair TAF <!-- taf-version -->`1.3.2` reference
 
-This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.1`
+This is the versioned reference-documentation entry point shipped with the <!-- taf-version -->`1.3.2`
 artifacts. Start with the [Quick Start](../quick-start.md), then choose the audience that matches
 your work.
 
@@ -9,6 +9,7 @@ your work.
 | TAF user | [Public API, configuration, controllers, environments, and reporting](runtime-and-configuration.md) |
 | New contributor | [Installation and prerequisites](installation-and-prerequisites.md) |
 | Test author | [TestNG and Cucumber separation](testng-cucumber-separation.md) |
+| Migrating consumer | [1.3.2 corrective migration](migration-1.3.2.md) |
 | Mobile engineer | [Android and Appium setup](android-appium-setup.md) |
 | Apple mobile engineer | [Apple Appium 1.3.0 quick start, configuration, and troubleshooting](apple-appium-consumer-guide.md) |
 | Release verifier | [Apple Appium 1.3.0 compatibility and limitations record](apple-appium-compatibility-1.3.0.md) |

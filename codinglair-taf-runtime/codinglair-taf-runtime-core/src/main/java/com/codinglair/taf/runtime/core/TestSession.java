@@ -6,6 +6,8 @@ import com.codinglair.taf.runtime.core.controller.ControllerContext;
 import com.codinglair.taf.runtime.core.controller.ControllerRegistry;
 import com.codinglair.taf.runtime.core.controller.EnvironmentAccess;
 import com.codinglair.taf.runtime.core.controller.TestController;
+import com.codinglair.taf.runtime.core.lifecycle.CurrentTestSession;
+import com.codinglair.taf.runtime.core.lifecycle.LifecycleViolationException;
 import com.codinglair.taf.runtime.core.reporting.ArtifactCollector;
 import com.codinglair.taf.runtime.core.reporting.abstraction.TafTest;
 import java.time.Instant;
@@ -81,6 +83,27 @@ public final class TestSession implements AutoCloseable {
 
   public Map<String, Object> getAttributes() {
     return Map.of("sessionId", sessionId, "startTime", startTime);
+  }
+
+  /** Returns whether cleanup has closed this invocation scope. */
+  public boolean isClosed() {
+    return closed.get();
+  }
+
+  /** Binds controller entry-point validation to the framework lifecycle owner. */
+  public void bindInvocationGuard(CurrentTestSession currentSession) {
+    Objects.requireNonNull(currentSession, "currentSession");
+    controllerRegistry.bindInvocationGuard(
+        () -> {
+          TestSession current = currentSession.require();
+          if (current != this) {
+            throw new LifecycleViolationException(
+                "capability belongs to session "
+                    + sessionId
+                    + " but invocation owns session "
+                    + current.getSessionId());
+          }
+        });
   }
 
   public <T extends TestController> T getController(Class<T> type, String name) {

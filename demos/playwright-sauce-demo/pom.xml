@@ -99,11 +99,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.codinglair.taf</groupId>
       <artifactId>taf-consumer-conformance</artifactId>
       <version>${taf.version}</version>
@@ -118,11 +113,47 @@
         <configuration>
           <release>${java.version}</release>
           <parameters>true</parameters>
+          <testExcludes>
+            <testExclude>**/architecture/**</testExclude>
+            <testExclude>**/context/**</testExclude>
+            <testExclude>**/integration/**</testExclude>
+            <testExclude>**/validation/**</testExclude>
+            <testExclude>**/bdd/CucumberMongoIntegrationTest.java</testExclude>
+          </testExcludes>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>${maven.surefire.plugin.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <suiteXmlFiles>
+            <suiteXmlFile>src/test/resources/suites/testng-default.xml</suiteXmlFile>
+          </suiteXmlFiles>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals><goal>test-jar</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.codinglair.taf</groupId>
+        <artifactId>taf-consumer-conformance-maven-plugin</artifactId>
+        <version>${taf.version}</version>
+        <executions>
+          <execution><goals><goal>validate</goal><goal>validate-compiled-tests</goal></goals></execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

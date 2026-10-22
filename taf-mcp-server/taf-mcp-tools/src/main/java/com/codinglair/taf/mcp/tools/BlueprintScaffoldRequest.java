@@ -17,7 +17,33 @@ public record BlueprintScaffoldRequest(
     String writeApprovalId,
     String dependencyApprovalId,
     CallerIdentity identity,
-    Transport transport) {
+    Transport transport,
+    Path sutRoot) {
+  public BlueprintScaffoldRequest(
+      String requestId,
+      String projectId,
+      String environment,
+      Path destination,
+      BlueprintCompositionEngine.Request blueprint,
+      boolean publish,
+      String writeApprovalId,
+      String dependencyApprovalId,
+      CallerIdentity identity,
+      Transport transport) {
+    this(
+        requestId,
+        projectId,
+        environment,
+        destination,
+        blueprint,
+        publish,
+        writeApprovalId,
+        dependencyApprovalId,
+        identity,
+        transport,
+        null);
+  }
+
   public BlueprintScaffoldRequest {
     Objects.requireNonNull(requestId, "requestId");
     Objects.requireNonNull(projectId, "projectId");

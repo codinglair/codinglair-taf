@@ -1,11 +1,6 @@
 package com.codinglair.taf.runtime.definition;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
@@ -19,6 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 
 /** Thread-safe JSON/YAML provider that retains every immutable definition version. */
 public final class FileTestDefinitionRepository implements TestDefinitionRepository {
@@ -190,7 +191,7 @@ public final class FileTestDefinitionRepository implements TestDefinitionReposit
       return document;
     } catch (RepositoryConflictException | DefinitionDiagnosticException failure) {
       throw failure;
-    } catch (IOException | IllegalArgumentException failure) {
+    } catch (RuntimeException failure) {
       throw new DefinitionDiagnosticException(
           DefinitionDiagnosticException.Kind.MALFORMED,
           null,
@@ -305,7 +306,7 @@ public final class FileTestDefinitionRepository implements TestDefinitionReposit
               stored.expectedOutput(),
               Objects.requireNonNull(expectedOutputType, "expectedOutputType")),
           stored.secretReferences());
-    } catch (IOException | IllegalArgumentException failure) {
+    } catch (RuntimeException failure) {
       throw new DefinitionDiagnosticException(
           DefinitionDiagnosticException.Kind.TYPE_CONVERSION,
           stored.caseId(),
@@ -346,17 +347,18 @@ public final class FileTestDefinitionRepository implements TestDefinitionReposit
   private static ObjectMapper createMapper(DefinitionFileFormat format) {
     ObjectMapper result =
         switch (format) {
-          case JSON -> new ObjectMapper();
+          case JSON -> JsonMapper.builder().build();
           case YAML ->
-              new ObjectMapper(
-                  YAMLFactory.builder()
-                      .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                      .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
-                      .build());
+              YAMLMapper.builder()
+                  .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+                  .enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+                  .build();
         };
-    result.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
-    result.enable(SerializationFeature.INDENT_OUTPUT);
-    return result;
+    return result
+        .rebuild()
+        .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+        .enable(SerializationFeature.INDENT_OUTPUT)
+        .build();
   }
 
   @JsonPropertyOrder({"schemaVersion", "authority", "definitions"})

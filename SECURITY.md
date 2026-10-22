@@ -4,7 +4,7 @@
 
 | Version | Supported |
 | --- | --- |
-| <!-- taf-version -->`1.3.1` | Yes |
+| <!-- taf-version -->`1.3.2` | Yes |
 | Earlier versions | No |
 
 ## Reporting a vulnerability

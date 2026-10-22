@@ -7,6 +7,7 @@ import java.time.Duration;
 public class RestControllerSettings {
   private URI baseUrl;
   private Duration timeout = Duration.ofSeconds(30);
+  private int maxEvidenceBytes = 64 * 1024;
 
   public void validate(String prefix) {
     if (baseUrl == null
@@ -17,6 +18,8 @@ public class RestControllerSettings {
       throw new IllegalArgumentException(prefix + ".base-url must be an absolute HTTP(S) URI");
     if (timeout == null || timeout.isZero() || timeout.isNegative())
       throw new IllegalArgumentException(prefix + ".timeout must be positive");
+    if (maxEvidenceBytes < 256)
+      throw new IllegalArgumentException(prefix + ".max-evidence-bytes must be at least 256");
   }
 
   public URI getBaseUrl() {
@@ -33,5 +36,13 @@ public class RestControllerSettings {
 
   public void setTimeout(Duration value) {
     timeout = value;
+  }
+
+  public int getMaxEvidenceBytes() {
+    return maxEvidenceBytes;
+  }
+
+  public void setMaxEvidenceBytes(int value) {
+    maxEvidenceBytes = value;
   }
 }

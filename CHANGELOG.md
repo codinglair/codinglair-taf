@@ -2,6 +2,45 @@
 
 All notable user-visible changes to Codinglair TAF will be documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project intends to use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published releases.
 
+## 1.3.2
+
+- Enforced independent automation build roots for official scaffolding, including canonical-path,
+  traversal/link, SUT-root, protected-file, dependency-graph, reactor and packaged-content checks.
+  Same-repository layouts remain supported when the automation build and process stay separate.
+- Made TestNG the governed consumer runner, retained Cucumber through its TestNG orchestration and
+  framework hooks, and added pre-execution rejection of JUnit-only/mixed/missing-integration
+  consumers. Capability use without the active invocation-owned session now fails with
+  `TAF-LIFECYCLE-001`; TAF implementation tests may continue to use JUnit.
+- Restored bounded, sanitized REST request, response, timing, and transport-failure evidence and
+  associated optional Allure attachments with their owning method/route operation step.
+- Converged published Jackson 2 runtime and data-format surfaces on 2.21.7 LTS, Jackson 3 runtime
+  and YAML surfaces on 3.1.7 LTS, and shared annotations on 2.21; removed MCP-local annotations
+  overrides and made the constraints explicit in the public BOM.
+- Added exhaustive staged-SBOM Jackson scanning, bundled-class checks and HIGH/CRITICAL coverage
+  for container and MCP image vulnerability gates. Consumers require no Jackson exclusions or
+  mapper replacement.
+- Aligned Cucumber modules on 7.34.9 to remove its relocated Jackson 2.17.0 runtime from container
+  images, and refreshed the pinned Java 25/Noble Temurin images for patched OpenSSL packages.
+- Added an expiring, exact-scope MCP STDIO disposition for two genuine HttpCore 5.3.6 findings
+  embedded in the required Testcontainers Docker transport. Raw Trivy/SBOM evidence remains
+  unsuppressed; the gate reports accepted findings separately and still rejects every unapproved
+  HIGH/CRITICAL finding.
+- Narrowed serializer ownership: JSON/YAML implementations moved behind module-local,
+  Jackson-neutral public contracts; the explicitly enumerated Jackson 2 CSV, Mongo, migration,
+  AWS, conformance and MCP remainder is owned by SER-133-001. Existing serialized formats and the
+  legacy CSV facade remain compatible; consumers need no exclusions or mapper overrides.
+- Qualified 18 isolated staged-artifact consumers (61 tests), external Boot 3.5.7 and Boot 4.0.1
+  SUT processes, 26 standalone/runner safety scenarios, and separate TestNG, Cucumber and no-Allure
+  evidence consumers. Hosted CI reruns, manual Allure readability, full browser/device and external
+  broker qualification remain owner-managed and are not claimed here.
+
+### Known Security Issues
+
+- **Testcontainers / docker-java Zerodep:** The upstream `docker-java-transport-zerodep:3.7.1` dependency contains bundled components associated with reported security vulnerabilities. Upstream remediation is not yet available.
+- Codinglair TAF currently suppresses the identified Trivy findings in its own security scans. These suppressions do not apply automatically to downstream consumers.
+- Consumer security scans may independently report these vulnerabilities when the affected dependency is present. Consumers should evaluate the findings against their execution environment and security policies.
+- This issue remains open pending an upstream fix or an approved alternative mitigation.
+
 ## [1.3.1] - 2026-10-13
 
 ### Fixed

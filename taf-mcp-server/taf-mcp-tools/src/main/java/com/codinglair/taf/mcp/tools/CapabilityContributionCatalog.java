@@ -29,6 +29,7 @@ public final class CapabilityContributionCatalog {
             Map.entry("starter-api", "codinglair-taf-starter-api"),
             Map.entry("starter-database", "codinglair-taf-starter-database"),
             Map.entry("starter-mobile", "codinglair-taf-starter-mobile"),
+            Map.entry("runner-testng", "codinglair-taf-runner-testng"),
             Map.entry("runner-cucumber", "codinglair-taf-runner-cucumber"),
             Map.entry("messaging-kafka", "codinglair-taf-starter-messaging-kafka"),
             Map.entry("messaging-rabbitmq", "codinglair-taf-starter-messaging-rabbitmq"),
@@ -65,9 +66,23 @@ public final class CapabilityContributionCatalog {
         List.of(),
         List.of(
             asset("pom.xml", pom(), true),
+            asset("mvnw", unixWrapper(), false),
+            asset("mvnw.cmd", windowsWrapper(), false),
+            asset(".mvn/maven.config", "-ntp\n", false),
+            asset(".mvn/wrapper/maven-wrapper.properties", wrapperProperties(), false),
             asset(".gitignore", "target/\n.idea/\n*.iml\n", false),
             asset("README.md", readme(), false),
             asset("src/test/resources/application.yml", commonConfiguration(), false),
+            asset(
+                "src/test/resources/application-local.yml",
+                "spring:\n  config:\n    activate:\n      on-profile: local\n",
+                false),
+            asset(
+                "src/test/resources/application-ci.yml",
+                "spring:\n  config:\n    activate:\n      on-profile: ci\n",
+                false),
+            asset("src/test/resources/testng.xml", testNgSuite(), false),
+            asset("src/test/resources/taf-project.json", descriptor(), false),
             asset(
                 "src/test/java/__PACKAGE_PATH__/BlueprintPreflightTest.java",
                 preflightTest(),
@@ -118,13 +133,24 @@ public final class CapabilityContributionCatalog {
         Kind.RUNNER,
         new Selector(Kind.RUNNER, null, null, runner, null),
         order,
-        runner == Runner.CUCUMBER_TESTNG ? List.of("runner-cucumber") : List.of(),
+        runner == Runner.CUCUMBER_TESTNG
+            ? List.of("runner-testng", "runner-cucumber")
+            : List.of("runner-testng"),
         runner == Runner.CUCUMBER_TESTNG
             ? List.of(
                 asset(
                     "src/test/resources/features/generated-project.feature",
                     "Feature: Generated project preflight\n  Scenario: Project is composed\n    Then the generated project is ready\n",
-                    false))
+                    false),
+                asset(
+                    "src/test/java/__PACKAGE_PATH__/bdd/GeneratedCucumberRunner.java",
+                    cucumberRunner(),
+                    false),
+                asset(
+                    "src/test/java/__PACKAGE_PATH__/bdd/GeneratedSteps.java",
+                    cucumberSteps(),
+                    false),
+                asset("src/test/resources/testng-bdd.xml", cucumberSuite(), false))
             : List.of(),
         List.of(claim("/taf/runner", name)));
   }
@@ -262,6 +288,32 @@ public final class CapabilityContributionCatalog {
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
+                <dependencies>
+                  <dependency>
+                    <groupId>org.apache.maven.surefire</groupId>
+                    <artifactId>surefire-testng</artifactId>
+                    <version>3.5.2</version>
+                  </dependency>
+                </dependencies>
+                <configuration>
+                  <suiteXmlFiles>
+                    <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                  </suiteXmlFiles>
+                </configuration>
+              </plugin>
+              <plugin>
+                <groupId>com.codinglair.taf</groupId>
+                <artifactId>taf-consumer-conformance-maven-plugin</artifactId>
+                <version>${taf.version}</version>
+                <executions>
+                  <execution>
+                    <id>validate-taf-consumer</id>
+                    <goals>
+                      <goal>validate</goal>
+                      <goal>validate-compiled-tests</goal>
+                    </goals>
+                  </execution>
+                </executions>
               </plugin>
             </plugins>
           </build>
@@ -273,16 +325,15 @@ public final class CapabilityContributionCatalog {
     return """
         package __BASE_PACKAGE__;
 
-        import com.codinglair.taf.runtime.core.TestSession;
+        import com.codinglair.taf.core.annotation.reporting.TestCaseId;
         import org.testng.annotations.Test;
 
-        public final class BlueprintPreflightTest {
+        public final class BlueprintPreflightTest extends com.codinglair.taf.runtime.testng.TafBaseTest {
           @Test
+          @TestCaseId("GENERATED-PREFLIGHT-001")
           public void createsAndClosesAnIsolatedTestSession() {
-            try (TestSession session = TestSession.create()) {
-              if (session == null) {
-                throw new AssertionError("TestSession was not created");
-              }
+            if (testSession() == null) {
+              throw new AssertionError("TafBaseTest did not create the invocation session");
             }
           }
         }
@@ -296,6 +347,129 @@ public final class CapabilityContributionCatalog {
           secrets:
             provider: env
             references-only: true
+        """;
+  }
+
+  private static String testNgSuite() {
+    return """
+        <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+        <suite name="taf-consumer">
+          <test name="ordinary">
+            <classes><class name="__BASE_PACKAGE__.BlueprintPreflightTest"/></classes>
+          </test>
+        </suite>
+        """;
+  }
+
+  private static String cucumberRunner() {
+    return """
+        package __BASE_PACKAGE__.bdd;
+
+        import com.codinglair.taf.runtime.cucumber.AbstractCucumberRunner;
+        import io.cucumber.testng.CucumberOptions;
+
+        @CucumberOptions(
+            features = "classpath:features/generated-project.feature",
+            glue = {"__BASE_PACKAGE__.bdd", "com.codinglair.taf.runtime.cucumber"})
+        public final class GeneratedCucumberRunner extends AbstractCucumberRunner {}
+        """;
+  }
+
+  private static String cucumberSuite() {
+    return """
+        <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+        <suite name="taf-consumer-bdd">
+          <test name="bdd"><classes>
+            <class name="__BASE_PACKAGE__.bdd.GeneratedCucumberRunner"/>
+          </classes></test>
+        </suite>
+        """;
+  }
+
+  private static String cucumberSteps() {
+    return """
+        package __BASE_PACKAGE__.bdd;
+
+        import com.codinglair.taf.runtime.cucumber.CucumberScenarioSession;
+        import io.cucumber.java.en.Then;
+
+        public final class GeneratedSteps {
+          private final CucumberScenarioSession scenarioSession;
+
+          public GeneratedSteps(CucumberScenarioSession scenarioSession) {
+            this.scenarioSession = scenarioSession;
+          }
+
+          @Then("the generated project is ready")
+          public void generatedProjectIsReady() {
+            if (scenarioSession.session() == null) {
+              throw new AssertionError("TafCucumberHooks did not open the scenario TestSession");
+            }
+          }
+        }
+        """;
+  }
+
+  private static String descriptor() {
+    return """
+        {
+          "schemaVersion": "1.2",
+          "project": {
+            "name": "__ARTIFACT_ID__",
+            "type": "standalone-test-automation",
+            "basePackage": "__BASE_PACKAGE__",
+            "expectedBuildRoot": ".",
+            "sutInteraction": "external"
+          },
+          "runtime": { "version": "__TAF_VERSION__" },
+          "capabilities": [__CAPABILITIES__],
+          "runners": [__RUNNERS__],
+          "testDefinitions": { "provider": "file-csv", "authoritative": true },
+          "reporting": { "adapter": "allure" }
+        }
+        """;
+  }
+
+  private static String unixWrapper() {
+    return """
+        #!/bin/sh
+        set -eu
+        BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+        URL=$(sed -n 's/^distributionUrl=//p' "$BASE_DIR/.mvn/wrapper/maven-wrapper.properties")
+        ARCHIVE=${URL##*/}
+        MAVEN_HOME="$BASE_DIR/.mvn/wrapper/dists/${ARCHIVE%.zip}"
+        if [ ! -x "$MAVEN_HOME/bin/mvn" ]; then
+          mkdir -p "$MAVEN_HOME.tmp"
+          if command -v curl >/dev/null 2>&1; then curl -fsSL "$URL" -o "$MAVEN_HOME.tmp/$ARCHIVE";
+          elif command -v wget >/dev/null 2>&1; then wget -q "$URL" -O "$MAVEN_HOME.tmp/$ARCHIVE";
+          else echo "Maven Wrapper requires curl or wget" >&2; exit 1; fi
+          unzip -q "$MAVEN_HOME.tmp/$ARCHIVE" -d "$MAVEN_HOME.tmp"
+          mv "$MAVEN_HOME.tmp"/apache-maven-* "$MAVEN_HOME"
+          rm -rf "$MAVEN_HOME.tmp"
+        fi
+        exec "$MAVEN_HOME/bin/mvn" "$@"
+        """;
+  }
+
+  private static String windowsWrapper() {
+    return """
+        @echo off
+        setlocal
+        set "BASE_DIR=%~dp0"
+        for /f "tokens=1,* delims==" %%A in ('findstr /b distributionUrl "%BASE_DIR%.mvn\\wrapper\\maven-wrapper.properties"') do set "URL=%%B"
+        for %%A in ("%URL%") do set "ARCHIVE=%%~nxA"
+        set "MAVEN_HOME=%BASE_DIR%.mvn\\wrapper\\dists\\%ARCHIVE:.zip=%"
+        if not exist "%MAVEN_HOME%\\bin\\mvn.cmd" powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $u=$env:URL; $a=Join-Path $env:TEMP $env:ARCHIVE; Invoke-WebRequest $u -OutFile $a; $t=$env:MAVEN_HOME+'.tmp'; New-Item -ItemType Directory -Force $t|Out-Null; Expand-Archive $a $t -Force; Move-Item (Get-ChildItem $t -Directory | Select-Object -First 1).FullName $env:MAVEN_HOME; Remove-Item $t -Recurse -Force"
+        call "%MAVEN_HOME%\\bin\\mvn.cmd" %*
+        exit /b %ERRORLEVEL%
+        """;
+  }
+
+  private static String wrapperProperties() {
+    return """
+        wrapperVersion=3.3.4
+        distributionType=only-script
+        distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.16/apache-maven-3.9.16-bin.zip
         """;
   }
 

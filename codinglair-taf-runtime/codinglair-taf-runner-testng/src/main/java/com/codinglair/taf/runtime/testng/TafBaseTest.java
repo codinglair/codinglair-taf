@@ -212,6 +212,7 @@ public abstract class TafBaseTest extends AbstractTestNGSpringContextTests {
             .map(reporter -> new ReporterDispatcher(reporter, new RedactionPipeline()))
             .toList();
     dispatchers.forEach(dispatcher -> dispatcher.beginTest(test));
+    session.getArtifactCollector().publishDuringCollection(dispatchers);
     HierarchicalReport hierarchy =
         new HierarchicalReport(
             session.getCorrelationContext().getTraceId(), new RedactionPipeline());

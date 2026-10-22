@@ -17,6 +17,7 @@ public final class ControllerRegistry implements AutoCloseable {
   private final List<Entry<?>> acquisitionOrder = Collections.synchronizedList(new ArrayList<>());
   private volatile ControllerContext context;
   private volatile ReportingActionInterceptor reportingInterceptor;
+  private volatile Runnable invocationGuard;
 
   public ControllerRegistry() {}
 
@@ -32,6 +33,11 @@ public final class ControllerRegistry implements AutoCloseable {
     this.reportingInterceptor = Objects.requireNonNull(interceptor, "interceptor");
   }
 
+  /** Installs the invocation ownership check used by every exposed controller operation. */
+  public void bindInvocationGuard(Runnable guard) {
+    invocationGuard = Objects.requireNonNull(guard, "guard");
+  }
+
   public <T extends TestController> void register(Class<T> type, String name, T controller) {
     Objects.requireNonNull(controller, "controller");
     ControllerIdentity key = new ControllerIdentity(type, name);
@@ -42,12 +48,14 @@ public final class ControllerRegistry implements AutoCloseable {
   }
 
   public <T extends TestController> T get(Class<T> type, String name) {
+    Runnable guard = invocationGuard;
+    if (guard != null) guard.run();
     ControllerIdentity key = new ControllerIdentity(type, name);
     Entry<?> raw = entries.get(key);
     if (raw == null) throw new ControllerNotFoundException(key);
     Entry<T> entry = cast(raw);
     entry.initialize(context(), acquisitionOrder);
-    return entry.exposed(type, reportingInterceptor);
+    return entry.exposed(type, reportingInterceptor, guard);
   }
 
   public boolean hasController(Class<? extends TestController> type, String name) {
@@ -105,8 +113,10 @@ public final class ControllerRegistry implements AutoCloseable {
       this.controller = controller;
     }
 
-    private T exposed(Class<T> type, ReportingActionInterceptor interceptor) {
-      if (interceptor == null || !type.isInterface()) return controller;
+    private T exposed(
+        Class<T> type, ReportingActionInterceptor interceptor, Runnable invocationGuard) {
+      if (interceptor == null && invocationGuard == null) return controller;
+      if (!type.isInterface()) return controller;
       T current = exposed;
       if (current != null) return current;
       synchronized (this) {
@@ -115,7 +125,8 @@ public final class ControllerRegistry implements AutoCloseable {
               Proxy.newProxyInstance(
                   type.getClassLoader(),
                   new Class<?>[] {type},
-                  (ignored, method, arguments) -> invoke(interceptor, method, arguments));
+                  (ignored, method, arguments) ->
+                      invoke(interceptor, invocationGuard, method, arguments));
           exposed = type.cast(proxy);
         }
         return exposed;
@@ -124,12 +135,15 @@ public final class ControllerRegistry implements AutoCloseable {
 
     private Object invoke(
         ReportingActionInterceptor interceptor,
+        Runnable invocationGuard,
         java.lang.reflect.Method method,
         Object[] arguments) {
       try {
+        if (invocationGuard != null) invocationGuard.run();
         java.lang.reflect.Method target =
             controller.getClass().getMethod(method.getName(), method.getParameterTypes());
         if (!target.canAccess(controller)) target.trySetAccessible();
+        if (interceptor == null) return invokeTarget(target, arguments);
         return interceptor.invoke(target, arguments, () -> invokeTarget(target, arguments));
       } catch (Throwable failure) {
         throwAny(failure);

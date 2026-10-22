@@ -30,19 +30,23 @@ public final class StdioScaffoldingTools {
     var arguments = request.arguments();
     String project = defaulted(request.projectId(), properties.getProject());
     String environment = defaulted(request.environment(), properties.getEnvironment());
-    Path destination = Path.of(BlueprintRequestArguments.string(arguments, "destination", true));
+    String automationRoot = BlueprintRequestArguments.string(arguments, "automationRoot", false);
+    if (automationRoot == null)
+      automationRoot = BlueprintRequestArguments.string(arguments, "destination", true);
+    String sutRoot = BlueprintRequestArguments.string(arguments, "sutRoot", false);
     return scaffolding.execute(
         new BlueprintScaffoldRequest(
             request.requestId(),
             project,
             environment,
-            destination,
+            Path.of(automationRoot),
             BlueprintRequestArguments.blueprint(arguments),
             BlueprintRequestArguments.bool(arguments, "publish"),
             request.approvalReference().orElse(null),
             BlueprintRequestArguments.string(arguments, "dependencyApprovalReference", false),
             properties.identity(),
-            Transport.STDIO));
+            Transport.STDIO,
+            sutRoot == null ? null : Path.of(sutRoot)));
   }
 
   private static String defaulted(String value, String defaultValue) {

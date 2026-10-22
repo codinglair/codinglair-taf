@@ -6,8 +6,11 @@ From any directory, run the script with PowerShell 7 using its path:
 pwsh -NoProfile -File .\build-support\local\local-verify.ps1
 ```
 
-It runs all ten commands from the supplied local verification request, including
-the trailing offline Appium architecture/dependency check. Each check prints its
+It runs all ten checks from the supplied local verification request, including
+the trailing offline Appium architecture/dependency check. The Gitleaks check
+runs two commands: a current-directory scan first (covering modified and untracked
+files before commit), followed by the existing scan of all committed Git history.
+Each check prints its
 command, summary/output, errors and PASS/FAIL result. Maven reactor size and test
 counts are discovered from output. Consumer smoke uses its nonrecursive Invoker
 summary and requires positive passes with zero failures, errors or skips.

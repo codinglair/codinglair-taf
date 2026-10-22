@@ -1,0 +1,27 @@
+{
+  "Results": [
+    {
+      "Target": "Java",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2026-54399",
+          "PkgName": "org.apache.httpcomponents.core5:httpcore5",
+          "InstalledVersion": "5.3.6",
+          "FixedVersion": "5.4.3",
+          "Severity": "HIGH",
+          "PkgPath": "opt/taf/stdio/lib/docker-java-transport-zerodep-3.7.1.jar",
+          "Layer": {"Digest": "sha256:layer", "DiffID": "sha256:diff"}
+        },
+        {
+          "VulnerabilityID": "CVE-2026-54428",
+          "PkgName": "org.apache.httpcomponents.core5:httpcore5-h2",
+          "InstalledVersion": "5.3.6",
+          "FixedVersion": "5.4.3",
+          "Severity": "HIGH",
+          "PkgPath": "opt/taf/stdio/lib/docker-java-transport-zerodep-3.7.1.jar",
+          "Layer": {"Digest": "sha256:layer", "DiffID": "sha256:diff"}
+        }
+      ]
+    }
+  ]
+}

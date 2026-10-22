@@ -25,13 +25,21 @@ class AllureCliSingleFileReportGeneratorIntegrationTest {
     Path results = temporary.resolve("allure-results");
     Files.createDirectories(results);
     String uuid = UUID.randomUUID().toString();
+    String attachment = "rep-005-attachment.txt";
+    Files.writeString(
+        results.resolve(attachment),
+        "sessionId=s1\ntestId=t1\nstepId=step1\nattempt=1\ndiagnostic=ok\ncontentType=text/plain\nsha256=recorded",
+        StandardCharsets.UTF_8);
     Files.writeString(
         results.resolve(uuid + "-result.json"),
         "{\"uuid\":\""
             + uuid
             + "\",\"historyId\":\"rep-005\",\"name\":\"Sanitized result [REDACTED]\","
             + "\"fullName\":\"rep005.Sanitized\",\"status\":\"passed\",\"stage\":\"finished\","
-            + "\"start\":1,\"stop\":2,\"labels\":[{\"name\":\"suite\",\"value\":\"REP-005\"}]}",
+            + "\"start\":1,\"stop\":2,\"labels\":[{\"name\":\"suite\",\"value\":\"REP-005\"}],"
+            + "\"attachments\":[{\"name\":\"diagnostic\",\"source\":\""
+            + attachment
+            + "\",\"type\":\"text/plain\"}]}",
         StandardCharsets.UTF_8);
 
     AllureSingleFileProperties properties = new AllureSingleFileProperties();
@@ -58,6 +66,21 @@ class AllureCliSingleFileReportGeneratorIntegrationTest {
     assertThat(html.toLowerCase(Locale.ROOT)).contains("<html").contains("<script");
     assertThat(html).doesNotContain("allure-secret-canary");
     assertThat(results.resolve(uuid + "-result.json")).exists();
+
+    Path matrix = temporary.resolve("expectations.json");
+    Files.writeString(
+        matrix,
+        """
+        {"expectedResultCount":1,
+         "requiredFields":["sessionId","testId","stepId","attempt","diagnostic","contentType","sha256"],
+         "forbiddenPatterns":["allure-secret-canary"],
+         "expectedResults":[{"name":"Sanitized result [REDACTED]","status":"passed","count":1,
+           "attachments":[{"name":"diagnostic","contentType":"text/plain","count":1}]}]}
+        """,
+        StandardCharsets.UTF_8);
+    var validation = new AllureEvidenceValidator().validate(results, artifact, matrix);
+    assertThat(validation.violations()).isEmpty();
+    preserveAcceptanceEvidence(results, artifact, matrix, validation);
   }
 
   private static String approvedExecutable() {
@@ -66,5 +89,38 @@ class AllureCliSingleFileReportGeneratorIntegrationTest {
       configured = System.getenv("TAF_TEST_ALLURE_EXECUTABLE");
     }
     return configured == null || configured.isBlank() ? null : configured;
+  }
+
+  private static void preserveAcceptanceEvidence(
+      Path results, Path report, Path matrix, AllureEvidenceValidator.ValidationReport validation)
+      throws Exception {
+    Path bundle = Path.of("target", "consumer-evidence");
+    if (Files.exists(bundle)) {
+      try (var paths = Files.walk(bundle)) {
+        for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+          Files.delete(path);
+        }
+      }
+    }
+    Path retainedResults = bundle.resolve("allure-results");
+    Files.createDirectories(retainedResults);
+    try (var files = Files.list(results)) {
+      for (Path file : files.toList()) {
+        Files.copy(
+            file,
+            retainedResults.resolve(file.getFileName()),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      }
+    }
+    Files.copy(
+        report,
+        bundle.resolve("standalone.html"),
+        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    Files.copy(
+        matrix,
+        bundle.resolve("expectations.json"),
+        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    Files.writeString(
+        bundle.resolve("validator.json"), validation.toJson(), StandardCharsets.UTF_8);
   }
 }

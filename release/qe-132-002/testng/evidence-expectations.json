@@ -1,0 +1,62 @@
+{
+  "expectedResultCount": 8,
+  "expectedResults": [
+    {
+      "name": "capturesSuccessAndHttpErrorsWithSanitizedDetails",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "Captures sanitized REST success, HTTP error, timing, and bounded-body diagnostics",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "retainsAssertionAfterResponseAndTransportFailures",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "Retains response evidence for assertion failures and classifies read timeouts",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "rejectsCallsWithoutTheInvocationSession",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "Rejects a REST controller call made without the owning invocation session",
+      "status": "passed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "deliberatelyFailsAfterResponseSoReportPreservesFailure",
+      "status": "failed",
+      "count": 1,
+      "attachments": []
+    },
+    {
+      "name": "Preserves an intentional post-response failure as a failed report entry",
+      "status": "failed",
+      "count": 1,
+      "attachments": []
+    }
+  ],
+  "forbiddenPatterns": [
+    "qe-132-002-secret-sentinel"
+  ],
+  "standaloneRequiredMarkers": [
+    "method=GET",
+    "status=503",
+    "response-validation",
+    "QE-132-002 expected diagnostic failure marker"
+  ]
+}

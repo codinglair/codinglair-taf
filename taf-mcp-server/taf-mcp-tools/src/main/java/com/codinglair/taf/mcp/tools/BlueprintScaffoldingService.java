@@ -4,8 +4,6 @@ import com.codinglair.taf.mcp.security.ApprovalService;
 import com.codinglair.taf.mcp.security.AuthorizationContext;
 import com.codinglair.taf.mcp.security.EnforcementRequest;
 import com.codinglair.taf.mcp.security.McpEnforcementService;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -21,6 +19,7 @@ public final class BlueprintScaffoldingService {
   private final McpEnforcementService enforcement;
   private final ApprovalService approvals;
   private final ScaffoldCompiler preflight;
+  private final StandaloneScaffoldBoundary boundary;
 
   public BlueprintScaffoldingService(
       Path approvedRoot,
@@ -33,11 +32,12 @@ public final class BlueprintScaffoldingService {
     this.enforcement = Objects.requireNonNull(enforcement, "enforcement");
     this.approvals = Objects.requireNonNull(approvals, "approvals");
     this.preflight = Objects.requireNonNull(preflight, "preflight");
+    this.boundary = new StandaloneScaffoldBoundary(this.approvedRoot);
   }
 
   public BlueprintScaffoldResult execute(BlueprintScaffoldRequest request) {
     Objects.requireNonNull(request, "request");
-    Path destination = confined(request.destination());
+    Path destination = confined(request);
     var plan = plan(request, destination);
     if (!plan.valid())
       return result(
@@ -47,10 +47,30 @@ public final class BlueprintScaffoldingService {
 
     String digest = digest(plan);
     var dependencyContext = context(request, "dependency.add", "taf:dependency:write");
-    if (request.dependencyApprovalId() == null
-        || !approvals.permits(request.dependencyApprovalId(), dependencyContext, digest)) {
-      return result(
-          BlueprintScaffoldResult.Status.APPROVAL_REQUIRED, plan, "dependency approval required");
+    var dependencyAuthorization =
+        enforcement.enforce(
+            new EnforcementRequest(
+                request.requestId(),
+                request.transport(),
+                dependencyContext,
+                digest,
+                request.dependencyApprovalId(),
+                Map.of("blueprintVersion", plan.blueprintVersion())),
+            () -> Boolean.TRUE);
+    switch (dependencyAuthorization.status()) {
+      case ALLOWED -> {
+        // Continue to the separately authorized working-tree write.
+      }
+      case APPROVAL_REQUIRED -> {
+        return result(
+            BlueprintScaffoldResult.Status.APPROVAL_REQUIRED, plan, "dependency approval required");
+      }
+      case DENIED -> {
+        return result(BlueprintScaffoldResult.Status.DENIED, plan, "authorization denied");
+      }
+      case INPUT_REJECTED, FAILED -> {
+        return result(BlueprintScaffoldResult.Status.FAILED, plan, "scaffold failed safely");
+      }
     }
     var enforced =
         enforcement.enforce(
@@ -64,7 +84,7 @@ public final class BlueprintScaffoldingService {
                     "blueprintVersion", plan.blueprintVersion(),
                     "capabilities",
                         plan.request().capabilities().stream().map(Enum::name).toList())),
-            () -> publish(plan, destination));
+            () -> publish(request, plan, destination));
     return switch (enforced.status()) {
       case ALLOWED -> (BlueprintScaffoldResult) enforced.body();
       case APPROVAL_REQUIRED ->
@@ -97,7 +117,7 @@ public final class BlueprintScaffoldingService {
 
   private BlueprintCompositionEngine.CompositionPlan plan(BlueprintScaffoldRequest request) {
     Objects.requireNonNull(request, "request");
-    return plan(request, confined(request.destination()));
+    return plan(request, confined(request));
   }
 
   private BlueprintCompositionEngine.CompositionPlan plan(
@@ -111,35 +131,46 @@ public final class BlueprintScaffoldingService {
   }
 
   private BlueprintScaffoldResult publish(
-      BlueprintCompositionEngine.CompositionPlan plan, Path destination) {
+      BlueprintScaffoldRequest request,
+      BlueprintCompositionEngine.CompositionPlan plan,
+      Path destination) {
+    boolean created = !java.nio.file.Files.exists(destination);
+    var protectedBefore = ProtectedPathSnapshot.capture(request.sutRoot(), destination);
     var write = engine.write(plan, destination);
     if (write.status() == BlueprintCompositionEngine.WriteStatus.CONFLICT)
       return result(BlueprintScaffoldResult.Status.CONFLICT, plan, "destination already exists");
-    if (write.status() != BlueprintCompositionEngine.WriteStatus.WRITTEN)
+    if (write.status() != BlueprintCompositionEngine.WriteStatus.WRITTEN
+        && write.status() != BlueprintCompositionEngine.WriteStatus.UNCHANGED)
       return result(BlueprintScaffoldResult.Status.FAILED, plan, "scaffold publication failed");
-    var checked = preflight.compile(destination);
-    return checked.successful()
-        ? result(
-            BlueprintScaffoldResult.Status.APPLIED, plan, "scaffold applied and preflight passed")
-        : result(
-            BlueprintScaffoldResult.Status.PREFLIGHT_FAILED,
-            plan,
-            "generated project preflight failed");
+    try {
+      boundary.verifyRootAtWrite(destination, request.sutRoot());
+      var checked = preflight.compile(destination);
+      protectedBefore.verifyUnchanged(destination);
+      return checked.successful()
+          ? result(
+              BlueprintScaffoldResult.Status.APPLIED,
+              plan,
+              write.status() == BlueprintCompositionEngine.WriteStatus.UNCHANGED
+                  ? "recognized scaffold is unchanged and preflight passed"
+                  : "scaffold applied and preflight passed")
+          : result(
+              BlueprintScaffoldResult.Status.PREFLIGHT_FAILED,
+              plan,
+              "generated project preflight failed");
+    } catch (RuntimeException failure) {
+      boolean rolledBack = created && engine.rollbackOwned(plan, destination);
+      return result(
+          BlueprintScaffoldResult.Status.FAILED,
+          plan,
+          "scaffold boundary verification failed: "
+              + failure.getMessage()
+              + "; owned rollback="
+              + (created ? (rolledBack ? "complete" : "refused") : "not-required"));
+    }
   }
 
-  private Path confined(Path requested) {
-    Path destination =
-        requested.isAbsolute()
-            ? requested.normalize()
-            : approvedRoot.resolve(requested).normalize();
-    if (!destination.startsWith(approvedRoot) || destination.equals(approvedRoot))
-      throw new IllegalArgumentException("destination is outside the approved root");
-    Path parent = destination.getParent();
-    if (parent == null
-        || !Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS)
-        || Files.isSymbolicLink(parent))
-      throw new IllegalArgumentException("destination parent is unavailable or unsafe");
-    return destination;
+  private Path confined(BlueprintScaffoldRequest request) {
+    return boundary.resolve(request.destination(), request.sutRoot());
   }
 
   private static AuthorizationContext context(
