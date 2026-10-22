@@ -8,7 +8,11 @@ final class PrGate {
   private static final String SKIPPED = "skipped";
   private static final List<String> CONDITIONAL_LANES =
       List.of(
-          "affected-verification", "cross-module-smoke", "browser-smoke", "appium-smoke");
+          "affected-verification",
+          "qe-132-002-qualification",
+          "cross-module-smoke",
+          "browser-smoke",
+          "appium-smoke");
 
   private PrGate() {}
 
@@ -30,22 +34,24 @@ final class PrGate {
   }
 
   public static void main(String[] args) {
-    if (args.length != 11) {
-      throw new IllegalArgumentException("Expected 11 gate arguments");
+    if (args.length != 13) {
+      throw new IllegalArgumentException("Expected 13 gate arguments");
     }
     Map<String, String> results = new LinkedHashMap<>();
     results.put("secret-scanning", args[0]);
     results.put("change-impact", args[1]);
     results.put("unit-tests", args[2]);
     results.put("affected-verification", args[3]);
-    results.put("cross-module-smoke", args[4]);
-    results.put("browser-smoke", args[5]);
-    results.put("appium-smoke", args[6]);
+    results.put("qe-132-002-qualification", args[4]);
+    results.put("cross-module-smoke", args[5]);
+    results.put("browser-smoke", args[6]);
+    results.put("appium-smoke", args[7]);
     Map<String, Boolean> selected = new LinkedHashMap<>();
-    selected.put("affected-verification", Boolean.parseBoolean(args[7]));
-    selected.put("cross-module-smoke", Boolean.parseBoolean(args[8]));
-    selected.put("browser-smoke", Boolean.parseBoolean(args[9]));
-    selected.put("appium-smoke", Boolean.parseBoolean(args[10]));
+    selected.put("affected-verification", Boolean.parseBoolean(args[8]));
+    selected.put("qe-132-002-qualification", Boolean.parseBoolean(args[9]));
+    selected.put("cross-module-smoke", Boolean.parseBoolean(args[10]));
+    selected.put("browser-smoke", Boolean.parseBoolean(args[11]));
+    selected.put("appium-smoke", Boolean.parseBoolean(args[12]));
     verify(results, selected);
     System.out.println("All required pull-request lanes have acceptable terminal results.");
   }

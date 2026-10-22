@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 $repository = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 $module = Join-Path $repository "codinglair-taf-runtime/codinglair-taf-reporting-allure"
-$maven = Join-Path $repository "mvnw.cmd"
+$maven = Join-Path $repository $(if ($IsWindows) { "mvnw.cmd" } else { "mvnw" })
 
 foreach ($candidate in @($Results, $Report, $Matrix)) {
     if (-not (Test-Path -LiteralPath $candidate)) {

@@ -39,6 +39,63 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  qe-132-002-qualification:
+    name: QE-132-002 standalone report qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Provision repository-approved Allure CLI
+        run: |
+          docker build --tag codinglair/taf-test-runner:qe-132-002 containers/taf-test-runner
+          mkdir -p target/qe-132-002-tooling
+          container_id="$(docker create codinglair/taf-test-runner:qe-132-002)"
+          docker cp "$container_id:/opt/allure-2.36.0" target/qe-132-002-tooling/allure-2.36.0
+          docker rm "$container_id"
+          test "$(target/qe-132-002-tooling/allure-2.36.0/bin/allure --version)" = '2.36.0'
+      - name: Run strict QE-132-002 qualification
+        shell: pwsh
+        run: >-
+          ./build-support/verification/qe-132-002.ps1
+          -AllureExecutable ./target/qe-132-002-tooling/allure-2.36.0/bin/allure
+      - name: Report missing QE-132-002 evidence
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $required = @(
+            'target/qe-132-002/candidate-identity.json',
+            'target/qe-132-002/no-allure.log',
+            'target/qe-132-002/testng.log',
+            'target/qe-132-002/cucumber.log',
+            'target/qe-132-002/testng-validator.json',
+            'target/qe-132-002/cucumber-validator.json',
+            'target/qe-132-002/testng-report/index.html',
+            'target/qe-132-002/cucumber-report/index.html',
+            'target/qe-132-002/summary.json'
+          )
+          $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
+          if ($missing.Count -gt 0) {
+            Write-Output "::error title=Incomplete QE-132-002 evidence::Missing: $($missing -join ', ')"
+          }
+      - name: Retain QE-132-002 qualification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: qe-132-002-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/qe-132-002/
+            release/qe-132-002/**/target/surefire-reports/
+            release/qe-132-002/**/target/allure-results/
+          if-no-files-found: warn
+          retention-days: 90
+
   browsers:
     name: Browser compatibility matrix
     runs-on: ubuntu-24.04
@@ -184,13 +241,14 @@ jobs:
   release-gate:
     name: Release verification gate
     if: ${{ always() }}
-    needs: [runtime-and-architecture, browsers, containers, mcp-security, android-emulator, aws-capability]
+    needs: [runtime-and-architecture, qe-132-002-qualification, browsers, containers, mcp-security, android-emulator, aws-capability]
     runs-on: ubuntu-24.04
     steps:
       - name: Summarize and block on every required suite
         env:
           REQUIRED_RESULTS: >-
             ${{ needs.runtime-and-architecture.result }}
+            ${{ needs.qe-132-002-qualification.result }}
             ${{ needs.browsers.result }}
             ${{ needs.containers.result }}
             ${{ needs.mcp-security.result }}

@@ -10,46 +10,49 @@ final class PrGateTest {
     rejectsSelectedSkip();
     rejectsFailureAndCancellation();
     rejectsUnexpectedResult();
-    System.out.println("Executed 8 aggregate PR-gate scenarios");
+    System.out.println("Executed 9 aggregate PR-gate scenarios");
   }
 
   private static void acceptsSelectedSuccessAndLegitimateSkips() {
     PrGate.verify(
-        results("success", "success", "success", "success", "skipped", "skipped", "success"),
-        selected(true, false, false, true));
+        results("success", "success", "success", "success", "success", "skipped", "skipped", "success"),
+        selected(true, true, false, false, true));
   }
 
   private static void rejectsSelectedSkip() {
     expectFailure(
-        results("success", "success", "success", "skipped", "skipped", "skipped", "skipped"),
-        selected(true, false, false, true));
+        results("success", "success", "success", "success", "skipped", "skipped", "skipped", "skipped"),
+        selected(true, true, false, false, true));
+    expectFailure(
+        results("success", "success", "success", "skipped", "failure", "skipped", "skipped", "skipped"),
+        selected(false, true, false, false, false));
   }
 
   private static void rejectsFailureAndCancellation() {
     expectFailure(
-        results("success", "success", "failure", "skipped", "skipped", "skipped", "skipped"),
-        selected(false, false, false, false));
+        results("success", "success", "failure", "skipped", "skipped", "skipped", "skipped", "skipped"),
+        selected(false, false, false, false, false));
     expectFailure(
-        results("success", "success", "success", "cancelled", "skipped", "skipped", "skipped"),
-        selected(true, false, false, false));
+        results("success", "success", "success", "cancelled", "skipped", "skipped", "skipped", "skipped"),
+        selected(true, false, false, false, false));
     expectFailure(
-        results("success", "failure", "success", "skipped", "skipped", "skipped", "skipped"),
-        selected(false, false, false, false));
+        results("success", "failure", "success", "skipped", "skipped", "skipped", "skipped", "skipped"),
+        selected(false, false, false, false, false));
     expectFailure(
-        results("skipped", "success", "success", "skipped", "skipped", "skipped", "skipped"),
-        selected(false, false, false, false));
+        results("skipped", "success", "success", "skipped", "skipped", "skipped", "skipped", "skipped"),
+        selected(false, false, false, false, false));
   }
 
   private static void rejectsUnexpectedResult() {
     expectFailure(
-        results("success", "success", "success", "unknown", "skipped", "skipped", "skipped"),
-        selected(true, false, false, false));
+        results("success", "success", "success", "unknown", "skipped", "skipped", "skipped", "skipped"),
+        selected(true, false, false, false, false));
     expectFailure(
-        results("success", "success", "success", "success", "skipped", "skipped", "skipped"),
-        selected(false, false, false, false));
+        results("success", "success", "success", "success", "skipped", "skipped", "skipped", "skipped"),
+        selected(false, false, false, false, false));
     expectFailure(
-        results("success", "success", "success", "skipped", "skipped", "skipped", ""),
-        selected(false, false, false, false));
+        results("success", "success", "success", "skipped", "skipped", "skipped", "skipped", ""),
+        selected(false, false, false, false, false));
   }
 
   private static Map<String, String> results(String... values) {
@@ -58,6 +61,7 @@ final class PrGateTest {
       "change-impact",
       "unit-tests",
       "affected-verification",
+      "qe-132-002-qualification",
       "cross-module-smoke",
       "browser-smoke",
       "appium-smoke"
@@ -71,7 +75,11 @@ final class PrGateTest {
 
   private static Map<String, Boolean> selected(boolean... values) {
     String[] names = {
-      "affected-verification", "cross-module-smoke", "browser-smoke", "appium-smoke"
+      "affected-verification",
+      "qe-132-002-qualification",
+      "cross-module-smoke",
+      "browser-smoke",
+      "appium-smoke"
     };
     var result = new LinkedHashMap<String, Boolean>();
     for (int index = 0; index < names.length; index++) {

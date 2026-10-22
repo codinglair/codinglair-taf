@@ -1,16 +1,17 @@
 [CmdletBinding()]
 param(
     [switch]$SkipStage,
-    [string]$AllureExecutable = ""
+    [string]$AllureExecutable = "",
+    [string]$TestngExpectations = "",
+    [string]$CucumberExpectations = ""
 )
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 $output = Join-Path $root "target/qe-132-002"
 $staging = Join-Path $root "target/staging-repository"
-$maven = Join-Path $root "mvnw.cmd"
+$maven = Join-Path $root $(if ($IsWindows) { "mvnw.cmd" } else { "mvnw" })
 $revision = ([xml](Get-Content -Raw (Join-Path $root "pom.xml"))).project.properties.revision
-New-Item -ItemType Directory -Force -Path $output | Out-Null
 
 function Invoke-Candidate([string]$Project, [string[]]$Goals, [string]$Log) {
     & $maven -B -ntp -f $Project "-Dtaf.version=$revision" "-Dtaf.staging.repository=$($staging.Replace('\','/'))" @Goals 2>&1 |
@@ -34,8 +35,13 @@ function Assert-ExpectedResults([string]$Reports, [int]$Tests, [int]$Failures) {
 
 function New-StandaloneReport([string]$ProjectRoot, [string]$Name) {
     if ([string]::IsNullOrWhiteSpace($AllureExecutable)) {
+        if (-not [string]::IsNullOrWhiteSpace($env:TAF_TEST_ALLURE_EXECUTABLE)) {
+            $script:AllureExecutable = $env:TAF_TEST_ALLURE_EXECUTABLE
+        }
         $command = Get-Command allure -ErrorAction SilentlyContinue
-        if ($command) { $script:AllureExecutable = $command.Source }
+        if ([string]::IsNullOrWhiteSpace($AllureExecutable) -and $command) {
+            $script:AllureExecutable = $command.Source
+        }
     }
     if ([string]::IsNullOrWhiteSpace($AllureExecutable)) { throw "Allure CLI is required" }
     $results = Join-Path $ProjectRoot "target/allure-results"
@@ -50,6 +56,20 @@ if (-not $SkipStage) {
     if ($LASTEXITCODE -ne 0) { throw "Candidate staging failed" }
 }
 if (-not (Test-Path -LiteralPath $staging)) { throw "Candidate staging repository is missing" }
+New-Item -ItemType Directory -Force -Path $output | Out-Null
+
+$sourceSha = (& git -C $root rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0) { throw "Candidate source identity could not be resolved" }
+$bom = Get-ChildItem -LiteralPath (Join-Path $staging "com/codinglair/taf/codinglair-taf-bom/$revision") `
+    -Filter "codinglair-taf-bom-$revision.pom" -File | Select-Object -First 1
+if (-not $bom) { throw "Matching staged candidate BOM is missing for $revision" }
+$candidateIdentity = Join-Path $output "candidate-identity.json"
+[pscustomobject]@{
+    revision = $revision
+    sourceSha = $sourceSha
+    bom = $bom.FullName.Substring($root.Length + 1).Replace('\','/')
+    bomSha256 = (Get-FileHash -LiteralPath $bom.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+} | ConvertTo-Json | Set-Content -LiteralPath $candidateIdentity -Encoding utf8
 
 $noAllure = Join-Path $root "release/qe-132-002/no-allure/pom.xml"
 if ((Invoke-Candidate $noAllure @("clean", "test") (Join-Path $output "no-allure.log")) -ne 0) {
@@ -57,23 +77,25 @@ if ((Invoke-Candidate $noAllure @("clean", "test") (Join-Path $output "no-allure
 }
 
 $testngRoot = Join-Path $root "release/qe-132-002/testng"
+$testngMatrix = if ([string]::IsNullOrWhiteSpace($TestngExpectations)) { Join-Path $testngRoot "evidence-expectations.json" } else { $TestngExpectations }
 $testngExit = Invoke-Candidate (Join-Path $testngRoot "pom.xml") @("clean", "test") (Join-Path $output "testng.log")
 if ($testngExit -eq 0) { throw "TestNG expected-failure suite unexpectedly passed" }
 Assert-ExpectedResults (Join-Path $testngRoot "target/surefire-reports") 4 1
 $testngReport = New-StandaloneReport $testngRoot "testng"
-& (Join-Path $root "build-support/verification/verify-consumer-evidence.ps1") -Results (Join-Path $testngRoot "target/allure-results") -Report $testngReport -Matrix (Join-Path $testngRoot "evidence-expectations.json") -Output (Join-Path $output "testng-validator.json")
+& (Join-Path $root "build-support/verification/verify-consumer-evidence.ps1") -Results (Join-Path $testngRoot "target/allure-results") -Report $testngReport -Matrix $testngMatrix -Output (Join-Path $output "testng-validator.json")
 if ($LASTEXITCODE -ne 0) { throw "TestNG evidence validation failed" }
 
 $cucumberRoot = Join-Path $root "release/qe-132-002/cucumber"
+$cucumberMatrix = if ([string]::IsNullOrWhiteSpace($CucumberExpectations)) { Join-Path $cucumberRoot "evidence-expectations.json" } else { $CucumberExpectations }
 $cucumberExit = Invoke-Candidate (Join-Path $cucumberRoot "pom.xml") @("clean", "test") (Join-Path $output "cucumber.log")
 if ($cucumberExit -eq 0) { throw "Cucumber expected-failure suite unexpectedly passed" }
 Assert-ExpectedResults (Join-Path $cucumberRoot "target/surefire-reports") 2 1
 $cucumberReport = New-StandaloneReport $cucumberRoot "cucumber"
-& (Join-Path $root "build-support/verification/verify-consumer-evidence.ps1") -Results (Join-Path $cucumberRoot "target/allure-results") -Report $cucumberReport -Matrix (Join-Path $cucumberRoot "evidence-expectations.json") -Output (Join-Path $output "cucumber-validator.json")
+& (Join-Path $root "build-support/verification/verify-consumer-evidence.ps1") -Results (Join-Path $cucumberRoot "target/allure-results") -Report $cucumberReport -Matrix $cucumberMatrix -Output (Join-Path $output "cucumber-validator.json")
 if ($LASTEXITCODE -ne 0) { throw "Cucumber evidence validation failed" }
 
 $artifacts = @($testngReport, $cucumberReport, (Join-Path $output "testng-validator.json"), (Join-Path $output "cucumber-validator.json")) | ForEach-Object {
     [pscustomobject]@{ path = $_.Substring($root.Length + 1).Replace('\','/'); sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() }
 }
-[pscustomobject]@{ assignment="QE-132-002"; candidate=$revision; testng=@{tests=4;failures=1}; cucumber=@{tests=2;failures=1}; noAllure=@{tests=1;failures=0}; artifacts=$artifacts; status="PASS" } |
+[pscustomobject]@{ assignment="QE-132-002"; candidate=$revision; sourceSha=$sourceSha; candidateIdentity="target/qe-132-002/candidate-identity.json"; testng=@{tests=4;failures=1}; cucumber=@{tests=2;failures=1}; noAllure=@{tests=1;failures=0}; artifacts=$artifacts; status="PASS" } |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output "summary.json") -Encoding utf8
