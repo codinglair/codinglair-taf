@@ -54,17 +54,13 @@ jobs:
           cache: maven
       - name: Provision repository-approved Allure CLI
         run: |
-          docker build --tag codinglair/taf-test-runner:qe-132-002 containers/taf-test-runner
-          mkdir -p target/qe-132-002-tooling
-          container_id="$(docker create codinglair/taf-test-runner:qe-132-002)"
-          docker cp "$container_id:/opt/allure-2.36.0" target/qe-132-002-tooling/allure-2.36.0
-          docker rm "$container_id"
-          test "$(target/qe-132-002-tooling/allure-2.36.0/bin/allure --version)" = '2.36.0'
+          npm install --global allure-commandline@2.36.0
+          test "$(allure --version)" = '2.36.0'
       - name: Run strict QE-132-002 qualification
         shell: pwsh
         run: >-
           ./build-support/verification/qe-132-002.ps1
-          -AllureExecutable ./target/qe-132-002-tooling/allure-2.36.0/bin/allure
+          -AllureExecutable allure
       - name: Report missing QE-132-002 evidence
         if: ${{ always() }}
         shell: pwsh
