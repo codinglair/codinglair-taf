@@ -45,6 +45,34 @@ affected evidence and requires reassessment.
 Every 1.3.2 traceability row is covered by the grouped gates above. `JK-07` remains an explicitly
 owned 1.3.3 follow-up and is not a 1.3.2 completion criterion.
 
+## 2026-10-30 container security remediation
+
+PR #117's three container jobs exposed `CVE-2026-111497` in Ubuntu Noble's `libbrotli1`
+`1.1.0-2build2`. The package came from the pinned Eclipse Temurin base layers, not from a Java or
+Maven dependency: MCP and Control Plane shared the affected JRE base, while Worker used the
+affected JDK base. The vendor's October 29 refreshed Temurin images use a patched Ubuntu base, so
+the three Dockerfiles now pin the refreshed JRE digest
+`sha256:2ef7a81085e0502d7d4ff7e7c0257b6d4f46433f8ea6021180aa3c8a2b9ca3ec` and JDK digest
+`sha256:7247bd8d2aeec64efe908dc72396d88101417d24ce3642703728382d96afb965` as applicable.
+No targeted APT layer was necessary. Ubuntu [USN-8956-1](https://ubuntu.com/security/notices/USN-8956-1)
+identifies `1.1.0-2ubuntu0.1` as the fixed Noble version.
+
+All three images were rebuilt locally with `--pull --no-cache`; `dpkg-query` reported
+`libbrotli1 1.1.0-2ubuntu0.1` in every final image. SPDX JSON SBOMs and Trivy 0.72.0
+HIGH/CRITICAL reports were generated under `target/cve-2026-111497/`. The unchanged evaluator
+reported zero unapproved findings for every image; MCP retained only its two pre-existing,
+exact-scope HttpCore exceptions, and no report contains a `CVE-2026-111497` vulnerability record.
+Worker smoke and the complete MCP STDIO/Streamable HTTP smoke passed. Control Plane reached its
+healthy state, but the existing smoke returned nonzero at the Docker Desktop/Windows tmpfs UID
+writability assertion documented in the DEP-132-001 handoff; Linux CI remains authoritative for
+that check. `-Pcontainer-images verify`, the five vulnerability-exception tests, and
+`VERSION=1.3.2 docker buildx bake --check` passed.
+
+The package remediation is locally verified in the final runtime images. Release acceptance and
+PR #117 merge readiness remain pending rerun of the three authoritative Linux container jobs,
+including the Control Plane smoke and retained CI evidence. No image or Maven artifact was
+published by this remediation.
+
 ## Candidate artifacts and hashes
 
 The prepared checkout contains 858 staged repository files, 53 primary JARs, and 52 CycloneDX

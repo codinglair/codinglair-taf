@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.10
-ARG JAVA_BUILDER_IMAGE=eclipse-temurin:25-jdk-noble@sha256:ba0f0e1a33864105e1d454e88105c617ab40f71062db1f306bf58be32a3f8e5e
+ARG JAVA_BUILDER_IMAGE=eclipse-temurin:25-jdk-noble@sha256:7247bd8d2aeec64efe908dc72396d88101417d24ce3642703728382d96afb965
 
 FROM ${JAVA_BUILDER_IMAGE} AS builder
 ARG VERSION
