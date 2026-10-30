@@ -21,6 +21,9 @@ All notable user-visible changes to Codinglair TAF will be documented in this fi
   mapper replacement.
 - Aligned Cucumber modules on 7.34.9 to remove its relocated Jackson 2.17.0 runtime from container
   images, and refreshed the pinned Java 25/Noble Temurin images for patched OpenSSL packages.
+- Refreshed the pinned Java 25/Noble Temurin JRE and JDK images so the MCP, Worker, and Control
+  Plane runtime images contain Ubuntu's fixed `libbrotli1` `1.1.0-2ubuntu0.1` package for
+  `CVE-2026-111497`, without changing vulnerability exceptions or gate severity.
 - Added an expiring, exact-scope MCP STDIO disposition for two genuine HttpCore 5.3.6 findings
   embedded in the required Testcontainers Docker transport. Raw Trivy/SBOM evidence remains
   unsuppressed; the gate reports accepted findings separately and still rejects every unapproved

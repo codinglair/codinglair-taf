@@ -10,6 +10,8 @@ public class AndroidControllerSettings {
   private URI serverUrl;
   private String deviceName;
   private String deviceId;
+  private String remoteAdbHost;
+  private Integer adbPort;
   private DeviceMode deviceMode = DeviceMode.LOCAL_EMULATOR;
   private ApplicationMode applicationMode = ApplicationMode.PREINSTALLED;
   private String appPackage;
@@ -33,6 +35,10 @@ public class AndroidControllerSettings {
           prefix + ".server-url must be an HTTP(S) endpoint without embedded credentials");
     if (deviceName == null || deviceName.isBlank())
       throw new IllegalArgumentException(prefix + ".device-name must not be blank");
+    if (remoteAdbHost != null && remoteAdbHost.isBlank())
+      throw new IllegalArgumentException(prefix + ".remote-adb-host must not be blank");
+    if (adbPort != null && (adbPort < 1 || adbPort > 65535))
+      throw new IllegalArgumentException(prefix + ".adb-port must be between 1 and 65535");
     if (appPackage == null || appPackage.isBlank())
       throw new IllegalArgumentException(prefix + ".app-package must not be blank");
     if (applicationMode == ApplicationMode.PACKAGED && app == null)
@@ -65,6 +71,22 @@ public class AndroidControllerSettings {
 
   public void setDeviceId(String v) {
     deviceId = v;
+  }
+
+  public String getRemoteAdbHost() {
+    return remoteAdbHost;
+  }
+
+  public void setRemoteAdbHost(String v) {
+    remoteAdbHost = v;
+  }
+
+  public Integer getAdbPort() {
+    return adbPort;
+  }
+
+  public void setAdbPort(Integer v) {
+    adbPort = v;
   }
 
   public DeviceMode getDeviceMode() {

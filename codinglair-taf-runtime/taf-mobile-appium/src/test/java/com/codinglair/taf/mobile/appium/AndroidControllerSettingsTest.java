@@ -1,5 +1,6 @@
 package com.codinglair.taf.mobile.appium;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codinglair.taf.mobile.ApplicationMode;
@@ -13,6 +14,16 @@ class AndroidControllerSettingsTest {
   @Nested
   @DisplayName("Validation")
   class Validation {
+    @Test
+    @DisplayName("leaves remote ADB connectivity unset by default")
+    void remoteAdbDefaultsAreAbsent() {
+      var settings = valid();
+
+      assertThat(settings.getRemoteAdbHost()).isNull();
+      assertThat(settings.getAdbPort()).isNull();
+      settings.validate("taf.mobile.android");
+    }
+
     @Test
     @DisplayName("rejects non-HTTP Appium endpoints")
     void rejectsUnsafeEndpoint() {
@@ -51,6 +62,33 @@ class AndroidControllerSettingsTest {
       assertThatThrownBy(() -> settings.validate("taf.mobile.android"))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("allow-visual-artifacts");
+    }
+
+    @Test
+    @DisplayName("rejects a blank remote ADB host")
+    void rejectsBlankRemoteAdbHost() {
+      var settings = valid();
+      settings.setRemoteAdbHost("  ");
+
+      assertThatThrownBy(() -> settings.validate("taf.mobile.android"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("remote-adb-host");
+    }
+
+    @Test
+    @DisplayName("rejects remote ADB ports outside the TCP port range")
+    void rejectsOutOfRangeAdbPort() {
+      var settings = valid();
+
+      settings.setAdbPort(0);
+      assertThatThrownBy(() -> settings.validate("taf.mobile.android"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("adb-port");
+
+      settings.setAdbPort(65536);
+      assertThatThrownBy(() -> settings.validate("taf.mobile.android"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("adb-port");
     }
   }
 
