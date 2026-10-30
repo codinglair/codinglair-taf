@@ -30,6 +30,7 @@ taf:
         primary:
           server-url: http://127.0.0.1:4723
           device-name: approved-api35-emulator
+          device-id: emulator-5554
           device-mode: local-emulator
           application-mode: preinstalled
           app-package: com.example.app
@@ -40,6 +41,32 @@ taf:
           device-logs: true
           video: false
 ```
+
+When ADB runs on a Windows host and Appium/UiAutomator2 runs in Docker, configure the
+server-visible ADB address explicitly:
+
+```yaml
+taf:
+  mobile:
+    android:
+      enabled: true
+      controllers:
+        primary:
+          server-url: http://127.0.0.1:4723
+          device-name: approved-api35-emulator
+          device-id: emulator-5554
+          app-package: com.example.app
+          app-activity: .MainActivity
+          remote-adb-host: host.docker.internal
+          adb-port: 5037
+```
+
+`remote-adb-host` and `adb-port` are independent optional settings. TAF supplies them only as
+`appium:remoteAdbHost` and `appium:adbPort` capabilities; omitting either leaves that capability
+and its Appium default unchanged. The consumer environment remains responsible for making the ADB
+server reachable from the Appium container, configuring Docker networking, and protecting the ADB
+server and host firewall. The hostname and port above illustrate one Docker Desktop topology and
+are not framework defaults.
 
 Physical-device certificates, signing keys, MDM enrollment, and USB policy are operator-owned.
 Store only references to credentials or profiles; never copy private keys into TAF configuration.

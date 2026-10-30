@@ -17,6 +17,7 @@ or retain the original sanitized bundle before promotion.
 | Public safety QE | `QE-132-001-handoff.md`; QE-132-001 reviews | `target/qe-132-001/acceptance-matrix.json`, summary and scenario directories | PASS; 26/26 |
 | Report usability QE | `QE-132-002-handoff.md`; QE-132-002 reviews | `target/qe-132-002/summary.json`, logs, validators and reports | PASS locally; owner visual review open |
 | Documentation | `DOC-132-001-handoff.md`; DOC reviews; documentation inventory | docs/API/schema Maven reports | PASS |
+| Container CVE remediation | `REL-132-001-release-readiness.md` (2026-10-30 remediation record); Ubuntu USN-8956-1 | `target/cve-2026-111497/` SPDX, raw Trivy, accepted and unapproved JSON reports | Local package and vulnerability gates PASS for MCP, Worker and Control Plane; Worker and both MCP profiles smoke PASS; Control Plane Linux smoke and PR #117 CI rerun pending |
 
 ## Standalone Allure deliverables
 

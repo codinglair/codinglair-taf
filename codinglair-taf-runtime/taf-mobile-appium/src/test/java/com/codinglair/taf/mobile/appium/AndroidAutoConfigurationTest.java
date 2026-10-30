@@ -46,6 +46,26 @@ class AndroidAutoConfigurationTest {
   }
 
   @Test
+  @DisplayName("binds remote ADB settings for a named controller")
+  void bindsNamedControllerRemoteAdbSettings() {
+    runner
+        .withPropertyValues(
+            "taf.mobile.android.enabled=true",
+            "taf.mobile.android.controllers.device.server-url=http://127.0.0.1:4723",
+            "taf.mobile.android.controllers.device.device-name=emulator-5554",
+            "taf.mobile.android.controllers.device.app-package=com.example.app",
+            "taf.mobile.android.controllers.device.remote-adb-host=host.docker.internal",
+            "taf.mobile.android.controllers.device.adb-port=5037")
+        .run(
+            context -> {
+              var settings =
+                  context.getBean(AndroidProperties.class).getControllers().get("device");
+              assertThat(settings.getRemoteAdbHost()).isEqualTo("host.docker.internal");
+              assertThat(settings.getAdbPort()).isEqualTo(5037);
+            });
+  }
+
+  @Test
   @DisplayName("reports invalid configuration through aggregated preflight")
   void reportsInvalidConfiguration() {
     runner

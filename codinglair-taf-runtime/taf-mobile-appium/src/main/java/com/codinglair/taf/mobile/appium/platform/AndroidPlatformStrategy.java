@@ -19,17 +19,7 @@ public final class AndroidPlatformStrategy {
   public AndroidDriver create(AndroidControllerSettings settings, ResourceAuthorizer authorizer)
       throws Exception {
     if (authorizer != null) authorize(settings, authorizer, "connect");
-    var options =
-        new UiAutomator2Options()
-            .setDeviceName(settings.getDeviceName())
-            .setAppPackage(settings.getAppPackage())
-            .setNewCommandTimeout(settings.getCommandTimeout());
-    if (settings.getDeviceId() != null && !settings.getDeviceId().isBlank())
-      options.setUdid(settings.getDeviceId());
-    if (settings.getAppActivity() != null && !settings.getAppActivity().isBlank())
-      options.setAppActivity(settings.getAppActivity());
-    if (settings.getApp() != null)
-      options.setApp(settings.getApp().toAbsolutePath().normalize().toString());
+    var options = options(settings);
     if (authorizer == null) return new AndroidDriver(settings.getServerUrl().toURL(), options);
     return new AndroidDriver(
         settings.getServerUrl().toURL(),
@@ -43,6 +33,23 @@ public final class AndroidPlatformStrategy {
                               return next.execute(request);
                             })),
         options);
+  }
+
+  static UiAutomator2Options options(AndroidControllerSettings settings) {
+    var options =
+        new UiAutomator2Options()
+            .setDeviceName(settings.getDeviceName())
+            .setAppPackage(settings.getAppPackage())
+            .setNewCommandTimeout(settings.getCommandTimeout());
+    if (settings.getDeviceId() != null && !settings.getDeviceId().isBlank())
+      options.setUdid(settings.getDeviceId());
+    if (settings.getRemoteAdbHost() != null) options.setRemoteAdbHost(settings.getRemoteAdbHost());
+    if (settings.getAdbPort() != null) options.setAdbPort(settings.getAdbPort());
+    if (settings.getAppActivity() != null && !settings.getAppActivity().isBlank())
+      options.setAppActivity(settings.getAppActivity());
+    if (settings.getApp() != null)
+      options.setApp(settings.getApp().toAbsolutePath().normalize().toString());
+    return options;
   }
 
   private static void authorize(
